@@ -1,0 +1,1006 @@
+/**
+ * Project detail view - linear pipeline stepper with 5 Agent identities.
+ */
+
+const AGENT_META = {
+    agent_director: {
+        name: '项目总监',
+        icon: '📋',
+        description: '监控全局制片进度，调度各环节任务',
+        color: '#6c5ce7',
+    },
+    agent_chief_director: {
+        name: '总导演',
+        icon: '🎬',
+        description: '编写剧本、设计分镜，把控创作方向',
+        color: '#e17055',
+    },
+    agent_visual: {
+        name: '视觉总监',
+        icon: '🎨',
+        description: '生成角色/场景视觉素材，驱动视频生成',
+        color: '#00b894',
+    },
+    agent_prompt: {
+        name: '提示词架构师',
+        icon: '✍️',
+        description: '将文学分镜转化为精准 Prompt，优化生成效果',
+        color: '#fdcb6e',
+    },
+    agent_editor: {
+        name: '自动化剪辑师',
+        icon: '🎞️',
+        description: '拼接分镜片段，添加字幕与BGM，输出成片',
+        color: '#74b9ff',
+    },
+};
+const AGENT_ORDER = Object.keys(AGENT_META);
+
+// Pipeline stages for the linear stepper
+const PIPELINE_STAGES = [
+    { stage: 'requirements_confirmed', label: '需求确认', agent: 'agent_director' },
+    { stage: 'script_completed', label: '完整剧本', agent: 'agent_chief_director' },
+    { stage: 'format_completed', label: '格式化分镜', agent: 'agent_prompt' },
+    { stage: 'assets_completed', label: '资产锁定', agent: 'agent_visual' },
+    { stage: 'shots_completed', label: '逐镜视频', agent: 'agent_visual' },
+    { stage: 'project_completed', label: '合成输出', agent: 'agent_editor' },
+];
+
+const STAGE_TITLES = {
+    requirements_confirmed: '需求确认',
+    script_generating: '剧本生成中',
+    script_completed: '完整剧本',
+    format_generating: '格式化分镜中',
+    format_completed: '格式化分镜',
+    assets_generating: '资产生成中',
+    assets_completed: '资产锁定',
+    shots_generating: '逐镜视频生成中',
+    shots_completed: '逐镜视频',
+    episode_composing: '剧集合成中',
+    episode_completed: '剧集完成',
+    project_completed: '合成输出'
+};
+
+const EPISODE_STATUS_LABELS = {
+    completed: '已完成',
+    editing: '剪辑中',
+    rendering: '渲染中',
+    asset_generating: '素材生成',
+    storyboarding: '分镜设计',
+    scripting: '剧本编写',
+    pending: '等待中',
+    qc_checking: '质检中',
+    failed: '失败',
+};
+
+const ProjectView = {
+    currentProjectId: null,
+    currentTab: 'overview',
+    agentsData: null,
+    agentMonitorState: {},
+    ws: null,
+    async show(projectId) {
+        this.currentProjectId = projectId;
+        this.currentTab = 'overview';
+        this.agentMonitorState = {};
+
+        if (this.ws) {
+            this.ws.close();
+            this.ws = null;
+        }
+
+        document.getElementById('view-new-project').classList.add('hidden');
+        document.getElementById('view-project-detail').classList.remove('hidden');
+
+        document.querySelectorAll('.project-nav-item').forEach(el => el.classList.remove('active'));
+        const navItem = document.querySelector(`.project-nav-item[data-pid="${projectId}"]`);
+        if (navItem) navItem.classList.add('active');
+
+        const project = await Api.getProject(projectId);
+        if (!project) return;
+
+        this._renderHeader(project);
+        this._renderContent(project);
+
+        this.ws = Api.connectWebSocket(projectId, (msg) => this._handleWsMessage(msg));
+    },
+
+    _renderHeader(project) {
+        const header = document.getElementById('project-detail-header');
+        const statusLabels = { pending: '等待中', in_progress: '制片中', completed: '已完成', paused: '已暂停', failed: '失败' };
+
+        header.innerHTML = `
+            <div class="project-header-bar">
+                <div class="project-title-area">
+                    <h1>${project.title}</h1>
+                    <span class="project-badge ${project.status}">${statusLabels[project.status] || project.status}</span>
+                </div>
+                <div class="project-actions">
+                    ${project.status === 'pending' ? `
+                        <button class="btn-primary" onclick="ProjectView.startProduction()">启动制片</button>
+                    ` : ''}
+                    <button class="btn-secondary" onclick="navigateTo('new-project')">+ 新建项目</button>
+                </div>
+            </div>
+        `;
+    },
+
+    _renderContent(project) {
+        const content = document.getElementById('project-detail-content');
+        content.innerHTML = `
+            <div class="tabs">
+                <button class="tab-btn active" onclick="ProjectView.switchTab('overview')">概览</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('pipeline')">制片流水线</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('monitor')">总控台</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('agents')">五大智能体</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('characters')">角色</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('episodes')">剧集</button>
+            </div>
+            <div id="tab-content"></div>
+        `;
+
+        this._renderTab('overview', project);
+    },
+
+    async switchTab(tab) {
+        this.currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.textContent === this._tabLabel(tab));
+        });
+
+        const project = await Api.getProject(this.currentProjectId);
+        if (project) this._renderTab(tab, project);
+    },
+
+    _tabLabel(tab) {
+        return {
+            overview: '概览',
+            pipeline: '制片流水线',
+            monitor: '总控台',
+            agents: '五大智能体',
+            characters: '角色',
+            episodes: '剧集'
+        }[tab] || tab;
+    },
+
+    _renderTab(tab, project) {
+        const container = document.getElementById('tab-content');
+        switch (tab) {
+            case 'overview': this._renderOverview(container, project); break;
+            case 'pipeline': this._renderPipeline(container, project); break;
+            case 'monitor': this._renderMonitor(container, project); break;
+            case 'agents': this._renderAgents(container, project); break;
+            case 'characters': this._renderCharacters(container, project); break;
+            case 'episodes': this._renderEpisodes(container, project); break;
+        }
+    },
+
+    _orderedAgents(agents = []) {
+        return [...agents].sort(
+            (a, b) => AGENT_ORDER.indexOf(a.agent_id) - AGENT_ORDER.indexOf(b.agent_id)
+        );
+    },
+
+    _renderPipeline(container, project) {
+        const stages = project.stages || [];
+        const stageMap = {};
+        for (const s of stages) {
+            stageMap[s.stage] = s;
+        }
+
+        let html = '<div class="pipeline-container">';
+        html += '<div class="section-title">制片流水线</div>';
+        html += '<div class="pipeline-subtitle">严格线性流程：每一阶段必须完成后才能进入下一阶段</div>';
+
+        html += '<div class="pipeline-steps">';
+        for (const ps of PIPELINE_STAGES) {
+            const stageInfo = stageMap[ps.stage];
+            const status = stageInfo?.status || 'pending';
+            const agent = AGENT_META[ps.agent] || { icon: '\u{1F916}', color: '#6b7280', description: '' };
+            const statusLabel = { pending: '等待中', in_progress: '进行中', completed: '已完成', failed: '失败' }[status] || status;
+
+            html += `
+                <div class="pipeline-step ${status}">
+                    <div class="pipeline-step-icon" style="background: ${agent.color}">${agent.icon}</div>
+                    <div class="pipeline-step-content">
+                        <div class="pipeline-step-title">${ps.label}</div>
+                        <div class="pipeline-step-agent">${agent.description || ''}</div>
+                        <div class="pipeline-step-status ${status}">${statusLabel}</div>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+
+        // Timeline from production events
+        html += '<div class="section-title" style="margin-top: 24px;">生产事件时间线</div>';
+        html += '<div id="pipeline-timeline"><div style="color: var(--text-tertiary); text-align: center; padding: 24px;">加载中...</div></div>';
+        html += '</div>';
+
+        container.innerHTML = html;
+
+        // Load timeline
+        this._loadTimeline();
+    },
+
+    async _loadTimeline() {
+        try {
+            const data = await Api.getProjectTimeline(this.currentProjectId);
+            const timelineEl = document.getElementById('pipeline-timeline');
+            if (!timelineEl) return;
+
+            const events = data.timeline || [];
+            if (events.length === 0) {
+                timelineEl.innerHTML = '<div style="color: var(--text-tertiary); text-align: center; padding: 24px;">暂无生产事件</div>';
+                return;
+            }
+
+            let html = '<div class="timeline-list">';
+            for (const e of events.slice(-30)) {
+                const agent = AGENT_META[e.agent_id] || { icon: '\u{1F916}', color: '#6b7280', name: 'Agent' };
+                html += `
+                    <div class="timeline-entry">
+                        <div class="timeline-icon" style="background: ${agent.color}">${agent.icon}</div>
+                        <div class="timeline-content">
+                            <div class="timeline-header">
+                                <span class="timeline-agent">${agent.name}</span>
+                                <span class="timeline-title">${e.title}</span>
+                                <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString()}</span>
+                            </div>
+                            <div class="timeline-message">${e.message}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+            timelineEl.innerHTML = html;
+        } catch (err) {
+            const timelineEl = document.getElementById('pipeline-timeline');
+            if (timelineEl) timelineEl.innerHTML = '<div style="color: var(--text-tertiary); text-align: center;">加载失败</div>';
+        }
+    },
+
+    _renderOverview(container, project) {
+        const completed = project.episodes.filter(e => e.status === 'completed').length;
+        const inProgress = project.episodes.filter(e => e.status !== 'completed' && e.status !== 'pending').length;
+        const pending = project.episodes.filter(e => e.status === 'pending').length;
+
+        container.innerHTML = `
+            <div class="progress-overview">
+                <div class="stat-card">
+                    <div class="stat-card-label">总体进度</div>
+                    <div class="stat-card-value">${project.progress}%</div>
+                    <div class="progress-bar-wrapper">
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill success" style="width: ${project.progress}%"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">已完成</div>
+                    <div class="stat-card-value">${completed}</div>
+                    <div class="stat-card-sub">共 ${project.episodes.length} 集</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">进行中</div>
+                    <div class="stat-card-value">${inProgress}</div>
+                    <div class="stat-card-sub">渲染/剪辑/生成中</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-card-label">等待中</div>
+                    <div class="stat-card-value">${pending}</div>
+                    <div class="stat-card-sub">排队等待处理</div>
+                </div>
+            </div>
+
+            <div class="section-title">当前阶段</div>
+            <div class="agent-subtitle">${project.current_stage ? '制片流程正在推进中' : '项目尚未启动制片流程'}</div>
+            <div id="overview-agents"></div>
+        `;
+
+        this._renderAgentsMini(document.getElementById('overview-agents'), project);
+    },
+
+    _agentStatusText(status) {
+        return status === 'working' ? '工作中' : status === 'error' ? '错误' : '空闲';
+    },
+
+    async _renderAgentsMini(container, project) {
+        const agentsData = await Api.getAgents(project.project_id);
+        let html = '<div class="agents-grid">';
+        for (const agent of this._orderedAgents(agentsData.agents || [])) {
+            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const progress = agent.total_tasks > 0 ? Math.round(agent.completed_tasks / agent.total_tasks * 100) : 0;
+            html += `
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <span class="agent-icon">${meta.icon}</span>
+                        <span class="agent-name">${agent.name}</span>
+                        <span class="agent-status">
+                            <span class="agent-status-dot ${agent.status}"></span>
+                            ${this._agentStatusText(agent.status)}
+                        </span>
+                    </div>
+                    <div class="agent-description">${meta.description}</div>
+                    <div class="agent-task">${this._escapeHtml(agent.current_task || '等待任务')}</div>
+                    <div class="agent-progress">
+                        <span>${agent.completed_tasks} / ${agent.total_tasks}</span>
+                        <span>${progress}%</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width: ${progress}%; background: ${meta.color}"></div>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    },
+
+    async _renderMonitor(container, project) {
+        const agentsData = await Api.getAgents(project.project_id);
+        const orderedAgents = this._orderedAgents(agentsData.agents || []);
+        const stageMap = {};
+        for (const stage of project.stages || []) {
+            stageMap[stage.stage] = stage;
+        }
+
+        const agentDetails = await Promise.all(
+            orderedAgents.map(async (agent) => {
+                const [logsData, eventsData] = await Promise.all([
+                    Api.getAgentLogs(project.project_id, agent.agent_id),
+                    Api.getAgentEvents(project.project_id, agent.agent_id)
+                ]);
+                const events = eventsData.events || [];
+                return {
+                    agent,
+                    logs: logsData.logs || [],
+                    events,
+                    monitor: this._deriveMonitorState(agent.agent_id, events)
+                };
+            })
+        );
+
+        const active = agentDetails.find(({ agent }) => agent.status === 'working') || agentDetails[0] || null;
+        const completedStages = PIPELINE_STAGES.filter(ps => stageMap[ps.stage]?.status === 'completed').length;
+        const pipelineCompletion = PIPELINE_STAGES.length > 0
+            ? Math.round((completedStages / PIPELINE_STAGES.length) * 100)
+            : 0;
+        const workingAgents = agentDetails.filter(({ agent }) => agent.status === 'working').length;
+        const totalEvents = agentDetails.reduce((sum, detail) => sum + detail.events.length, 0);
+        const totalLogs = agentDetails.reduce((sum, detail) => sum + detail.logs.length, 0);
+        const lastSignalAt = agentDetails
+            .flatMap(({ events, logs }) => [
+                ...events.map(event => event.created_at).filter(Boolean),
+                ...logs.map(log => log.timestamp).filter(Boolean)
+            ])
+            .sort()
+            .at(-1);
+        const recentSignals = agentDetails
+            .flatMap(({ agent, events }) => {
+                const meta = AGENT_META[agent.agent_id] || { icon: '🤖', color: '#6b7280' };
+                return events.slice(-3).map(event => ({ agent, meta, event }));
+            })
+            .sort((a, b) => new Date(b.event.created_at) - new Date(a.event.created_at))
+            .slice(0, 8);
+        const currentStageLabel = this._stageTitle(project.current_stage) || '待启动';
+
+        let html = `
+            <section class="monitor-hero">
+                <div class="monitor-hero-main">
+                    <div class="monitor-eyebrow">TOTAL CONSOLE</div>
+                    <div class="monitor-hero-heading">
+                        <div>
+                            <div class="section-title" style="margin: 0;">总控台</div>
+                            <div class="agent-subtitle">把五个智能体的提示词、实时输出、最近事件和当前任务压成一张战情面板，方便盯住整条线性制片链路。</div>
+                        </div>
+                        <div class="monitor-stage-badge ${project.status}">${this._escapeHtml(currentStageLabel)}</div>
+                    </div>
+                    <div class="monitor-hero-task">${active ? this._escapeHtml(active.agent.current_task || active.monitor.currentTask || '等待任务') : '当前没有活跃任务'}</div>
+                    <div class="monitor-stage-strip">
+                        ${PIPELINE_STAGES.map(ps => {
+                            const stageInfo = stageMap[ps.stage];
+                            const status = stageInfo?.status || (project.current_stage === ps.stage && project.status !== 'pending' ? 'in_progress' : 'pending');
+                            const meta = AGENT_META[ps.agent] || { icon: '🤖', color: '#6b7280' };
+                            const stageAgent = orderedAgents.find(agent => agent.agent_id === ps.agent);
+                            return `
+                                <div class="monitor-stage-chip ${status} ${project.current_stage === ps.stage ? 'current' : ''}">
+                                    <div class="monitor-stage-chip-icon" style="color: ${meta.color}">${meta.icon}</div>
+                                    <div class="monitor-stage-chip-body">
+                                        <div class="monitor-stage-chip-title">${ps.label}</div>
+                                        <div class="monitor-stage-chip-meta">${this._escapeHtml(stageAgent?.name || '待分配')}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+                <div class="monitor-kpi-grid">
+                    <div class="monitor-kpi-card primary">
+                        <div class="monitor-kpi-label">流水线进度</div>
+                        <div class="monitor-kpi-value">${pipelineCompletion}%</div>
+                        <div class="monitor-kpi-sub">${completedStages} / ${PIPELINE_STAGES.length} 个关键阶段完成</div>
+                    </div>
+                    <div class="monitor-kpi-card">
+                        <div class="monitor-kpi-label">活跃智能体</div>
+                        <div class="monitor-kpi-value">${workingAgents}</div>
+                        <div class="monitor-kpi-sub">${orderedAgents.length} 个席位在线</div>
+                    </div>
+                    <div class="monitor-kpi-card">
+                        <div class="monitor-kpi-label">链路事件</div>
+                        <div class="monitor-kpi-value">${totalEvents}</div>
+                        <div class="monitor-kpi-sub">累计日志 ${totalLogs} 条</div>
+                    </div>
+                    <div class="monitor-kpi-card">
+                        <div class="monitor-kpi-label">最近刷新</div>
+                        <div class="monitor-kpi-value small">${lastSignalAt ? new Date(lastSignalAt).toLocaleTimeString() : '暂无'}</div>
+                        <div class="monitor-kpi-sub">项目状态：${this._escapeHtml(project.status)}</div>
+                    </div>
+                </div>
+            </section>
+        `;
+
+        if (active) {
+            const activeMeta = AGENT_META[active.agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const activeSummary = active.events.length > 0
+                ? [active.events.at(-1).title, active.events.at(-1).message].filter(Boolean).map(text => this._escapeHtml(text)).join(' · ')
+                : this._escapeHtml(active.monitor.metaText || '最近暂无反馈');
+            const activeProgress = active.agent.total_tasks > 0
+                ? Math.round((active.agent.completed_tasks / active.agent.total_tasks) * 100)
+                : 0;
+            html += `
+                <section class="monitor-focus monitor-focus-rich">
+                    <div class="monitor-focus-header">
+                        <div>
+                            <div class="monitor-eyebrow">ACTIVE SEAT</div>
+                            <div class="section-title" style="margin: 0;">当前执行智能体</div>
+                            <div class="agent-subtitle">${this._escapeHtml(activeMeta.description)}</div>
+                        </div>
+                        <div class="monitor-focus-agent" style="color: ${activeMeta.color}">${activeMeta.icon} ${active.agent.name}</div>
+                    </div>
+                    <div class="monitor-focus-grid">
+                        <div class="monitor-focus-card emphasis">
+                            <div class="monitor-focus-label">当前任务</div>
+                            <div class="monitor-focus-value">${this._escapeHtml(active.agent.current_task || active.monitor.currentTask || '等待任务')}</div>
+                        </div>
+                        <div class="monitor-focus-card">
+                            <div class="monitor-focus-label">最近反馈</div>
+                            <div class="monitor-focus-value">${activeSummary}</div>
+                        </div>
+                        <div class="monitor-focus-card">
+                            <div class="monitor-focus-label">任务完成度</div>
+                            <div class="monitor-focus-value">${active.agent.completed_tasks} / ${active.agent.total_tasks}</div>
+                            <div class="monitor-focus-sub">约 ${activeProgress}%</div>
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+
+        if (recentSignals.length > 0) {
+            html += `
+                <section class="monitor-pulse">
+                    <div class="monitor-pulse-header">
+                        <div>
+                            <div class="section-title" style="margin: 0;">全局信号流</div>
+                            <div class="agent-subtitle">先看异常，再看产出，把最近发生的关键事件压成一条总线。</div>
+                        </div>
+                    </div>
+                    <div class="monitor-pulse-grid">
+                        ${recentSignals.map(({ meta, event, agent }) => `
+                            <div class="monitor-pulse-item">
+                                <div class="monitor-pulse-item-header">
+                                    <span class="monitor-pulse-agent" style="color: ${meta.color}">${meta.icon} ${this._escapeHtml(agent.name)}</span>
+                                    <span class="monitor-pulse-time">${new Date(event.created_at).toLocaleTimeString()}</span>
+                                </div>
+                                <div class="monitor-pulse-title">${this._escapeHtml(event.title)}</div>
+                                <div class="monitor-pulse-message">${this._escapeHtml(event.message)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </section>
+            `;
+        }
+
+        html += `
+            <div class="monitor-console-layout">
+                <aside class="monitor-sidebar">
+                    <div class="monitor-sidebar-header">
+                        <div class="section-title" style="margin: 0;">执行席位</div>
+                        <div class="agent-subtitle">按执行顺序查看每位智能体的实时状态</div>
+                    </div>
+                    <div class="monitor-sidebar-stack">
+                        ${agentDetails.map(({ agent, events, monitor }) => {
+                            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+                            const progress = agent.total_tasks > 0 ? Math.round((agent.completed_tasks / agent.total_tasks) * 100) : 0;
+                            const lastEvent = events.at(-1);
+                            return `
+                                <div class="monitor-sidebar-card ${agent.status} ${active?.agent.agent_id === agent.agent_id ? 'active' : ''}">
+                                    <div class="monitor-sidebar-card-header">
+                                        <div class="monitor-sidebar-agent" style="color: ${meta.color}">${meta.icon} ${agent.name}</div>
+                                        <div class="agent-status">
+                                            <span class="agent-status-dot ${agent.status}"></span>
+                                            ${this._agentStatusText(agent.status)}
+                                        </div>
+                                    </div>
+                                    <div class="monitor-sidebar-task" id="monitor-sidebar-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || monitor.currentTask || '等待任务')}</div>
+                                    <div class="monitor-sidebar-meta">
+                                        <span>${agent.completed_tasks} / ${agent.total_tasks || 0}</span>
+                                        <span>${progress}%</span>
+                                        <span>${this._escapeHtml(this._stageTitle(monitor.stage) || '未进入阶段')}</span>
+                                        <span>${lastEvent ? new Date(lastEvent.created_at).toLocaleTimeString() : '暂无事件'}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </aside>
+                <div class="monitor-stack">
+        `;
+
+        for (const { agent, logs, events, monitor } of agentDetails) {
+            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const stageLabel = this._stageTitle(monitor.stage) || '未进入阶段';
+            html += `
+                <section class="monitor-panel ${agent.status}">
+                    <div class="monitor-panel-header">
+                        <div>
+                            <div class="monitor-panel-title" style="color: ${meta.color}">${meta.icon} ${agent.name}</div>
+                            <div class="agent-description">${this._escapeHtml(meta.description)}</div>
+                        </div>
+                        <div class="monitor-panel-badges">
+                            <span class="monitor-pill stage" id="monitor-stage-${agent.agent_id}">${this._escapeHtml(stageLabel)}</span>
+                            <span class="monitor-pill status ${agent.status}">${this._agentStatusText(agent.status)}</span>
+                        </div>
+                    </div>
+                    <div class="agent-task" id="monitor-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || monitor.currentTask || '等待任务')}</div>
+                    <div class="monitor-mini-stats">
+                        <div class="monitor-mini-stat">
+                            <span>任务</span>
+                            <strong>${agent.completed_tasks} / ${agent.total_tasks}</strong>
+                        </div>
+                        <div class="monitor-mini-stat">
+                            <span>最近事件</span>
+                            <strong>${events.length > 0 ? new Date(events.at(-1).created_at).toLocaleTimeString() : '暂无'}</strong>
+                        </div>
+                        <div class="monitor-mini-stat">
+                            <span>日志数</span>
+                            <strong>${logs.length}</strong>
+                        </div>
+                    </div>
+                    <div class="monitor-stream-grid">
+                        <details class="monitor-stream-card prompt" id="monitor-prompt-card-${agent.agent_id}">
+                            <summary class="monitor-stream-summary">
+                                <div class="monitor-stream-copy">
+                                    <div class="agent-monitor-label">最新提示词</div>
+                                    <div class="monitor-stream-preview" id="monitor-prompt-preview-${agent.agent_id}">${this._escapeHtml(this._monitorPreview(monitor.prompt, '暂无提示词'))}</div>
+                                </div>
+                                <div class="monitor-stream-meta" id="monitor-prompt-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.prompt, '暂无提示词'))}</div>
+                            </summary>
+                            <pre class="agent-monitor-text prompt" id="monitor-prompt-${agent.agent_id}">${this._escapeHtml(monitor.prompt || '暂无提示词')}</pre>
+                        </details>
+                        <details class="monitor-stream-card output" id="monitor-output-card-${agent.agent_id}" ${(monitor.output || agent.status === 'working') ? 'open' : ''}>
+                            <summary class="monitor-stream-summary">
+                                <div class="monitor-stream-copy">
+                                    <div class="agent-monitor-label">实时反馈</div>
+                                    <div class="monitor-stream-preview" id="monitor-output-preview-${agent.agent_id}">${this._escapeHtml(this._monitorPreview(monitor.output, '等待输出'))}</div>
+                                </div>
+                                <div class="monitor-stream-meta" id="monitor-output-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.output, '等待输出'))}</div>
+                            </summary>
+                            <pre class="agent-monitor-text output" id="monitor-output-${agent.agent_id}">${this._escapeHtml(monitor.output || '等待输出')}</pre>
+                        </details>
+                    </div>
+                    <div class="agent-monitor-meta" id="monitor-meta-${agent.agent_id}">${this._escapeHtml(monitor.metaText || '暂无执行反馈')}</div>
+                    <div class="monitor-detail-grid">
+                        <div class="monitor-detail-card">
+                            <div class="monitor-detail-title">最近事件</div>
+                            <div class="agent-events">
+                                ${(events.slice(-4).map(event => `
+                                    <div class="agent-event-entry">
+                                        <span class="agent-event-time">${new Date(event.created_at).toLocaleTimeString()}</span>
+                                        <span class="agent-event-title">${this._escapeHtml(event.title)}</span>
+                                        <div class="agent-event-msg">${this._escapeHtml(event.message)}</div>
+                                    </div>
+                                `).join('')) || '<div class="agent-event-entry muted">暂无事件</div>'}
+                            </div>
+                        </div>
+                        <div class="monitor-detail-card">
+                            <div class="monitor-detail-title">执行日志</div>
+                            <div class="log-panel monitor-log-panel">
+                                ${logs.slice(-6).map(log => `
+                                    <div class="log-entry">
+                                        <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                                        <span class="log-level ${log.level}">[${log.level}]</span>
+                                        <span class="log-msg">${this._escapeHtml(log.message)}</span>
+                                    </div>
+                                `).join('')}
+                                ${logs.length === 0 ? '<div class="log-entry" style="color: var(--text-tertiary);">暂无日志</div>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            `;
+        }
+
+        html += `
+                </div>
+            </div>
+        `;
+        container.innerHTML = html;
+    },
+
+    async _renderAgents(container, project) {
+        const agentsData = await Api.getAgents(project.project_id);
+        this.agentsData = agentsData;
+        const orderedAgents = this._orderedAgents(agentsData.agents || []);
+        const agentLogs = await Promise.all(
+            orderedAgents.map(agent => Api.getAgentLogs(project.project_id, agent.agent_id))
+        );
+
+        let html = `
+            <div class="agents-intro">
+                <p>这里保留分智能体视角，适合分别查看每个角色当前任务、完成度和最近日志。详细提示词与流式输出请切到“总控台”。</p>
+            </div>
+            <div class="agents-grid">
+        `;
+
+        orderedAgents.forEach((agent, index) => {
+            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const logs = agentLogs[index].logs || [];
+            const progress = agent.total_tasks > 0 ? Math.round(agent.completed_tasks / agent.total_tasks * 100) : 0;
+            html += `
+                <div class="agent-card">
+                    <div class="agent-card-header">
+                        <span class="agent-icon">${meta.icon}</span>
+                        <span class="agent-name">${agent.name}</span>
+                        <span class="agent-status">
+                            <span class="agent-status-dot ${agent.status}"></span>
+                            ${this._agentStatusText(agent.status)}
+                        </span>
+                    </div>
+                    <div class="agent-id">${agent.agent_id}</div>
+                    <div class="agent-description">${meta.description}</div>
+                    <div class="agent-task" id="agent-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || '等待任务')}</div>
+                    <div class="agent-progress">
+                        <span id="agent-progress-text-${agent.agent_id}">${agent.completed_tasks} / ${agent.total_tasks}</span>
+                        <span id="agent-progress-pct-${agent.agent_id}">${progress}%</span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" id="agent-progress-bar-${agent.agent_id}" style="width: ${progress}%; background: ${meta.color}"></div>
+                    </div>
+                    <div class="log-panel" style="margin-top: 12px; max-height: 180px;">
+                        ${logs.slice(-6).map(log => `
+                            <div class="log-entry">
+                                <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
+                                <span class="log-level ${log.level}">[${log.level}]</span>
+                                <span class="log-msg">${this._escapeHtml(log.message)}</span>
+                            </div>
+                        `).join('')}
+                        ${logs.length === 0 ? '<div class="log-entry" style="color: var(--text-tertiary);">暂无日志</div>' : ''}
+                    </div>
+                </div>
+            `;
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    },
+
+    _deriveMonitorState(agentId, events = []) {
+        const state = this.agentMonitorState[agentId] || {};
+        for (const event of events) {
+            if (event.event_type === 'prompt_issued' && event.payload?.prompt) {
+                state.prompt = event.payload.prompt;
+            }
+            if (event.event_type === 'output_captured' && event.payload?.output) {
+                state.output = event.payload.output;
+            }
+            state.metaText = `${event.title} · ${event.message}`;
+            state.stage = event.stage;
+        }
+        this.agentMonitorState[agentId] = state;
+        return state;
+    },
+
+    _escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    },
+
+    _stageTitle(stage) {
+        return stage ? (STAGE_TITLES[stage] || stage) : '';
+    },
+
+    _agentName(agentId) {
+        return AGENT_META[agentId]?.name || 'Agent';
+    },
+
+    _monitorPreview(value, fallback) {
+        const normalized = String(value || '').replace(/```json\n?/g, '').replace(/```/g, '').trim();
+        if (!normalized) return fallback;
+        const lines = normalized.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const firstMeaningfulLine = (lines[0] === '{' || lines[0] === '[') && lines[1] ? lines[1] : (lines[0] || normalized);
+        return firstMeaningfulLine.length > 88 ? `${firstMeaningfulLine.slice(0, 88)}…` : firstMeaningfulLine;
+    },
+
+    _monitorStatText(value, fallback) {
+        const normalized = String(value || '').replace(/```json\n?/g, '').replace(/```/g, '').trim();
+        if (!normalized) return fallback;
+        const lineCount = normalized.split(/\r?\n/).filter(Boolean).length;
+        return `${lineCount} 行 · ${normalized.length} 字`;
+    },
+
+    _applyAgentMonitorUpdate(data) {
+        const agentId = data.agent_id;
+        if (!agentId) return;
+        const state = this.agentMonitorState[agentId] || {};
+        if (data.prompt) state.prompt = data.prompt;
+        if (data.reset_output) state.output = '';
+        if (data.output_chunk) state.output = (state.output || '') + data.output_chunk;
+        if (data.output_text) state.output = data.output_text;
+        if (data.current_task) state.currentTask = data.current_task;
+        if (data.title || data.message) state.metaText = [data.title, data.message].filter(Boolean).join(' · ');
+        if (data.stage) state.stage = data.stage;
+        this.agentMonitorState[agentId] = state;
+
+        const updateText = (id, text, fallback) => {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.textContent = text || fallback;
+            if (id.includes('output-')) el.scrollTop = el.scrollHeight;
+        };
+
+        updateText(`monitor-prompt-${agentId}`, state.prompt, '暂无提示词');
+        updateText(`monitor-output-${agentId}`, state.output, '等待输出');
+        updateText(`monitor-meta-${agentId}`, state.metaText, '暂无执行反馈');
+        updateText(`monitor-task-${agentId}`, state.currentTask, '等待任务');
+        updateText(`monitor-sidebar-task-${agentId}`, state.currentTask, '等待任务');
+        updateText(`agent-task-${agentId}`, state.currentTask, '等待任务');
+        updateText(`monitor-stage-${agentId}`, this._stageTitle(state.stage), '未进入阶段');
+        updateText(`monitor-prompt-preview-${agentId}`, this._monitorPreview(state.prompt, '暂无提示词'), '暂无提示词');
+        updateText(`monitor-output-preview-${agentId}`, this._monitorPreview(state.output, '等待输出'), '等待输出');
+        updateText(`monitor-prompt-stat-${agentId}`, this._monitorStatText(state.prompt, '暂无提示词'), '暂无提示词');
+        updateText(`monitor-output-stat-${agentId}`, this._monitorStatText(state.output, '等待输出'), '等待输出');
+
+        const outputCard = document.getElementById(`monitor-output-card-${agentId}`);
+        if (outputCard && state.output) outputCard.open = true;
+    },
+
+    _renderCharacters(container, project) {
+        let html = '<div class="characters-grid">';
+        for (const char of project.characters) {
+            const roleColors = { '\u5973\u4E3B\u89D2': '#e94560', '\u7537\u4E3B\u89D2': '#3b82f6', '\u5973\u914D\u89D2': '#8b5cf6', '\u7537\u914D\u89D2': '#10b981', '\u53CD\u6D3E': '#ef4444' };
+            const color = roleColors[char.role] || '#6b7280';
+            html += `
+                <div class="character-card">
+                    <div class="character-avatar" style="background: ${color}">${char.name[0]}</div>
+                    <div class="character-info">
+                        <h3>${char.name}</h3>
+                        <div class="character-meta">${char.age}\u5C81 \xB7 ${char.role}</div>
+                        <div class="character-desc">${char.description}</div>
+                    </div>
+                </div>
+            `;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    },
+
+    _renderEpisodes(container, project) {
+
+        let html = `
+            <div class="episodes-table-container">
+            <table class="episodes-table">
+                <thead>
+                    <tr>
+                        <th>\u96C6\u6570</th>
+                        <th>\u6807\u9898</th>
+                        <th>\u72B6\u6001</th>
+                        <th>\u8FDB\u5EA6</th>
+                        <th>\u65F6\u957F</th>
+                        <th>\u64CD\u4F5C</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        for (const ep of project.episodes) {
+            html += `
+                <tr class="episode-row" data-epid="${ep.episode_id}">
+                    <td>${ep.episode_number}</td>
+                    <td>${ep.title}</td>
+                    <td>
+                        <span class="episode-status ${ep.status}">
+                            ${EPISODE_STATUS_LABELS[ep.status] || ep.status}
+                        </span>
+                    </td>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div class="episode-progress-bar">
+                                <div class="episode-progress-fill ${ep.status === 'completed' ? 'completed' : ''}" style="width: ${ep.progress || 0}%"></div>
+                            </div>
+                            <span style="font-size: 12px; color: var(--text-secondary); min-width: 35px;">${ep.progress || 0}%</span>
+                        </div>
+                    </td>
+                    <td style="color: var(--text-secondary);">${ep.duration || '-'}</td>
+                    <td>
+                        <button class="btn-secondary btn-sm" onclick="ProjectView.showEpisodeDetail('${ep.episode_id}')">详情</button>
+                    </td>
+                </tr>
+            `;
+        }
+
+        html += '</tbody></table></div>';
+        html += '<div id="episode-detail-panel"></div>';
+        container.innerHTML = html;
+    },
+
+    async showEpisodeDetail(episodeId) {
+        const panel = document.getElementById('episode-detail-panel');
+        const projectId = this.currentProjectId;
+
+        try {
+            const [episode, traces] = await Promise.all([
+                fetch(`http://localhost:8000/api/v1/projects/${projectId}/episodes/${episodeId}`).then(r => r.json()),
+                Api.getEpisodeTraces(projectId, episodeId),
+            ]);
+            const episodeStatusLabel = EPISODE_STATUS_LABELS[episode.status] || episode.status;
+
+            let html = `
+                <div class="episode-detail-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3>第${episode.episode_number}集: ${episode.title}</h3>
+                        <button class="btn-secondary btn-sm" onclick="document.getElementById('episode-detail-panel').innerHTML=''">关闭</button>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <span class="episode-status ${episode.status}" style="font-size: 13px;">
+                            ${episodeStatusLabel}
+                        </span>
+                    </div>
+            `;
+
+            // Stage-gated display: only show sections when their data exists
+            if (episode.has_script && episode.script) {
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">剧本</div>
+                    <div class="card" style="padding: 12px; max-height: 200px; overflow-y: auto;">
+                        ${(episode.script.scenes || []).map(s => `
+                            <div style="margin-bottom: 8px;">
+                                <strong>场景${s.scene_number}: ${s.location}</strong> (${s.time_of_day || ''})
+                                <p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0;">${s.description}</p>
+                                ${(s.dialogues || []).map(d => `<div style="padding-left: 12px; font-size: 13px;"><em>${d.character}</em>: ${d.line} <span style="color: var(--text-tertiary);">[${d.emotion}]</span></div>`).join('')}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            if (episode.has_storyboard && episode.storyboard && episode.storyboard.length > 0) {
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">分镜 (${episode.storyboard.length} 个镜头)</div>
+                    <div class="storyboard-grid">
+                        ${episode.storyboard.map(s => `
+                            <div class="shot-card">
+                                <div class="shot-number">镜头 ${s.shot_number}</div>
+                                <div class="shot-desc">${s.description}</div>
+                                <div class="shot-meta">${s.camera_movement} \xB7 ${s.duration}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Timeline from production events
+            if (episode.timeline && episode.timeline.length > 0) {
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">生产时间线</div>
+                    <div class="timeline-list">
+                        ${episode.timeline.map(e => {
+                            const agent = AGENT_META[e.agent_id] || { icon: '🤖', color: '#6b7280', name: 'Agent' };
+                            return `
+                                <div class="timeline-entry">
+                                    <div class="timeline-icon" style="background: ${agent.color}">${agent.icon}</div>
+                                    <div class="timeline-content">
+                                        <div class="timeline-header">
+                                            <span class="timeline-agent">${this._escapeHtml(agent.name || this._agentName(e.agent_id))}</span>
+                                            <span class="timeline-title">${this._escapeHtml(e.title)}</span>
+                                            <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString()}</span>
+                                        </div>
+                                        <div class="timeline-message">${this._escapeHtml(e.message)}</div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `;
+            }
+
+            // Traces
+            if (traces.traces && traces.traces.length > 0) {
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">执行追踪</div>
+                    <div class="trace-list">
+                        ${traces.traces.map(t => `
+                            <div class="trace-entry ${t.error_reason ? 'error' : ''}">
+                                <div class="trace-header">
+                                    <span class="trace-stage">${this._escapeHtml(this._stageTitle(t.stage) || t.stage)}</span>
+                                    <span class="trace-agent">${this._escapeHtml(this._agentName(t.agent_id) || t.agent_id || '')}</span>
+                                    <span class="trace-time">${new Date(t.created_at).toLocaleTimeString()}</span>
+                                    ${t.cache_hit ? '<span class="trace-badge cached">缓存命中</span>' : ''}
+                                </div>
+                                ${t.prompt_summary ? `<div class="trace-detail">Prompt: ${this._escapeHtml(t.prompt_summary)}</div>` : ''}
+                                ${t.output_path ? `<div class="trace-detail">Output: ${this._escapeHtml(t.output_path)}</div>` : ''}
+                                ${t.error_reason ? `<div class="trace-error">Error: ${t.error_reason}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            // Shots - stage gated: only show if storyboard exists
+            if (episode.shots && episode.shots.length > 0) {
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">分镜视频</div>
+                    <div class="shots-table">
+                        ${episode.shots.map(s => `
+                            <div class="shot-row">
+                                <span>镜头 ${s.shot_number}</span>
+                                <span class="episode-status ${s.status}">${s.status}</span>
+                                ${s.video_url ? `<a href="${s.video_url}" target="_blank" class="btn-secondary btn-sm">查看视频</a>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            panel.innerHTML = html;
+        } catch (err) {
+            panel.innerHTML = `<div class="error-state"><p>加载剧集详情失败: ${err.message}</p></div>`;
+        }
+    },
+
+    async startProduction() {
+        if (!this.currentProjectId) return;
+        try {
+            await Api.startProjectProduction(this.currentProjectId);
+            const project = await Api.getProject(this.currentProjectId);
+            if (project) {
+                this._renderHeader(project);
+                this._renderTab(this.currentTab, project);
+            }
+        } catch (err) {
+            console.error('Start production failed:', err);
+        }
+    },
+
+    async _handleWsMessage(msg) {
+        if (!this.currentProjectId) return;
+
+        switch (msg.type) {
+            case 'agent_monitor': {
+                this._applyAgentMonitorUpdate(msg.data || {});
+                break;
+            }
+            case 'progress_update':
+            case 'agent_update':
+            case 'episode_completed':
+            case 'project_completed':
+            case 'stage_update': {
+                const project = await Api.getProject(this.currentProjectId);
+                if (project) {
+                    this._renderHeader(project);
+                    this._renderTab(this.currentTab, project);
+                }
+                break;
+            }
+            case 'trace_update': {
+                break;
+            }
+        }
+    },
+};

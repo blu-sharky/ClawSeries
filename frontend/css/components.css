@@ -1,0 +1,69 @@
+/* 通用组件 */
+
+/* 卡片 */
+.card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: var(--space-lg);
+    transition: transform var(--transition-normal), border-color var(--transition-fast), box-shadow var(--transition-normal);
+}
+
+.card:hover {
+    transform: translateY(-4px);
+    border-color: var(--text-tertiary);
+    box-shadow: var(--shadow-md);
+}
+
+/* 标签 */
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+/* Section Title */
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: var(--space-md);
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+/* Divider */
+.divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: var(--space-lg) 0;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 60px;
+        min-width: 60px;
+    }
+    .logo-text, .nav-label, .nav-section-title, .project-nav-title,
+    .sidebar-footer span:last-child, .system-indicator span:last-child {
+        display: none;
+    }
+    .sidebar-header {
+        padding: var(--space-md);
+    }
+    .sidebar-nav {
+        padding: var(--space-sm);
+    }
+    .nav-item, .project-nav-item {
+        justify-content: center;
+        padding: var(--space-sm);
+    }
+    .progress-overview {
+        grid-template-columns: 1fr 1fr;
+    }
+    .agents-grid, .characters-grid {
+        grid-template-columns: 1fr;
+    }
+}

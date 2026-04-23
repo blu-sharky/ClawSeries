@@ -1,0 +1,59 @@
+/* Design Tokens - 不使用渐变色 */
+:root {
+    /* 主色 */
+    --color-primary: #1a1a2e;
+    --color-primary-light: #2d2d4a;
+    --color-accent: #e94560;
+    --color-accent-hover: #d63851;
+
+    /* 背景 */
+    --bg-primary: #f5f5f7;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #eeeef0;
+    --bg-sidebar: #1a1a2e;
+    --bg-card: #ffffff;
+
+    /* 文字 */
+    --text-primary: #1a1a2e;
+    --text-secondary: #6b7280;
+    --text-tertiary: #9ca3af;
+    --text-inverse: #ffffff;
+    --text-on-accent: #ffffff;
+
+    /* 边框 */
+    --border-color: #e5e7eb;
+    --border-color-light: #f3f4f6;
+
+    /* 状态色 */
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+
+    /* 状态色背景 */
+    --bg-success: #ecfdf5;
+    --bg-warning: #fffbeb;
+    --bg-error: #fef2f2;
+    --bg-info: #eff6ff;
+
+    /* 尺寸 */
+    --sidebar-width: 260px;
+    --header-height: 64px;
+
+    /* 间距 */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-2xl: 48px;
+
+    /* 阴影 */
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.07);
+    --shadow-lg: 0 10px 25px rgba(0,0,0,0.1);
+
+    /* 动画 */
+    --transition-fast: 150ms ease;
+    --transition-normal: 250ms ease;
+}

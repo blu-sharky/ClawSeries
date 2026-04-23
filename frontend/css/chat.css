@@ -1,0 +1,406 @@
+/* 聊天界面 */
+.chat-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-xl);
+}
+
+/* 欢迎界面 */
+.chat-welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: var(--space-2xl);
+}
+
+.welcome-icon {
+    width: 72px;
+    height: 72px;
+    background: var(--color-primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: var(--space-lg);
+}
+
+.chat-welcome h2 {
+    font-size: 24px;
+    font-weight: 600;
+    margin-bottom: var(--space-sm);
+}
+
+.chat-welcome p {
+    color: var(--text-secondary);
+    font-size: 15px;
+    margin-bottom: var(--space-xl);
+}
+
+.quick-starters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+    justify-content: center;
+}
+
+.quick-btn {
+    padding: var(--space-sm) var(--space-lg);
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+    transition: border-color var(--transition-fast), background var(--transition-fast), transform var(--transition-fast);
+}
+
+.quick-btn:hover {
+    border-color: var(--color-primary);
+    background: var(--bg-tertiary);
+    transform: translateY(-1px);
+}
+
+/* 消息气泡 */
+.message {
+    display: flex;
+    gap: var(--space-md);
+    margin-bottom: var(--space-lg);
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.message-avatar {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    flex-shrink: 0;
+}
+
+.message.user .message-avatar {
+    background: var(--color-accent);
+    color: white;
+}
+
+.message.assistant .message-avatar {
+    background: var(--color-primary);
+    color: white;
+}
+
+.message-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.message-content {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    padding: var(--space-md) var(--space-lg);
+    font-size: 14px;
+    line-height: 1.7;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+}
+
+.message.user .message-content {
+    background: var(--color-primary);
+    color: white;
+    border-color: transparent;
+}
+
+.message-content h2 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: var(--space-sm) 0;
+}
+
+.message-content strong {
+    font-weight: 600;
+}
+
+.message-content ul,
+.message-content ol {
+    padding-left: var(--space-lg);
+    margin: var(--space-sm) 0;
+}
+
+.message-content li {
+    list-style: disc;
+    margin-bottom: 2px;
+}
+
+/* 问题选项 */
+.message-questions {
+    margin-top: var(--space-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+}
+
+.question-group {
+    background: var(--bg-tertiary);
+    padding: var(--space-md);
+}
+
+.question-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-sm);
+}
+
+.question-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-sm);
+}
+
+.option-btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 13px;
+    transition: all var(--transition-fast);
+}
+
+.option-btn:hover {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: white;
+}
+
+.option-btn.selected {
+    border-color: var(--color-primary);
+    background: var(--color-primary);
+    color: white;
+}
+
+.question-text-input {
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    border: 1px solid var(--border-color);
+    font-size: 13px;
+    transition: border-color var(--transition-fast);
+}
+.question-text-input[data-role="other"] {
+    width: min(240px, 100%);
+    margin-top: var(--space-sm);
+}
+
+
+.question-text-input:focus {
+    border-color: var(--color-primary);
+}
+
+/* 确认按钮 */
+.action-bar {
+    margin-top: var(--space-md);
+    display: flex;
+    gap: var(--space-sm);
+}
+
+.btn-primary {
+    padding: var(--space-sm) var(--space-xl);
+    background: var(--color-accent);
+    color: white;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.btn-primary:hover {
+    background: var(--color-accent-hover);
+    transform: translateY(-1px);
+}
+
+.btn-secondary {
+    padding: var(--space-sm) var(--space-xl);
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-weight: 500;
+    transition: background var(--transition-fast), transform var(--transition-fast), opacity var(--transition-fast);
+}
+
+.btn-secondary:hover {
+    background: var(--border-color);
+    transform: translateY(-1px);
+}
+
+.btn-start-production {
+    padding: var(--space-sm) var(--space-xl);
+    background: var(--color-success);
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn-start-production:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+.btn-skip {
+    padding: var(--space-sm) var(--space-lg);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 13px;
+    border: 1px dashed var(--border-color);
+    transition: all var(--transition-fast);
+}
+
+.btn-skip:hover {
+    border-color: var(--color-primary);
+    color: var(--color-primary);
+    border-style: solid;
+}
+
+/* 输入区域 */
+.chat-input-area {
+    padding: var(--space-md) var(--space-xl) var(--space-lg);
+    background: var(--bg-secondary);
+    border-top: 1px solid var(--border-color);
+}
+
+.chat-input-wrapper {
+    display: flex;
+    align-items: flex-end;
+    gap: var(--space-sm);
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+#chat-input {
+    flex: 1;
+    padding: var(--space-md);
+    border: 1px solid var(--border-color);
+    background: var(--bg-primary);
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+    font-size: 14px;
+    line-height: 1.5;
+    color: var(--text-primary);
+}
+
+#chat-input:focus {
+    border-color: var(--color-primary);
+}
+
+.send-btn {
+    width: 44px;
+    height: 44px;
+    background: var(--color-accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.send-btn:hover {
+    background: var(--color-accent-hover);
+}
+
+.send-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Typing indicator */
+.typing-indicator {
+    display: flex;
+    gap: 4px;
+    padding: var(--space-sm);
+}
+
+.typing-indicator span {
+    width: 8px;
+    height: 8px;
+    background: var(--text-tertiary);
+    animation: typing 1.4s infinite;
+}
+
+.typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+.typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); }
+    30% { transform: translateY(-6px); }
+}
+
+/* Agent label in message */
+.agent-label {
+    margin-bottom: 4px;
+}
+
+.user-avatar {
+    background: var(--color-accent);
+    color: white;
+    border-radius: 50%;
+}
+.message-content.streaming {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.1);
+}
+
+.thinking-panel {
+    background: rgba(99, 102, 241, 0.06);
+    border: 1px solid rgba(99, 102, 241, 0.16);
+    padding: var(--space-sm) var(--space-md);
+    margin-bottom: var(--space-sm);
+}
+
+.thinking-label {
+    color: var(--color-primary);
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.thinking-text {
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.streaming-cursor {
+    display: none;
+    width: 2px;
+    height: 1em;
+    background: var(--color-primary);
+    margin-left: 2px;
+    animation: blink 1s infinite;
+    vertical-align: text-bottom;
+}
+
+/* Only show cursor when streaming is active */
+.message-content.streaming .streaming-cursor,
+.thinking-panel .streaming-cursor {
+    display: inline-block;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+}

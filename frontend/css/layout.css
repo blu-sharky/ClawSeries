@@ -1,0 +1,290 @@
+/* 布局 */
+#app {
+    display: flex;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* 侧边栏 */
+.sidebar {
+    width: var(--sidebar-width);
+    min-width: var(--sidebar-width);
+    background: var(--bg-sidebar);
+    color: var(--text-inverse);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: var(--space-lg);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+}
+
+.logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--color-accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+}
+
+.logo-text {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+}
+
+.sidebar-nav {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md);
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    padding: var(--space-sm) var(--space-md);
+    color: rgba(255,255,255,0.7);
+    transition: all var(--transition-fast);
+    font-size: 14px;
+    margin-bottom: 2px;
+}
+
+.nav-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.nav-item.active {
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+.nav-icon {
+    width: 20px;
+    text-align: center;
+    font-size: 16px;
+}
+
+.nav-section-title {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.4);
+    margin-top: var(--space-lg);
+    margin-bottom: var(--space-sm);
+    padding-left: var(--space-md);
+}
+
+.nav-projects {
+    display: flex;
+    flex-direction: column;
+}
+
+.project-nav-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-sm) var(--space-md);
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+    transition: all var(--transition-fast);
+    width: 100%;
+    text-align: left;
+    flex: 1;
+    min-width: 0;
+}
+
+.project-nav-item:hover {
+    background: rgba(255,255,255,0.1);
+    color: white;
+}
+
+.project-nav-item.active {
+    background: rgba(255,255,255,0.15);
+    color: white;
+}
+
+.project-nav-status {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+}
+
+.project-nav-status.in-progress { background: var(--color-info); }
+.project-nav-status.completed { background: var(--color-success); }
+.project-nav-status.paused { background: var(--color-warning); }
+
+.project-nav-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.project-nav-item-wrapper {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.project-nav-item-wrapper:hover .project-nav-actions {
+    opacity: 1;
+}
+
+.project-nav-actions {
+    display: flex;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    margin-left: auto;
+}
+
+.project-action-btn {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.6);
+    transition: all var(--transition-fast);
+}
+
+.project-action-btn:hover {
+    background: rgba(255,255,255,0.2);
+    color: white;
+}
+
+.project-action-btn.delete:hover {
+    background: var(--color-error);
+}
+
+.project-action-btn.continue:hover {
+    background: var(--color-success);
+}
+
+
+.sidebar-footer {
+    padding: var(--space-md);
+    border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+.system-indicator {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-success);
+}
+
+.status-dot.healthy {
+    background: var(--color-success);
+}
+
+.status-dot.warning {
+    background: #f59e0b;
+}
+
+.status-dot.error {
+    background: #ef4444;
+}
+/* 主内容区 */
+.main-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.view {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: viewFadeIn var(--transition-normal);
+}
+
+/* Views with scrollable content */
+#view-settings,
+#view-project-detail {
+    overflow-y: auto;
+}
+
+@keyframes viewFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.view.hidden {
+    display: none;
+}
+
+.view-header {
+    padding: var(--space-lg) var(--space-xl);
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-secondary);
+    flex-shrink: 0;
+}
+
+.view-header h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--space-xs);
+}
+
+.view-header p {
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(0,0,0,0.15);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(0,0,0,0.25);
+}
