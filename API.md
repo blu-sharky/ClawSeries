@@ -420,9 +420,9 @@ GET /projects/{project_id}/episodes/{episode_id}/traces
 
 ## 5. 线性制片控制 (Production Pipeline)
 
-### 5.1 启动制片流程
+### 5.1 启动制片流程（LangGraph 流式执行）
 
-启动线性制片流水线（唯一入口）。
+启动 LangGraph StateGraph 制片流水线，返回 SSE 流式事件。
 
 **请求**
 ```
@@ -431,17 +431,70 @@ POST /projects/{project_id}/start-production
 
 **前置条件**: 项目状态为 pending 或 paused
 
+**响应**: SSE 流式事件
+```
+event: state_update
+data: {"current_stage": "script_generating", "status": "in_progress", ...}
+
+event: state_update
+data: {"current_stage": "script_completed", "episodes": [...], ...}
+
+event: error
+data: {"error": "..."}
+```
+
+### 5.2 获取 LangGraph 状态
+
+**请求**
+```
+GET /projects/{project_id}/state
+```
+
 **响应**
 ```json
 {
-  "status": "started",
   "project_id": "proj_xyz789",
-  "message": "制片流程已启动，正在生成剧本...",
-  "current_stage": "script_generating"
+  "current_stage": "shots_generating",
+  "status": "in_progress",
+  "events": [...],
+  "errors": [],
+  "awaiting_input": false,
+  "interrupt_data": null
 }
 ```
 
-### 5.2 获取项目阶段状态
+### 5.3 恢复中断的制片流程
+
+当视频生成模式为手动时，流程会中断等待人工决策。
+
+**请求**
+```
+POST /projects/{project_id}/resume
+```
+
+**请求体**
+```json
+{
+  "skip": true,
+  "continue": false
+}
+```
+
+**响应**: SSE 流式事件（同 5.1）
+
+### 5.4 继续制片流程
+
+从当前状态继续执行（用于暂停的项目）。
+
+**请求**
+```
+POST /projects/{project_id}/continue
+```
+
+**响应**: SSE 流式事件（同 5.1）
+
+
+### 5.6 获取项目阶段状态
 
 **请求**
 ```
@@ -489,28 +542,25 @@ GET /projects/{project_id}/timeline
 }
 ```
 
-### 5.4 阶段接口（带前置条件校验）
+### 5.7 阶段接口（已迁移至 LangGraph）
 
-以下接口允许手动触发特定阶段，但会校验前置条件：
+以下接口已由 LangGraph StateGraph 自动编排替代，无需手动调用：
 
-| 接口 | 前置条件 |
-|------|----------|
-| `POST /projects/{id}/generate-script` | requirements_confirmed |
-| `POST /projects/{id}/format-script` | script_completed |
-| `POST /projects/{id}/generate-assets` | format_completed |
-| `POST /projects/{id}/generate-shots` | assets_completed |
-| `POST /projects/{id}/episodes/{ep_id}/generate-shots` | assets_completed |
-| `POST /projects/{id}/compose` | 所有剧集完成 |
+| 接口 | 说明 |
+|------|------|
+| `POST /projects/{id}/generate-script` | 现由 script_node 自动执行 |
+| `POST /projects/{id}/format-script` | 现由 format_node 自动执行 |
+| `POST /projects/{id}/generate-assets` | 现由 assets_node 自动执行 |
+| `POST /projects/{id}/generate-shots` | 现由 shots_node 自动执行 |
+| `POST /projects/{id}/compose` | 现由 project_compose_node 自动执行 |
 
-如果前置条件未满足，返回 400 错误。
-
-### 5.5 已废弃接口
+### 5.8 已废弃接口
 
 | 接口 | 替代方案 |
 |------|----------|
 | `POST /projects/{id}/run` | 使用 `/start-production` |
-| `POST /projects/{id}/episodes/{ep_id}/run` | 使用线性流水线自动推进 |
-| `POST /projects/{id}/episodes/{ep_id}/shots/{shot_id}/run` | 已禁用，破坏线性流程 |
+| `POST /projects/{id}/episodes/{ep_id}/run` | LangGraph 自动编排 |
+| `POST /projects/{id}/episodes/{ep_id}/shots/{shot_id}/run` | 已禁用 |
 
 ---
 

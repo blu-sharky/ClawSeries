@@ -54,11 +54,13 @@ ehthumbs.db
 !.env.example
 
 # Database
-backend/data/*.db
-backend/data/*.db-shm
-backend/data/*.db-wal
+backend/data/
+*.db
+*.db-shm
+*.db-wal
 *.sqlite
 *.sqlite3
+
 
 # Storage
 backend/storage/

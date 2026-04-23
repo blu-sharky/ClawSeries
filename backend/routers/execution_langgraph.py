@@ -1,0 +1,229 @@
+"""LangGraph-based execution router - replaces polling task worker.
+
+The frontend expects JSON responses from start-production/continue, not SSE.
+The graph runs as a background task, with progress updates pushed via WebSocket.
+"""
+
+import json
+import asyncio
+from fastapi import APIRouter, HTTPException
+
+from repositories import project_repo, agent_repo
+from repositories.production_event_repo import init_project_stages, update_project_stage
+from graphs.production_graph import compile_production_graph
+from graphs.state import ProductionState
+from checkpoint.sqlite_saver import get_checkpointer
+from models import ProductionStage
+
+router = APIRouter()
+
+# Track running graph tasks to avoid duplicates
+_running_graphs: dict[str, asyncio.Task] = {}
+
+
+async def _run_production_graph(project_id: str, initial_state: ProductionState | None = None):
+    """Run the production graph as a background task.
+
+    All progress updates are pushed via WebSocket from within the nodes.
+    """
+    checkpointer = await get_checkpointer()
+    graph = compile_production_graph(checkpointer)
+    config = {"configurable": {"thread_id": project_id}}
+
+    try:
+        agent_repo.add_agent_log(project_id, "agent_director", "info", "LangGraph graph execution started")
+
+        if initial_state is not None:
+            async for event in graph.astream(initial_state, config=config, stream_mode="values"):
+                stage = event.get("current_stage", "")
+                errs = event.get("errors", [])
+                agent_repo.add_agent_log(
+                    project_id, "agent_director", "info",
+                    f"Graph step completed: stage={stage}, errors={len(errs)}"
+                )
+        else:
+            async for event in graph.astream(None, config=config, stream_mode="values"):
+                stage = event.get("current_stage", "")
+                errs = event.get("errors", [])
+                agent_repo.add_agent_log(
+                    project_id, "agent_director", "info",
+                    f"Graph step completed: stage={stage}, errors={len(errs)}"
+                )
+
+        agent_repo.add_agent_log(project_id, "agent_director", "info", "LangGraph graph execution completed")
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        agent_repo.add_agent_log(
+            project_id, "agent_director", "error",
+            f"Graph execution failed: {type(e).__name__}: {e}\n{tb[-500:]}"
+        )
+        project_repo.update_project(project_id, status="failed")
+    finally:
+        _running_graphs.pop(project_id, None)
+
+
+@router.post("/projects/{project_id}/start-production")
+async def start_production_langgraph(project_id: str):
+    """Start production using LangGraph StateGraph.
+
+    Returns JSON immediately, graph runs in background.
+    """
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    if project["status"] not in ("pending", "paused"):
+        raise HTTPException(status_code=400, detail=f"项目状态不允许启动: {project['status']}")
+
+    # Don't start if already running
+    if project_id in _running_graphs and not _running_graphs[project_id].done():
+        return {
+            "status": "already_running",
+            "project_id": project_id,
+            "message": "制片流程正在执行中",
+            "current_stage": ProductionStage.SCRIPT_GENERATING.value,
+        }
+
+    # Initialize stage tracking
+    init_project_stages(project_id)
+    update_project_stage(project_id, ProductionStage.REQUIREMENTS_CONFIRMED.value, "completed")
+
+    project_repo.update_project(project_id, status="in_progress")
+    agent_repo.add_agent_log(project_id, "agent_director", "info", "制片流程已启动 (LangGraph)")
+
+    # Initial state
+    initial_state: ProductionState = {
+        "project_id": project_id,
+        "title": project["title"],
+        "status": "in_progress",
+        "config": project.get("config", {}),
+        "characters": [],
+        "episodes": [],
+        "current_stage": ProductionStage.SCRIPT_GENERATING.value,
+        "current_episode_index": 0,
+        "current_shot_index": 0,
+        "events": [],
+        "errors": [],
+        "awaiting_input": False,
+        "interrupt_data": None,
+        "video_mode": "auto",
+    }
+
+    # Start graph execution as background task
+    task = asyncio.create_task(_run_production_graph(project_id, initial_state))
+    _running_graphs[project_id] = task
+
+    return {
+        "status": "started",
+        "project_id": project_id,
+        "message": "制片流程已启动，正在生成剧本...",
+        "current_stage": ProductionStage.SCRIPT_GENERATING.value,
+    }
+
+
+@router.get("/projects/{project_id}/stages")
+async def get_project_stage_status(project_id: str):
+    """Get the current stage status for a project."""
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    from repositories.production_event_repo import get_project_stages, get_current_stage
+
+    stages = get_project_stages(project_id)
+    current = get_current_stage(project_id)
+
+    return {
+        "project_id": project_id,
+        "stages": stages,
+        "current_stage": current,
+    }
+
+
+@router.post("/projects/{project_id}/continue")
+async def continue_production(project_id: str):
+    """Continue production from current state (for paused/resumable projects)."""
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    if project["status"] not in ("paused", "in_progress", "pending"):
+        raise HTTPException(status_code=400, detail=f"项目状态不允许继续: {project['status']}")
+
+    # Don't start if already running
+    if project_id in _running_graphs and not _running_graphs[project_id].done():
+        return {
+            "status": "resumed",
+            "message": "制片流程继续执行中",
+            "current_stage": ProductionStage.SCRIPT_GENERATING.value,
+        }
+
+    # Check if there's a checkpoint to resume
+    checkpointer = await get_checkpointer()
+    graph = compile_production_graph(checkpointer)
+    config = {"configurable": {"thread_id": project_id}}
+
+    state = await graph.aget_state(config)
+
+    if not state.values:
+        # No previous state, start fresh
+        return await start_production_langgraph(project_id)
+
+    project_repo.update_project(project_id, status="in_progress")
+
+    # Resume graph execution as background task
+    task = asyncio.create_task(_run_production_graph(project_id))
+    _running_graphs[project_id] = task
+
+    current_stage = state.values.get("current_stage", "")
+    return {
+        "status": "resumed",
+        "message": "制片流程已继续",
+        "current_stage": current_stage,
+    }
+
+
+@router.get("/projects/{project_id}/state")
+async def get_production_state(project_id: str):
+    """Get the current LangGraph state for a project."""
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    checkpointer = await get_checkpointer()
+    graph = compile_production_graph(checkpointer)
+
+    config = {"configurable": {"thread_id": project_id}}
+    state = await graph.aget_state(config)
+
+    return {
+        "project_id": project_id,
+        "current_stage": state.values.get("current_stage"),
+        "status": state.values.get("status"),
+        "events": state.values.get("events", []),
+        "errors": state.values.get("errors", []),
+        "awaiting_input": state.values.get("awaiting_input", False),
+        "interrupt_data": state.values.get("interrupt_data"),
+    }
+
+
+@router.post("/projects/{project_id}/resume")
+async def resume_production(project_id: str, decision: dict | None = None):
+    """Resume production from an interrupt (human-in-the-loop)."""
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    checkpointer = await get_checkpointer()
+    graph = compile_production_graph(checkpointer)
+
+    config = {"configurable": {"thread_id": project_id}}
+
+    # Resume graph with decision as input
+    project_repo.update_project(project_id, status="in_progress")
+
+    task = asyncio.create_task(_run_production_graph(project_id))
+    _running_graphs[project_id] = task
+
+    return {"status": "resumed", "message": "制片流程已恢复"}

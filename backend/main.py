@@ -6,7 +6,7 @@ SQLite-backed, real state, real task graph.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from routers import conversations, projects, agents, episodes, system, websocket, settings, execution, stream
+from routers import conversations, projects, agents, episodes, system, websocket, settings, stream
 from storage.db import init_db
 from config import RENDERS_DIR, OUTPUTS_DIR, ASSETS_DIR
 import uvicorn
@@ -43,6 +43,7 @@ app.include_router(agents.router, prefix="/api/v1", tags=["智能体状态"])
 app.include_router(episodes.router, prefix="/api/v1", tags=["剧集管理"])
 app.include_router(system.router, prefix="/api/v1", tags=["系统状态"])
 app.include_router(settings.router, prefix="/api/v1", tags=["设置"])
+from routers import execution_langgraph as execution
 app.include_router(execution.router, prefix="/api/v1", tags=["执行控制"])
 app.include_router(stream.router, prefix="/api/v1", tags=["流式输出"])
 app.include_router(websocket.router, tags=["WebSocket"])
@@ -51,9 +52,6 @@ app.include_router(websocket.router, tags=["WebSocket"])
 @app.on_event("startup")
 def startup():
     init_db()
-    import asyncio
-    from workers.task_worker import start_worker
-    asyncio.create_task(start_worker())
 
 @app.get("/")
 async def root():
