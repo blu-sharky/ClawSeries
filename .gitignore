@@ -1,0 +1,82 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Database
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+*.sqlite
+*.sqlite3
+
+# Storage
+backend/storage/
+
+# Logs
+logs/
+*.log
+
+# Test files at root
+test_*.py
+
+# Mock/prototype directories
+mock_backend/
+
+# Plan/scratch files
+plan.md
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

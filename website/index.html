@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ClawSeries — 零人AI短剧公司</title>
+    <meta name="description" content="ClawSeries：彻底打通 AI 短剧自动化生产的最后一公里。五个自主智能体协作，一句话生成百集短剧。" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- Floating Particles Background -->
+    <div class="particles-container" id="particles"></div>
+
+    <!-- Glowing orbs -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+
+    <div class="page-shell">
+      <header class="topbar">
+        <a class="brand" href="#hero">CLAWSERIES</a>
+        <button class="mobile-menu-btn" aria-label="菜单">
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+        <nav class="topnav">
+          <a href="#insight" data-i18n="nav.insight">洞察</a>
+          <a href="#paradigm" data-i18n="nav.paradigm">交互范式</a>
+          <a href="#mission" data-i18n="nav.mission">使命</a>
+          <a href="#agents" data-i18n="nav.agents">五大Agent</a>
+          <a href="#philosophy" data-i18n="nav.philosophy">技术哲学</a>
+          <a href="#global" data-i18n="nav.global">全球分发</a>
+          <a href="#business" data-i18n="nav.business">商业形态</a>
+        </nav>
+      </header>
+
+      <main>
+        <!-- Hero Section -->
+        <section id="hero" class="hero">
+          <div class="hero-grid"></div>
+          <div class="hero-glow"></div>
+          <p class="eyebrow animate-fade-in" data-i18n="hero.eyebrow">WHITEPAPER / ZERO-HUMAN AI STUDIO</p>
+          <h1 class="animate-title">
+            <span class="title-line">CLAW</span>
+            <span class="title-line">SERIES</span>
+          </h1>
+          <p class="hero-copy animate-fade-in delay-1">
+            <span class="typing-text" data-i18n="hero.title">零人AI短剧公司</span>
+          </p>
+          <p class="hero-tagline animate-fade-in delay-2" data-i18n="hero.tagline">
+            彻底打通 AI 短剧自动化生产的最后一公里
+          </p>
+          <div class="hero-ctas animate-fade-in delay-3">
+            <a class="button button-primary hero-center-button pulse-glow" href="#" data-i18n="hero.cta1">开始创作</a>
+            <div class="hero-scroll-hint" onclick="document.getElementById('insight').scrollIntoView({behavior: 'smooth'})">
+              <span class="scroll-arrow">↓</span>
+              <span class="scroll-text" data-i18n="hero.cta2">详细了解</span>
+            </div>
+          </div>
+          <div class="hero-metrics animate-fade-in delay-4">
+            <article class="metric-card glow-card">
+              <span class="metric-label" data-i18n="hero.metric1.label">自动化程度</span>
+              <strong data-i18n="hero.metric1.value">100% 无人类介入</strong>
+            </article>
+            <article class="metric-card glow-card">
+              <span class="metric-label" data-i18n="hero.metric2.label">并发能力</span>
+              <strong data-i18n="hero.metric2.value">50集同步渲染</strong>
+            </article>
+            <article class="metric-card glow-card">
+              <span class="metric-label" data-i18n="hero.metric3.label">效率提升</span>
+              <strong data-i18n="hero.metric3.value">1小时完成数月工作</strong>
+            </article>
+          </div>
+        </section>
+
+        <!-- Section 1: Industry Insight -->
+        <section id="insight" class="section">
+          <div class="section-head">
+            <span class="section-index">01</span>
+            <div>
+              <h2 class="animate-on-scroll" data-i18n="insight.title">行业洞察</h2>
+              <p class="animate-on-scroll" data-i18n="insight.subtitle">2026年的制片悖论</p>
+            </div>
+          </div>
+          <div class="content-grid two-col">
+            <article class="content-card animate-on-scroll hover-lift">
+              <div class="card-icon">⚡</div>
+              <h3 data-i18n="insight.card1.title">数万家「AI公司」的诞生</h3>
+              <p data-i18n="insight.card1.text">根据行业统计，过去一年间全国涌现了数万家「AI短剧企业」。然而残酷的真相是：这些公司引以为傲的「人工+AI」工作流，本身就是完全可以被 AI 彻底取代的。它们只是把人类变成了 AI 模型的「搬运工」和整合方。</p>
+            </article>
+            <article class="content-card animate-on-scroll hover-lift">
+              <div class="card-icon">🎬</div>
+              <h3 data-i18n="insight.card2.title">成熟的模型，原始的流水线</h3>
+              <p data-i18n="insight.card2.text">我们正处于一个视频生成技术极度成熟的时代，大模型可以在数秒内生成电影级的绝美单镜头。然而，要将这些成熟的「点」连成一部连贯的数十集短剧，这数万家公司的做法依然是极其落后的「人工作坊」模式。</p>
+            </article>
+            <article class="content-card animate-on-scroll hover-lift">
+              <div class="card-icon">💀</div>
+              <h3 data-i18n="insight.card3.title">致命的「人类沟通成本」</h3>
+              <p data-i18n="insight.card3.text">尽管工具满天飞，但不同环节之间依然没有被完全自动化。导演需要向提示词师反复解释镜头意图；制片需要用肉眼在一堆素材中筛选废片；剪辑师需要手工将画面、配音和字幕逐帧对齐。</p>
+            </article>
+            <article class="content-card animate-on-scroll hover-lift">
+              <div class="card-icon">🔗</div>
+              <h3 data-i18n="insight.card4.title">人类成为最慢的「路由器」</h3>
+              <p data-i18n="insight.card4.text">在极其高效的 AI 节点之间，缓慢的人类操作、审片疲劳和无休止的返工确认，成为了吞噬利润、时间和创意的最大瓶颈。</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- Section: Interaction Paradigm -->
+        <section id="paradigm" class="section section-contrast">
+          <div class="section-head">
+            <span class="section-index">02</span>
+            <div>
+              <h2 class="animate-on-scroll" data-i18n="paradigm.title">交互范式革命</h2>
+              <p class="animate-on-scroll" data-i18n="paradigm.subtitle">对话即工作流</p>
+            </div>
+          </div>
+
+          <div class="paradigm-intro animate-on-scroll">
+            <div class="paradigm-intro-glow"></div>
+            <p class="paradigm-intro-text" data-i18n="paradigm.intro">
+              普通人是怎么使用 AI 的？是和 AI 一轮一轮的对话，就像和真人一样。<br/>
+              老板是怎么命令下属的？一句话说清楚需求，剩下的全部交给团队执行。<br/>
+              <strong>这才是符合人类直觉的交流方式。</strong>
+            </p>
+          </div>
+
+          <div class="content-grid two-col">
+            <article class="content-card paradigm-card paradigm-bad animate-on-scroll hover-lift">
+              <div class="card-icon">❌</div>
+              <h3 data-i18n="paradigm.bad.title">传统节点连线工作流</h3>
+              <p data-i18n="paradigm.bad.text">ComfyUI、LibTV 等工具采用复杂的节点连线模式。用户需要理解每个节点的输入输出，手工连接数十个模块，调试过程极其痛苦。<strong>这种反直觉的设计，白白拉高了上手门槛。</strong></p>
+              <div class="paradigm-visual paradigm-visual-bad">
+                <svg class="node-svg" viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg">
+                  <!-- Row 1: 输入 → A → B -->
+                  <rect x="10" y="10" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="38" y="30" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">输入</text>
+                  <line x1="66" y1="25" x2="100" y2="25" stroke="rgba(239,68,68,0.4)" stroke-width="2"/>
+                  <rect x="100" y="10" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="128" y="30" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点A</text>
+                  <line x1="156" y1="25" x2="190" y2="25" stroke="rgba(239,68,68,0.4)" stroke-width="2"/>
+                  <rect x="190" y="10" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="218" y="30" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点B</text>
+
+                  <!-- Row 2: C → D → E -->
+                  <rect x="50" y="95" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="78" y="115" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点C</text>
+                  <line x1="106" y1="110" x2="140" y2="110" stroke="rgba(239,68,68,0.4)" stroke-width="2"/>
+                  <rect x="140" y="95" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="168" y="115" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点D</text>
+                  <line x1="196" y1="110" x2="230" y2="110" stroke="rgba(239,68,68,0.4)" stroke-width="2"/>
+                  <rect x="230" y="95" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="258" y="115" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点E</text>
+
+                  <!-- Row 3: F → 错误 → G -->
+                  <rect x="10" y="180" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="38" y="200" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点F</text>
+                  <line x1="66" y1="195" x2="100" y2="195" stroke="rgba(239,68,68,0.3)" stroke-width="2" stroke-dasharray="4,3"/>
+                  <rect x="100" y="180" width="56" height="30" rx="4" fill="rgba(239,68,68,0.25)" stroke="rgba(239,68,68,0.6)" stroke-width="1.5"/>
+                  <text x="128" y="200" text-anchor="middle" fill="#ef4444" font-size="11" font-family="var(--mono)">错误</text>
+                  <line x1="156" y1="195" x2="190" y2="195" stroke="rgba(239,68,68,0.3)" stroke-width="2" stroke-dasharray="4,3"/>
+                  <rect x="190" y="180" width="56" height="30" rx="4" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.3)" stroke-width="1"/>
+                  <text x="218" y="200" text-anchor="middle" fill="rgba(255,255,255,0.7)" font-size="11" font-family="var(--mono)">节点G</text>
+
+                  <!-- Cross connections Row1→Row2 -->
+                  <!-- 输入 → C -->
+                  <line x1="38" y1="40" x2="78" y2="95" stroke="rgba(239,68,68,0.25)" stroke-width="1.5"/>
+                  <!-- 输入 → E (long diagonal) -->
+                  <line x1="38" y1="40" x2="258" y2="95" stroke="rgba(239,68,68,0.18)" stroke-width="1" stroke-dasharray="5,3"/>
+                  <!-- A → D -->
+                  <line x1="128" y1="40" x2="168" y2="95" stroke="rgba(239,68,68,0.3)" stroke-width="1.5"/>
+                  <!-- B → D (back connection) -->
+                  <line x1="218" y1="40" x2="168" y2="95" stroke="rgba(239,68,68,0.25)" stroke-width="1.5" stroke-dasharray="4,4"/>
+                  <!-- B → E -->
+                  <line x1="218" y1="40" x2="258" y2="95" stroke="rgba(239,68,68,0.25)" stroke-width="1.5"/>
+
+                  <!-- Cross connections Row2→Row3 -->
+                  <!-- C → F -->
+                  <line x1="78" y1="125" x2="38" y2="180" stroke="rgba(239,68,68,0.25)" stroke-width="1.5"/>
+                  <!-- C → 错误 -->
+                  <line x1="78" y1="125" x2="128" y2="180" stroke="rgba(239,68,68,0.28)" stroke-width="1.5" stroke-dasharray="5,3"/>
+                  <!-- D → F (back connection) -->
+                  <line x1="168" y1="125" x2="38" y2="180" stroke="rgba(239,68,68,0.2)" stroke-width="1" stroke-dasharray="3,3"/>
+                  <!-- E → G -->
+                  <line x1="258" y1="125" x2="218" y2="180" stroke="rgba(239,68,68,0.3)" stroke-width="1.5"/>
+                  <!-- E → 错误 (back) -->
+                  <line x1="258" y1="125" x2="128" y2="180" stroke="rgba(239,68,68,0.2)" stroke-width="1.5"/>
+                </svg>
+                <p class="paradigm-visual-label" data-i18n="paradigm.bad.label">复杂、易错、学习成本极高</p>
+              </div>
+            </article>
+
+            <article class="content-card paradigm-card paradigm-good animate-on-scroll hover-lift">
+              <div class="card-icon">✅</div>
+              <h3 data-i18n="paradigm.good.title">ClawSeries 对话式交互</h3>
+              <p data-i18n="paradigm.good.text">只需像和真人聊天一样，用自然语言描述你的想法。不到一分钟的对话，所有人类需要做的就搞定了。<strong>零学习成本，上手即用。</strong></p>
+              <div class="paradigm-visual paradigm-visual-good">
+                <div class="chat-demo">
+                  <div class="chat-bubble chat-user">
+                    <span>帮我做一部100集的《重生后我换成真硫酸，校花惨叫直播中断》</span>
+                  </div>
+                  <div class="chat-bubble chat-ai">
+                    <span>收到！女主复仇路线请选择：</span>
+                    <div class="chat-options">
+                      <button class="chat-option-btn">A. 直接爽杀</button>
+                      <button class="chat-option-btn selected">B. 假死脱身再杀</button>
+                      <button class="chat-option-btn">C. 先装傻再杀</button>
+                      <button class="chat-option-btn">D. 借刀杀人</button>
+                    </div>
+                  </div>
+                  <div class="chat-bubble chat-ai">
+                    <span>路线B锁定。男主设定？</span>
+                    <div class="chat-confirm-btns">
+                      <button class="chat-confirm-btn chat-confirm-yes selected">霸总</button>
+                      <button class="chat-confirm-btn chat-confirm-no">渣男</button>
+                    </div>
+                  </div>
+                  <div class="chat-bubble chat-ai chat-ai-final">
+                    <span>🎬 已开始制片</span>
+                  </div>
+                </div>
+                <p class="paradigm-visual-label" data-i18n="paradigm.good.label">简单、直观、符合人类直觉</p>
+              </div>
+            </article>
+          </div>
+
+          <div class="paradigm-highlight animate-on-scroll">
+            <div class="paradigm-highlight-content">
+              <div class="paradigm-highlight-icon">💬</div>
+              <div class="paradigm-highlight-text">
+                <h3 data-i18n="paradigm.highlight.title">一句话，搞定一切</h3>
+                <p data-i18n="paradigm.highlight.text">不需要学习复杂的节点系统，不需要理解底层技术细节。就像和一位专业的制片人对话，告诉他你想要什么，剩下的全部交给 ClawSeries。</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 2: Mission -->
+        <section id="mission" class="section">
+          <div class="section-head">
+            <span class="section-index">03</span>
+            <div>
+              <h2 class="animate-on-scroll" data-i18n="mission.title">我们的使命</h2>
+              <p class="animate-on-scroll" data-i18n="mission.subtitle">用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议</p>
+            </div>
+          </div>
+          <div class="mission-statement animate-on-scroll">
+            <div class="mission-glow"></div>
+            <p class="mission-text" data-i18n="mission.statement">
+              <strong>ClawSeries 不研发底层视频大模型，我们做全新的「自动化制片工厂」。</strong>
+            </p>
+          </div>
+          <div class="content-grid animate-on-scroll">
+            <article class="content-card mission-card">
+              <p data-i18n="mission.card1">我们将传统 AI 短剧公司中耗时耗力的<strong>五个核心岗位</strong>，完全替换为自主协作的智能体（Agents）。</p>
+            </article>
+            <article class="content-card mission-card">
+              <p data-i18n="mission.card2">通过消除「人与人、人与机器的沟通损耗」，<strong>ClawSeries 致力于打通 AI 短剧自动化生产的最后一公里</strong>，让「一句话生成百集短剧」从商业概念变成真正的工业级交付。</p>
+            </article>
+          </div>
+        </section>
+
+        <!-- Section 3: Five Agents Pyramid -->
+        <section id="agents" class="section section-contrast">
+          <div class="section-head">
+            <span class="section-index">04</span>
+            <div>
+              <h2 class="animate-on-scroll" data-i18n="agents.title">五大自主智能体架构</h2>
+              <p class="animate-on-scroll" data-i18n="agents.subtitle">Pentagram of Agents</p>
+            </div>
+          </div>
+
+          <div class="agents-details">
+              <div class="agent-detail hover-lift" data-agent="1">
+                <div class="agent-number">🎯 01</div>
+                <div class="agent-content">
+                  <h3 data-i18n="agents.detail1.title">项目总监</h3>
+                  <p class="agent-function" data-i18n="agents.detail1.func">全局状态管理与流程控制</p>
+                  <p data-i18n="agents.detail1.desc">接收原始一句话指令，自动拆解数十集制片任务。实时监控各环节进度，调度 API 负载，彻底取代人类制片人的统筹与催稿工作。</p>
+                </div>
+              </div>
+              <div class="agent-detail hover-lift" data-agent="2">
+                <div class="agent-number">🎬 02</div>
+                <div class="agent-content">
+                  <h3 data-i18n="agents.detail2.title">总导演</h3>
+                  <p class="agent-function" data-i18n="agents.detail2.func">剧本与戏剧张力控制</p>
+                  <p data-i18n="agents.detail2.desc">构建宏大且连贯的世界观。自动在每集结尾设置悬念（Hook），确保长线剧情逻辑自洽，无需人类编剧反复修改大纲。</p>
+                </div>
+              </div>
+              <div class="agent-detail hover-lift" data-agent="3">
+                <div class="agent-number">👁️ 03</div>
+                <div class="agent-content">
+                  <h3 data-i18n="agents.detail3.title">视觉总监</h3>
+                  <p class="agent-function" data-i18n="agents.detail3.func">视觉资产与一致性锚定</p>
+                  <p data-i18n="agents.detail3.desc">生成并永久锁定角色的脸部特征、服装特征与场景环境资产。确保角色从第1集到最后1集始终如一，消除人类手动对齐素材的痛苦。</p>
+                </div>
+              </div>
+              <div class="agent-detail hover-lift" data-agent="4">
+                <div class="agent-number">💡 04</div>
+                <div class="agent-content">
+                  <h3 data-i18n="agents.detail4.title">提示词架构师</h3>
+                  <p class="agent-function" data-i18n="agents.detail4.func">跨模型语义翻译</p>
+                  <p data-i18n="agents.detail4.desc">自动将文学分镜转化为底层视频引擎最易理解的 Prompt 矩阵。它自带「避坑指南」，自动引导 AI 避免画面崩坏，取代反复试错的人类提示词工程师。</p>
+                </div>
+              </div>
+              <div class="agent-detail hover-lift" data-agent="5">
+                <div class="agent-number">⚡ 05</div>
+                <div class="agent-content">
+                  <h3 data-i18n="agents.detail5.title">自动化剪辑师</h3>
+                  <p class="agent-function" data-i18n="agents.detail5.func">音画压制与情感封装</p>
+                  <p data-i18n="agents.detail5.desc">基于多模态理解，删除掉多余片段，拼接多个分镜，合理添加 BGM 并对齐压制字幕。</p>
+                </div>
+              </div>
+            </div>
+        </section>
+
+        <!-- Section 4: Engineering Philosophy -->
+        <section id="philosophy" class="section">
+          <div class="section-head">
+            <span class="section-index">05</span>
+            <div>
+              <h2 class="animate-on-scroll" data-i18n="philosophy.title">核心技术哲学</h2>
+              <p class="animate-on-scroll" data-i18n="philosophy.subtitle">Engineering Philosophy</p>
+            </div>
+          </div>
+          <div class="content-grid three-col">
+            <article class="content-card philosophy-card animate-on-scroll hover-lift">
+              <div class="philosophy-icon">⚡</div>
+              <h3 data-i18n="philosophy.card1.title">零沟通损耗</h3>
+              <p data-i18n="philosophy.card1.text">五个 Agent 共享一个全局上下文（Context），导演的意图可以 100% 无损传递给剪辑师，彻底消除人类职场中的沟通误解。</p>
+              <div class="philosophy-glow"></div>
+            </article>
+            <article class="content-card philosophy-card animate-on-scroll hover-lift">
+              <div class="philosophy-icon">🔧</div>
+              <h3 data-i18n="philosophy.card2.title">全自动质检自愈</h3>
+              <p data-i18n="philosophy.card2.text">内置视觉审核逻辑。一旦发现生成的素材存在逻辑错误（如多出一根手指），QC Agent 会在后台瞬间驳回并触发重练，全程无需人类介入审片。</p>
+              <div class="philosophy-glow"></div>
+            </article>
+            <article class="content-card philosophy-card animate-on-scroll hover-lift">
+              <div class="philosophy-icon">🚀</div>
+              <h3 data-i18n="philosophy.card3.title">极致并发</h3>
+              <p data-i18n="philosophy.card3.text">突破人类精力的物理极限，支持 50 集短剧同时进入并行渲染与剪辑工作流。</p>
+              <div class="philosophy-glow"></div>
+            </article>
+          </div>
+        </section>
+
+        <!-- Section 5: Global Distribution -->
+        <section id="global" class="section section-contrast">
+          <div class="section-head">
+            <span class="section-index">06</span>
+            <div>
+              <h2 data-i18n="global.title">全球分发</h2>
+              <p data-i18n="global.subtitle">IP跨国迁移 + 深度本地化</p>
+            </div>
+          </div>
+
+          <div class="global-content animate-on-scroll">
+            <div class="content-grid two-col">
+              <article class="content-card hover-lift">
+                <div class="card-icon">🌎</div>
+                <h3 data-i18n="global.market1.title">北美 / 欧洲</h3>
+                <p data-i18n="global.market1.text">30-60岁城市女性为主，偏好霸总、狼人、复仇等强情绪母题。ARPU极高，月度可达<strong>$80</strong>。2024年底北美市场年收入预计突破<strong>$2B</strong>。</p>
+              </article>
+              <article class="content-card hover-lift">
+                <div class="card-icon">🌏</div>
+                <h3 data-i18n="global.market2.title">东南亚 / 拉美</h3>
+                <p data-i18n="global.market2.text">下载量单季度涨幅超<strong>60%</strong>。DramaWave等平台在东南亚实现10倍以上增长。IAA模式崛起，下载量占比从4.7%跃升至<strong>24.7%</strong>。</p>
+              </article>
+              <article class="content-card hover-lift">
+                <div class="card-icon">💀</div>
+                <h3 data-i18n="global.pain.title">传统出海的痛点</h3>
+                <p data-i18n="global.pain.text">"翻译剧"占9:1统治地位，但"机械生硬"是核心痛点。雇佣海外声优成本高昂，且往往丢失原剧的戏剧张力——哭腔变成平淡念白，怒吼变成面无表情的朗读。</p>
+              </article>
+              <article class="content-card hover-lift">
+                <div class="card-icon">⚡</div>
+                <h3 data-i18n="global.solution.title">ClawSeries 解决方案</h3>
+                <p data-i18n="global.solution.text">AI声纹克隆（Voice Cloning）+ 表情同步技术，实现<strong>文化折扣最小化</strong>。保留角色独特声线与爆发情感，彻底取代海外配音团队。</p>
+              </article>
+            </div>
+
+            <div class="global-flow-container">
+              <div class="global-flow">
+                <div class="flow-step step-input">
+                  <div class="flow-icon">🎬</div>
+                  <div class="flow-label" data-i18n="global.step1">ClawSeries<br/>完成全集</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step step-engine">
+                  <div class="flow-icon">🌐</div>
+                  <div class="flow-label" data-i18n="global.step2">IndexTTS<br/>无损译制</div>
+                </div>
+                <div class="flow-arrow">→</div>
+                <div class="flow-step step-output">
+                  <div class="flow-icon">🎯</div>
+                  <div class="flow-label" data-i18n="global.step3">完美情感克隆<br/>全球一键上线</div>
+                </div>
+              </div>
+            </div>
+
+            <div class="language-showcase">
+              <div class="language-orbs">
+                <span class="lang-orb">🇺🇸 EN</span>
+                <span class="lang-orb">🇯🇵 JP</span>
+                <span class="lang-orb">🇪🇸 ES</span>
+                <span class="lang-orb">🇰🇷 KR</span>
+                <span class="lang-orb">🇫🇷 FR</span>
+                <span class="lang-orb">🇩🇪 DE</span>
+                <span class="lang-orb">🇧🇷 PT</span>
+                <span class="lang-orb">🇮🇳 HI</span>
+                <span class="lang-orb">🇨🇳 CN</span>
+                <span class="lang-orb">🇹🇭 TH</span>
+              </div>
+              <p class="language-note" data-i18n="global.languages">支持英语、日语、西班牙语、韩语、法语、德语、葡萄牙语、印地语、中文、泰语等数十种语言</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section 6: Business Evolution -->
+        <section id="business" class="section">
+          <div class="section-head">
+            <span class="section-index">07</span>
+            <div>
+              <h2 class="animate-on-scroll" data-i18n="business.title">商业形态重构</h2>
+              <p class="animate-on-scroll" data-i18n="business.subtitle">Business Evolution</p>
+            </div>
+          </div>
+          <div class="business-statement animate-on-scroll">
+            <div class="business-glow"></div>
+            <p data-i18n="business.statement">在 ClawSeries 的架构下，「短剧公司」不再是一个需要租赁场地、招聘数十名员工、每天开会确认的实体组织，而是一套部署在云端的自动化代码。</p>
+          </div>
+          <div class="content-card final-card animate-on-scroll">
+            <div class="final-highlight">
+              <span class="final-stat" data-i18n="business.stat">一句话</span>
+              <span class="final-desc" data-i18n="business.stat.suffix">= 过去一个团队数个月的制片工作</span>
+            </div>
+            <p data-i18n="business.desc">只需输入一句话，<strong>ClawSeries 就能在一小时内完成过去一个团队数个月的制片工作。</strong></p>
+            <div class="hero-actions final-actions">
+              <a class="button button-primary pulse-glow" href="#" data-i18n="business.cta">开始创作</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- Footer Quote -->
+        <section class="section section-final">
+          <div class="quote-container animate-on-scroll">
+            <blockquote class="final-quote" data-i18n="quote">
+              用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议
+            </blockquote>
+            <p class="quote-attribution">— ClawSeries <span data-i18n="quote.attr">核心技术哲学</span></p>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p>CLAWSERIES — <span data-i18n="footer">零人AI短剧公司</span> — 2026</p>
+      </footer>
+    </div>
+
+    <!-- Language Translation Data -->
+    <script>
+      const translations = {
+        zh: {
+          "nav.insight": "洞察",
+          "nav.paradigm": "交互范式",
+          "nav.mission": "使命",
+          "nav.agents": "五大Agent",
+          "nav.philosophy": "技术哲学",
+          "nav.global": "全球分发",
+          "nav.business": "商业形态",
+          "hero.eyebrow": "WHITEPAPER / ZERO-HUMAN AI STUDIO",
+          "hero.title": "零人AI短剧公司",
+          "hero.tagline": "彻底打通 AI 短剧自动化生产的最后一公里",
+          "hero.cta1": "开始创作",
+          "hero.cta2": "详细了解",
+          "hero.metric1.label": "自动化程度",
+          "hero.metric1.value": "100% 无人类介入",
+          "hero.metric2.label": "并发能力",
+          "hero.metric2.value": "50集同步渲染",
+          "hero.metric3.label": "效率提升",
+          "hero.metric3.value": "1小时完成数月工作",
+          "insight.title": "行业洞察",
+          "insight.subtitle": "2026年的制片悖论",
+          "insight.card1.title": "数万家「AI公司」的诞生",
+          "insight.card1.text": "根据行业统计，过去一年间全国涌现了数万家「AI短剧企业」。然而残酷的真相是：这些公司引以为傲的「人工+AI」工作流，本身就是完全可以被 AI 彻底取代的。它们只是把人类变成了 AI 模型的「搬运工」和整合方。",
+          "insight.card2.title": "成熟的模型，原始的流水线",
+          "insight.card2.text": "我们正处于一个视频生成技术极度成熟的时代，大模型可以在数秒内生成电影级的绝美单镜头。然而，要将这些成熟的「点」连成一部连贯的数十集短剧，这数万家公司的做法依然是极其落后的「人工作坊」模式。",
+          "insight.card3.title": "致命的「人类沟通成本」",
+          "insight.card3.text": "尽管工具满天飞，但不同环节之间依然没有被完全自动化。导演需要向提示词师反复解释镜头意图；制片需要用肉眼在一堆素材中筛选废片；剪辑师需要手工将画面、配音和字幕逐帧对齐。",
+          "insight.card4.title": "人类成为最慢的「路由器」",
+          "insight.card4.text": "在极其高效的 AI 节点之间，缓慢的人类操作、审片疲劳和无休止的返工确认，成为了吞噬利润、时间和创意的最大瓶颈。",
+          "paradigm.title": "交互范式革命",
+          "paradigm.subtitle": "对话即工作流",
+          "paradigm.intro": "普通人是怎么使用 AI 的？是和 AI 一轮一轮的对话，就像和真人一样。<br/>老板是怎么命令下属的？一句话说清楚需求，剩下的全部交给团队执行。<br/><strong>这才是符合人类直觉的交流方式。</strong>",
+          "paradigm.bad.title": "传统节点连线工作流",
+          "paradigm.bad.text": "ComfyUI、LibTV 等工具采用复杂的节点连线模式。用户需要理解每个节点的输入输出，手工连接数十个模块，调试过程极其痛苦。<strong>这种反直觉的设计，白白拉高了上手门槛。</strong>",
+          "paradigm.bad.label": "复杂、易错、学习成本极高",
+          "paradigm.good.title": "ClawSeries 对话式交互",
+          "paradigm.good.text": "只需像和真人聊天一样，用自然语言描述你的想法。不到一分钟的对话，所有人类需要做的就搞定了。<strong>零学习成本，上手即用。</strong>",
+          "paradigm.good.label": "简单、直观、符合人类直觉",
+          "paradigm.chat.user": "帮我生成一部100集的霸总短剧",
+          "paradigm.chat.ai": "好的，正在为您规划剧情架构、角色设定和分镜脚本...",
+          "paradigm.highlight.title": "一句话，搞定一切",
+          "paradigm.highlight.text": "不需要学习复杂的节点系统，不需要理解底层技术细节。就像和一位专业的制片人对话，告诉他你想要什么，剩下的全部交给 ClawSeries。",
+          "mission.title": "我们的使命",
+          "mission.subtitle": "用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议",
+          "mission.statement": "<strong>ClawSeries 不研发底层视频大模型，我们做全新的「自动化制片工厂」。</strong>",
+          "mission.card1": "我们将传统 AI 短剧公司中耗时耗力的<strong>五个核心岗位</strong>，完全替换为自主协作的智能体（Agents）。",
+          "mission.card2": "通过消除「人与人、人与机器的沟通损耗」，<strong>ClawSeries 致力于打通 AI 短剧自动化生产的最后一公里</strong>，让「一句话生成百集短剧」从商业概念变成真正的工业级交付。",
+          "agents.title": "五大自主智能体架构",
+          "agents.subtitle": "Pentagram of Agents",
+          "agents.layer1": "01 项目总监",
+          "agents.layer2": "02 总导演",
+          "agents.layer3": "03 视觉总监",
+          "agents.layer4": "04 提示词架构师",
+          "agents.layer5": "05 自动化剪辑师",
+          "agents.detail1.title": "项目总监",
+          "agents.detail1.func": "全局状态管理与流程控制",
+          "agents.detail1.desc": "接收原始一句话指令，自动拆解数十集制片任务。实时监控各环节进度，调度 API 负载，彻底取代人类制片人的统筹与催稿工作。",
+          "agents.detail2.title": "总导演",
+          "agents.detail2.func": "剧本与戏剧张力控制",
+          "agents.detail2.desc": "构建宏大且连贯的世界观。自动在每集结尾设置悬念（Hook），确保长线剧情逻辑自洽，无需人类编剧反复修改大纲。",
+          "agents.detail3.title": "视觉总监",
+          "agents.detail3.func": "视觉资产与一致性锚定",
+          "agents.detail3.desc": "生成并永久锁定角色的脸部特征、服装特征与场景环境资产。确保角色从第1集到最后1集始终如一，消除人类手动对齐素材的痛苦。",
+          "agents.detail4.title": "提示词架构师",
+          "agents.detail4.func": "跨模型语义翻译",
+          "agents.detail4.desc": "自动将文学分镜转化为底层视频引擎最易理解的 Prompt 矩阵。它自带「避坑指南」，自动引导 AI 避免画面崩坏，取代反复试错的人类提示词工程师。",
+          "agents.detail5.title": "自动化剪辑师",
+          "agents.detail5.func": "音画压制与情感封装",
+          "agents.detail5.desc": "基于多模态理解，删除掉多余片段，拼接多个分镜，合理添加 BGM 并对齐压制字幕。",
+          "philosophy.title": "核心技术哲学",
+          "philosophy.subtitle": "Engineering Philosophy",
+          "philosophy.card1.title": "零沟通损耗",
+          "philosophy.card1.text": "五个 Agent 共享一个全局上下文（Context），导演的意图可以 100% 无损传递给剪辑师，彻底消除人类职场中的沟通误解。",
+          "philosophy.card2.title": "全自动质检自愈",
+          "philosophy.card2.text": "内置视觉审核逻辑。一旦发现生成的素材存在逻辑错误（如多出一根手指），QC Agent 会在后台瞬间驳回并触发重练，全程无需人类介入审片。",
+          "philosophy.card3.title": "极致并发",
+          "philosophy.card3.text": "突破人类精力的物理极限，支持 50 集短剧同时进入并行渲染与剪辑工作流。",
+          "global.title": "全球分发",
+          "global.subtitle": "IP跨国迁移 + 深度本地化",
+          "global.market1.title": "北美 / 欧洲",
+          "global.market1.text": "30-60岁城市女性为主，偏好霸总、狼人、复仇等强情绪母题。ARPU极高，月度可达<strong>$80</strong>。2024年底北美市场年收入预计突破<strong>$2B</strong>。",
+          "global.market2.title": "东南亚 / 拉美",
+          "global.market2.text": "下载量单季度涨幅超<strong>60%</strong>。DramaWave等平台在东南亚实现10倍以上增长。IAA模式崛起，下载量占比从4.7%跃升至<strong>24.7%</strong>。",
+          "global.pain.title": "传统出海的痛点",
+          "global.pain.text": "\"翻译剧\"占9:1统治地位，但\"机械生硬\"是核心痛点。雇佣海外声优成本高昂，且往往丢失原剧的戏剧张力——哭腔变成平淡念白，怒吼变成面无表情的朗读。",
+          "global.solution.title": "ClawSeries 解决方案",
+          "global.solution.text": "AI声纹克隆（Voice Cloning）+ 表情同步技术，实现<strong>文化折扣最小化</strong>。保留角色独特声线与爆发情感，彻底取代海外配音团队。",
+          "global.step1": "ClawSeries<br/>完成全集",
+          "global.step2": "IndexTTS<br/>无损译制",
+          "global.step3": "完美情感克隆<br/>全球一键上线",
+          "global.card1.title": "传统出海的痛点",
+          "global.card1.text": "传统短剧出海需要耗费大量资金与时间雇佣海外声优进行本地化配音，且往往丢失原剧的戏剧张力——哭腔变成平淡念白，怒吼变成面无表情的朗读。",
+          "global.card2.title": "IndexTTS 无损译制",
+          "global.card2.text": "在 ClawSeries 完成全集输出后，用户可通过该独立板块，一键将短剧配音转化为英语、日语、西班牙语等数十种语言。",
+          "global.card3.title": "完美的情感克隆",
+          "global.card3.text": "不仅翻译语言，更基于底层声学模型，<strong>完美保留原角色的独特声线与原剧的爆发情感</strong>（如哭腔、怒吼、喘息），彻底取代了全球化分发中的人类配音与译制团队。",
+          "global.card4.title": "生成即全球上线",
+          "global.card4.text": "整个分发流程完全自动化，无需任何人工介入。短剧制作完成的那一刻起，就已经准备好在全球所有主流市场同步发行。",
+          "global.languages": "支持英语、日语、西班牙语、韩语、法语、德语、葡萄牙语、印地语、中文、泰语等数十种语言",
+          "business.title": "商业形态重构",
+          "business.subtitle": "Business Evolution",
+          "business.statement": "在 ClawSeries 的架构下，「短剧公司」不再是一个需要租赁场地、招聘数十名员工、每天开会确认的实体组织，而是一套部署在云端的自动化代码。",
+          "business.stat": "一句话",
+          "business.stat.suffix": "= 过去一个团队数个月的制片工作",
+          "business.desc": "只需输入一句话，<strong>ClawSeries 就能在一小时内完成过去一个团队数个月的制片工作。</strong>",
+          "business.cta": "开始创作",
+          "quote": "用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议",
+          "quote.attr": "核心技术哲学",
+          "footer": "零人AI短剧公司"
+        },
+        en: {
+          "nav.insight": "Insight",
+          "nav.paradigm": "Paradigm",
+          "nav.mission": "Mission",
+          "nav.agents": "Five Agents",
+          "nav.philosophy": "Philosophy",
+          "nav.global": "Distribution",
+          "nav.business": "Business",
+          "hero.eyebrow": "WHITEPAPER / ZERO-HUMAN AI STUDIO",
+          "hero.title": "Zero-Human AI Series Studio",
+          "hero.tagline": "The last mile of fully automated AI series production",
+          "hero.cta1": "Start Creating",
+          "hero.cta2": "Learn More",
+          "hero.metric1.label": "Automation",
+          "hero.metric1.value": "100% No Human Intervention",
+          "hero.metric2.label": "Concurrency",
+          "hero.metric2.value": "50 Episodes Simultaneous",
+          "hero.metric3.label": "Efficiency",
+          "hero.metric3.value": "1 Hour = Months of Work",
+          "insight.title": "Industry Insight",
+          "insight.subtitle": "The Production Paradox in 2026",
+          "insight.card1.title": "Tens of Thousands of 'AI Companies'",
+          "insight.card1.text": "Industry statistics show tens of thousands of 'AI series companies' emerged in the past year. The brutal truth: their 'human + AI' workflows can be completely replaced by AI itself.",
+          "insight.card2.title": "Mature Models, Primitive Pipelines",
+          "insight.card2.text": "Video generation technology is extremely mature — large models generate movie-quality shots in seconds. Yet connecting these 'dots' into coherent episodes, companies still use 'handcraft workshop' methods.",
+          "insight.card3.title": "The Deadly 'Human Communication Cost'",
+          "insight.card3.text": "Despite abundant tools, automation between stages remains incomplete. Directors repeatedly explain shot intentions; producers manually filter footage; editors align visuals, voice, and subtitles frame by frame.",
+          "insight.card4.title": "Humans as the Slowest 'Router'",
+          "insight.card4.text": "Slow human operations, review fatigue, and endless rework confirmations between efficient AI nodes have become the biggest bottleneck.",
+          "paradigm.title": "Interaction Paradigm Revolution",
+          "paradigm.subtitle": "Conversation is the Workflow",
+          "paradigm.intro": "How do ordinary people use AI? They have round-by-round conversations with AI, just like talking to a real person.<br/>How does a boss command subordinates? State the requirements in one sentence, then leave the rest to the team to execute.<br/><strong>This is the intuitive way humans communicate.</strong>",
+          "paradigm.bad.title": "Traditional Node-Based Workflow",
+          "paradigm.bad.text": "Tools like ComfyUI and LibTV use complex node-connection patterns. Users must understand each node's input/output, manually connect dozens of modules, and debugging is extremely painful.<strong>This counter-intuitive design unnecessarily raises the barrier to entry.</strong>",
+          "paradigm.bad.label": "Complex, error-prone, steep learning curve",
+          "paradigm.good.title": "ClawSeries Conversational Interaction",
+          "paradigm.good.text": "Simply describe your ideas in natural language, like chatting with a real person. In less than a minute of conversation, everything a human needs to do is complete.<strong>Zero learning cost, ready to use immediately.</strong>",
+          "paradigm.good.label": "Simple, intuitive, human-friendly",
+          "paradigm.chat.user": "Generate a 100-episode CEO romance series for me",
+          "paradigm.chat.ai": "Sure, I'm planning the plot structure, character settings, and storyboard scripts for you...",
+          "paradigm.highlight.title": "One Sentence, Done",
+          "paradigm.highlight.text": "No need to learn complex node systems or understand technical details. Just talk to a professional producer, tell them what you want, and leave the rest to ClawSeries.",
+          "mission.title": "Our Mission",
+          "mission.subtitle": "Millisecond Agent communication vs. lengthy human meetings",
+          "mission.statement": "<strong>ClawSeries doesn't develop video models — we build the 'automated production factory.'</strong>",
+          "mission.card1": "We replace the <strong>five core positions</strong> in traditional AI series companies with autonomous collaborating Agents.",
+          "mission.card2": "By eliminating communication losses, <strong>ClawSeries completes the last mile of AI series production</strong> — turning 'one sentence → a hundred episodes' into industrial reality.",
+          "agents.title": "Five Autonomous Agent Architecture",
+          "agents.subtitle": "Pentagram of Agents",
+          "agents.layer1": "01 Project Director",
+          "agents.layer2": "02 Chief Director",
+          "agents.layer3": "03 Visual Director",
+          "agents.layer4": "04 Prompt Architect",
+          "agents.layer5": "05 Auto Editor",
+          "agents.detail1.title": "Project Director",
+          "agents.detail1.func": "Global State & Flow Control",
+          "agents.detail1.desc": "Receives one-sentence instructions, splits production tasks, monitors progress, schedules API load — replacing human producers entirely.",
+          "agents.detail2.title": "Chief Director",
+          "agents.detail2.func": "Script & Drama Control",
+          "agents.detail2.desc": "Builds coherent worldviews, sets episode hooks automatically, ensures long-term plot consistency — no more outline revisions.",
+          "agents.detail3.title": "Visual Director",
+          "agents.detail3.func": "Visual Assets & Consistency",
+          "agents.detail3.desc": "Locks character faces, costumes, and scene assets permanently. Ensures consistency from Episode 1 to the last.",
+          "agents.detail4.title": "Prompt Architect",
+          "agents.detail4.func": "Cross-Model Translation",
+          "agents.detail4.desc": "Transforms storyboards into engine-optimized prompts with built-in 'pitfall guides' — replacing trial-and-error prompt engineers.",
+          "agents.detail5.title": "Auto Editor",
+          "agents.detail5.func": "Audio-Visual & Emotion",
+          "agents.detail5.desc": "Removes redundant clips, stitches shots, adds BGM, aligns subtitles — all via multimodal understanding.",
+          "philosophy.title": "Core Technical Philosophy",
+          "philosophy.subtitle": "Engineering Philosophy",
+          "philosophy.card1.title": "Zero Communication Loss",
+          "philosophy.card1.text": "Five Agents share one global context. The director's intent transmits 100% losslessly to the editor.",
+          "philosophy.card2.title": "Full Auto QC Self-Healing",
+          "philosophy.card2.text": "Built-in visual review. Errors like extra fingers trigger instant rejection and re-rendering — no human review needed.",
+          "philosophy.card3.title": "Hyper-Concurrency",
+          "philosophy.card3.text": "50 episodes enter parallel rendering simultaneously — breaking through human energy limits.",
+          "global.title": "Global Distribution",
+          "global.subtitle": "IP Cross-Border Migration + Deep Localization",
+          "global.market1.title": "North America / Europe",
+          "global.market1.text": "30-60yo urban women dominate, prefer霸道/狼人/revenge themes. ARPU extremely high,<strong>$80</strong>/month. 北美市场2024年底年收入突破<strong>$2B</strong>。",
+          "global.market2.title": "Southeast Asia / Latin America",
+          "global.market2.text": "Downloads +<strong>60%</strong> QoQ. DramaWave 10x growth in SEA. IAA model rises, share from 4.7% to <strong>24.7%</strong>.",
+          "global.pain.title": "Traditional Overseas Pain Points",
+          "global.pain.text": "\"Translated series\" dominates 9:1 but 'mechanical' is the core issue. Hiring overseas voice actors is costly and loses dramatic tension — sobs become flat narration, roars become expressionless reading.",
+          "global.solution.title": "ClawSeries Solution",
+          "global.solution.text": "AI Voice Cloning + Expression Sync = <strong>minimal cultural discount</strong>. Preserves character's unique voice and explosive emotions — replacing overseas dubbing teams entirely.",
+          "global.step1": "ClawSeries<br/>Complete Series",
+          "global.step2": "IndexTTS<br/>Lossless Dubbing",
+          "global.step3": "Perfect Emotion Clone<br/>Global One-Click Launch",
+          "global.card1.title": "Traditional Overseas Pain Points",
+          "global.card1.text": "Hiring overseas voice actors is expensive. Localization often loses dramatic tension — sobs become flat narration, roars become expressionless reading.",
+          "global.card2.title": "IndexTTS Lossless Dubbing",
+          "global.card2.text": "One-click transform series dubbing into English, Japanese, Spanish, and dozens more languages.",
+          "global.card3.title": "Perfect Emotion Clone",
+          "global.card3.text": "Preserves the original character's unique voice and explosive emotions — <strong>replacing human dubbing teams entirely</strong>.",
+          "global.card4.title": "Generate = Global Launch",
+          "global.card4.text": "Fully automated distribution. Complete a series, and it's ready for all major global markets simultaneously.",
+          "global.languages": "Supports English, Japanese, Spanish, Korean, French, German, Portuguese, Hindi, Chinese, Thai, and more",
+          "business.title": "Business Model Reconstruction",
+          "business.subtitle": "Business Evolution",
+          "business.statement": "'Drama companies' become cloud-deployed automated code — no office space, no hiring, no daily meetings.",
+          "business.stat": "One Sentence",
+          "business.stat.suffix": "= Months of work by one team",
+          "business.desc": "One sentence input. <strong>One hour to complete what once took a team months.</strong>",
+          "business.cta": "Start Creating",
+          "quote": "Replace lengthy human meetings with millisecond-level Agent internal communication",
+          "quote.attr": "Core Technical Philosophy",
+          "footer": "Zero-Human AI Drama Studio"
+        }
+      };
+
+      let currentLang = 'zh';
+
+      function setLanguage(lang) {
+        currentLang = lang;
+        document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+
+        // Update all translatable elements
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+          const key = el.getAttribute('data-i18n');
+          if (translations[lang][key]) {
+            if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') {
+              el.placeholder = translations[lang][key];
+            } else {
+              el.innerHTML = translations[lang][key];
+            }
+          }
+        });
+
+        // Update language toggle buttons
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+          btn.classList.toggle('active', btn.dataset.lang === lang);
+        });
+
+        // Store preference
+        localStorage.setItem('clawseries-lang', lang);
+      }
+
+      // Initialize
+      document.addEventListener('DOMContentLoaded', () => {
+        // Restore language preference
+        const savedLang = localStorage.getItem('clawseries-lang');
+        if (savedLang) {
+          setLanguage(savedLang);
+        }
+
+        // Language toggle handlers
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            setLanguage(btn.dataset.lang);
+          });
+        });
+
+        // Mobile menu toggle
+        const menuBtn = document.querySelector('.mobile-menu-btn');
+        const topnav = document.querySelector('.topnav');
+        if (menuBtn) {
+          menuBtn.addEventListener('click', () => {
+            menuBtn.classList.toggle('active');
+            topnav.classList.toggle('active');
+          });
+          // Close menu when clicking a link
+          topnav.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+              menuBtn.classList.remove('active');
+              topnav.classList.remove('active');
+            });
+          });
+        }
+
+        // Other initializations
+        createParticles();
+        handleScrollAnimations();
+        initPyramidAnimation();
+      });
+    </script>
+
+    <script>
+      // Create floating particles
+      function createParticles() {
+        const container = document.getElementById('particles');
+        const particleCount = 50;
+
+        for (let i = 0; i < particleCount; i++) {
+          const particle = document.createElement('div');
+          particle.className = 'particle';
+          particle.style.left = Math.random() * 100 + '%';
+          particle.style.top = Math.random() * 100 + '%';
+          particle.style.animationDelay = Math.random() * 15 + 's';
+          particle.style.animationDuration = (Math.random() * 10 + 10) + 's';
+          container.appendChild(particle);
+        }
+      }
+
+      // Scroll animations
+      function handleScrollAnimations() {
+        const elements = document.querySelectorAll('.animate-on-scroll');
+        const windowHeight = window.innerHeight;
+
+        elements.forEach(element => {
+          const elementTop = element.getBoundingClientRect().top;
+          const elementVisible = 150;
+
+          if (elementTop < windowHeight - elementVisible) {
+            element.classList.add('visible');
+          }
+        });
+      }
+
+      // Parallax effect for orbs
+      function handleParallax() {
+        const scrolled = window.pageYOffset;
+        const orb1 = document.querySelector('.orb-1');
+        const orb2 = document.querySelector('.orb-2');
+        const orb3 = document.querySelector('.orb-3');
+
+        if (orb1) orb1.style.transform = `translate(${scrolled * 0.02}px, ${scrolled * 0.05}px)`;
+        if (orb2) orb2.style.transform = `translate(${-scrolled * 0.03}px, ${scrolled * 0.03}px)`;
+        if (orb3) orb3.style.transform = `translate(${scrolled * 0.01}px, ${-scrolled * 0.02}px)`;
+      }
+
+      // Pyramid animation on hover
+      function initPyramidAnimation() {
+        const pyramidLayers = document.querySelectorAll('.pyramid-layer');
+        const agentDetails = document.querySelectorAll('.agent-detail');
+
+        agentDetails.forEach((detail, index) => {
+          detail.addEventListener('mouseenter', () => {
+            pyramidLayers.forEach((layer, i) => {
+              if (i <= index) {
+                layer.classList.add('active');
+              } else {
+                layer.classList.remove('active');
+              }
+            });
+          });
+
+          detail.addEventListener('mouseleave', () => {
+            pyramidLayers.forEach(layer => layer.classList.remove('active'));
+          });
+        });
+      }
+
+      // Smooth scroll for navigation
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function(e) {
+          e.preventDefault();
+          const target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+
+      window.addEventListener('scroll', () => {
+        handleScrollAnimations();
+        handleParallax();
+      });
+    </script>
+  </body>
+</html>
