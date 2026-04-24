@@ -37,6 +37,9 @@ const Settings = {
                 ${this._renderImageSection(image)}
                 ${this._renderVideoSection(video, mode)}
             </div>
+            <div class="settings-columns" style="margin-top: 24px;">
+                ${this._renderDubbingSection()}
+            </div>
             <div id="google-config-section" style="display: none; max-width: 1400px; margin: 0 auto;">
                 ${this._renderGoogleSection(google)}
             </div>
@@ -297,6 +300,38 @@ const Settings = {
         `;
     },
 
+    _renderDubbingSection() {
+        const dubbingTestMode = this.currentConfig?.dubbing_test_mode || false;
+        const dubbingTestVideo = this.currentConfig?.dubbing_test_video_path || '';
+        return `
+            <div class="settings-section">
+                <div class="settings-section-header">
+                    <div class="settings-section-icon material-symbols-outlined" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">translate</div>
+                    <div>
+                        <h3>配音测试</h3>
+                        <p class="settings-desc">使用测试视频验证配音流水线</p>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>配音测试模式</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="dubbing-test-mode" ${dubbingTestMode ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <p class="form-hint">启用后在配音页面默认使用测试视频</p>
+                </div>
+
+                <div class="form-group">
+                    <label>测试视频路径</label>
+                    <input type="text" id="dubbing-test-video-path" value="${dubbingTestVideo}"
+                           placeholder="test-video.mp4">
+                    <p class="form-hint">默认使用项目根目录下的 test-video.mp4</p>
+                </div>
+            </div>
+        `;
+    },
+
     bindEvents() {
         document.getElementById('settings-content')?.addEventListener('change', (e) => {
             if (e.target.id === 'llm-provider') {
@@ -429,6 +464,8 @@ const Settings = {
             video_generation_mode: document.getElementById('video-generation-mode')?.value || 'manual',
             video_demo_mode: document.getElementById('video-demo-mode')?.checked || false,
             image_demo_mode: document.getElementById('image-demo-mode')?.checked || false,
+            dubbing_test_mode: document.getElementById('dubbing-test-mode')?.checked || false,
+            dubbing_test_video_path: document.getElementById('dubbing-test-video-path')?.value || '',
         };
 
         try {

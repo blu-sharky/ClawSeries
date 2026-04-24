@@ -265,5 +265,22 @@ def init_db():
         )
     """)
 
+    # Dubbing tasks table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS dubbing_tasks (
+            task_id TEXT PRIMARY KEY,
+            source_video_path TEXT NOT NULL,
+            target_language TEXT NOT NULL,
+            source_language TEXT,
+            status TEXT DEFAULT 'pending',
+            progress INTEGER DEFAULT 0,
+            current_step TEXT,
+            output_video_path TEXT,
+            error_message TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            completed_at TEXT
+        )
+    """)
+
     conn.commit()
     conn.close()

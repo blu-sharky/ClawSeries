@@ -16,4 +16,10 @@ dependencies = [
     "langgraph>=0.4.0",
     "langgraph-checkpoint-sqlite>=2.0.0",
     "langchain-core>=0.3.0",
+    "whisperx",
+    "demucs",
+    "voxcpm @ git+https://github.com/blu-sharky/VoxCPM-modified.git",
+    "soundfile",
+    "librosa",
+    "ffmpeg-python",
 ]

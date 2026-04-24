@@ -61,6 +61,8 @@ async def get_models_settings():
         "video_generation_mode": all_settings.get("video_generation_mode", "manual"),
         "video_demo_mode": all_settings.get("video_demo_mode", "false") == "true",
         "image_demo_mode": all_settings.get("image_demo_mode", "false") == "true",
+        "dubbing_test_mode": all_settings.get("dubbing_test_mode", "false") == "true",
+        "dubbing_test_video_path": all_settings.get("dubbing_test_video_path", ""),
     }
 
 
@@ -115,6 +117,12 @@ async def update_models_settings(config: ModelsConfig):
 
     if config.image_demo_mode is not None:
         set_setting("image_demo_mode", "true" if config.image_demo_mode else "false")
+
+    if config.dubbing_test_mode is not None:
+        set_setting("dubbing_test_mode", "true" if config.dubbing_test_mode else "false")
+
+    if config.dubbing_test_video_path is not None:
+        set_setting("dubbing_test_video_path", config.dubbing_test_video_path)
 
     return {"status": "ok"}
 

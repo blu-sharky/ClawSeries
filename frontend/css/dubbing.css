@@ -1,0 +1,422 @@
+/* Dubbing page styles */
+
+.dubbing-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-xl);
+}
+
+.dubbing-header {
+    max-width: 900px;
+    margin: 0 auto 32px;
+    text-align: center;
+}
+
+.dubbing-header h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--text-primary);
+}
+
+.dubbing-header p {
+    font-size: 14px;
+    color: var(--text-tertiary);
+}
+
+.dubbing-panel {
+    max-width: 900px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+/* Language selector */
+.dubbing-lang-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.dubbing-lang-section h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.dubbing-lang-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+}
+
+.dubbing-lang-btn {
+    padding: 10px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: center;
+}
+
+.dubbing-lang-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--text-primary);
+}
+
+.dubbing-lang-btn.selected {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: #10b981;
+    color: #10b981;
+    font-weight: 600;
+}
+
+/* Video source section */
+.dubbing-source-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.dubbing-source-section h3 {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--text-primary);
+}
+
+.dubbing-upload-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.dubbing-upload-area:hover {
+    border-color: var(--color-accent);
+    background: rgba(16, 185, 129, 0.03);
+}
+
+.dubbing-upload-area.drag-over {
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.dubbing-upload-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+}
+
+.dubbing-upload-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.dubbing-upload-hint {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.dubbing-upload-area input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+/* Test mode */
+.dubbing-test-mode {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 16px;
+    padding: 12px 16px;
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    border-radius: 8px;
+}
+
+.dubbing-test-mode label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.dubbing-test-mode .toggle-switch {
+    flex-shrink: 0;
+}
+
+.dubbing-selected-file {
+    margin-top: 12px;
+    padding: 10px 14px;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.dubbing-selected-file .file-icon {
+    color: var(--color-accent);
+}
+
+.dubbing-selected-file .file-remove {
+    margin-left: auto;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    font-size: 16px;
+}
+
+.dubbing-selected-file .file-remove:hover {
+    color: #ef4444;
+}
+
+/* Start button */
+.dubbing-start-section {
+    text-align: center;
+}
+
+.dubbing-start-btn {
+    padding: 14px 48px;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+.dubbing-start-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4);
+}
+
+.dubbing-start-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Progress section */
+.dubbing-progress-section {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 24px;
+}
+
+.dubbing-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.dubbing-progress-header h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.dubbing-progress-percent {
+    font-size: 24px;
+    font-weight: 700;
+    color: #10b981;
+}
+
+.dubbing-progress-bar {
+    height: 8px;
+    background: var(--bg-primary);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.dubbing-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #059669);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    width: 0%;
+}
+
+.dubbing-progress-steps {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+}
+
+.dubbing-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 4px;
+    border-radius: 8px;
+    background: var(--bg-primary);
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-align: center;
+    transition: all 0.2s;
+}
+
+.dubbing-step.active {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+    font-weight: 600;
+}
+
+.dubbing-step.done {
+    background: rgba(16, 185, 129, 0.08);
+    color: rgba(16, 185, 129, 0.7);
+}
+
+.dubbing-step.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.dubbing-step-icon {
+    font-size: 18px;
+}
+
+/* Result section */
+.dubbing-result-section {
+    background: var(--bg-secondary);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+}
+
+.dubbing-result-section h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #10b981;
+    margin-bottom: 8px;
+}
+
+.dubbing-result-section p {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin-bottom: 16px;
+}
+
+.dubbing-result-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.dubbing-result-video {
+    margin: 16px auto;
+    max-width: 640px;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.dubbing-result-video video {
+    width: 100%;
+    display: block;
+}
+
+/* Error state */
+.dubbing-error {
+    background: rgba(239, 68, 68, 0.05);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+}
+
+.dubbing-error h3 {
+    color: #ef4444;
+    font-size: 15px;
+    margin-bottom: 8px;
+}
+
+.dubbing-error p {
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+/* History section */
+.dubbing-history {
+    margin-top: 32px;
+    max-width: 900px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.dubbing-history h3 {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 12px;
+}
+
+.dubbing-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dubbing-history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.dubbing-history-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.dubbing-history-status.completed { background: #10b981; }
+.dubbing-history-status.failed { background: #ef4444; }
+.dubbing-history-status.pending,
+.dubbing-history-status.in-progress { background: #f59e0b; }
+
+.dubbing-history-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.dubbing-history-info span {
+    display: block;
+    color: var(--text-secondary);
+}
+
+.dubbing-history-info .lang-badge {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.dubbing-history-actions {
+    display: flex;
+    gap: 8px;
+}

@@ -106,6 +106,7 @@ function navigateTo(view) {
     document.getElementById('view-new-project').classList.add('hidden');
     document.getElementById('view-project-detail').classList.add('hidden');
     document.getElementById('view-settings').classList.add('hidden');
+    document.getElementById('view-dubbing').classList.add('hidden');
 
     // Update nav state
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
@@ -118,6 +119,9 @@ function navigateTo(view) {
     } else if (view === 'settings') {
         document.getElementById('view-settings').classList.remove('hidden');
         Settings.init();
+    } else if (view === 'dubbing') {
+        document.getElementById('view-dubbing').classList.remove('hidden');
+        DubbingView.init();
     }
 }
 

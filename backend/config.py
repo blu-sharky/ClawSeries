@@ -14,12 +14,13 @@ ASSETS_DIR = DATA_DIR / "assets"
 RENDERS_DIR = DATA_DIR / "renders"
 OUTPUTS_DIR = DATA_DIR / "outputs"
 CHROMA_DIR = DATA_DIR / "chroma"
+DUBBING_DIR = DATA_DIR / "dubbing"
 
 # Database
 DB_PATH = DATA_DIR / "clawseries.db"
 
 # Ensure directories exist
-for d in [DATA_DIR, SCRIPTS_DIR, ASSETS_DIR, RENDERS_DIR, OUTPUTS_DIR, CHROMA_DIR]:
+for d in [DATA_DIR, SCRIPTS_DIR, ASSETS_DIR, RENDERS_DIR, OUTPUTS_DIR, CHROMA_DIR, DUBBING_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
 

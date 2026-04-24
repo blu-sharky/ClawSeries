@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/project.css">
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/settings.css">
+    <link rel="stylesheet" href="css/dubbing.css">
 </head>
 <body>
     <div id="app">
@@ -34,6 +35,10 @@
                 <button class="nav-item" data-view="settings" onclick="navigateTo('settings')">
                     <span class="nav-icon material-symbols-outlined">settings</span>
                     <span class="nav-label">设置</span>
+                </button>
+                <button class="nav-item" data-view="dubbing" onclick="navigateTo('dubbing')">
+                    <span class="nav-icon material-symbols-outlined">translate</span>
+                    <span class="nav-label">配音</span>
                 </button>
             </div>
             <div class="sidebar-footer">
@@ -93,6 +98,15 @@
                 </div>
                 <div id="settings-content" class="settings-content"></div>
             </div>
+
+            <!-- 配音视图 -->
+            <div class="view hidden" id="view-dubbing">
+                <div class="view-header">
+                    <h1>AI 多语言配音</h1>
+                    <p>一键配音视频到指定语言，保持原音色和情感</p>
+                </div>
+                <div id="dubbing-content" class="dubbing-content"></div>
+            </div>
         </main>
     </div>
 
@@ -101,6 +115,7 @@
     <script src="js/chat.js"></script>
     <script src="js/project.js"></script>
     <script src="js/settings.js"></script>
+    <script src="js/dubbing.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

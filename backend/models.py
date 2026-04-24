@@ -277,6 +277,8 @@ class ModelsConfig(BaseModel):
     video_generation_mode: str = "manual"
     video_demo_mode: bool = False
     image_demo_mode: bool = False
+    dubbing_test_mode: bool = False
+    dubbing_test_video_path: str = ""
 
 
 class TestConnectionRequest(BaseModel):
@@ -334,3 +336,43 @@ class ProjectSummaryExtended(BaseModel):
     current_stage: Optional[str] = None
     current_agent: Optional[str] = None
     stages: Optional[List[StageInfo]] = None
+
+
+# === Dubbing Models ===
+
+# Supported languages for dubbing
+DUBBING_LANGUAGES = {
+    "en": "English",
+    "zh": "Chinese (Mandarin)",
+    "ja": "Japanese",
+    "ko": "Korean",
+    "es": "Spanish",
+    "fr": "French",
+    "de": "German",
+    "pt": "Portuguese",
+    "hi": "Hindi",
+    "th": "Thai",
+    "ru": "Russian",
+    "ar": "Arabic",
+    "it": "Italian",
+}
+
+
+class DubbingRequest(BaseModel):
+    video_path: str
+    target_language: str  # e.g. "en", "ja"
+    source_language: Optional[str] = None  # auto-detect if None
+
+
+class DubbingTaskInfo(BaseModel):
+    task_id: str
+    source_video_path: str
+    target_language: str
+    source_language: Optional[str] = None
+    status: str  # pending, extracting_audio, separating_vocals, transcribing, translating, generating_speech, merging, completed, failed
+    progress: int  # 0-100
+    current_step: Optional[str] = None
+    output_video_path: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: Optional[str] = None
+    completed_at: Optional[str] = None
