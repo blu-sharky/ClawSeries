@@ -214,6 +214,7 @@ class ScriptOutline(BaseModel):
     characters: List[Dict[str, Any]]
     episode_titles: List[str] = []
     episodes_summary: List[Dict[str, Any]]
+    episodes_detail: List[Dict[str, Any]] = []
 
 
 class ConfirmResponse(BaseModel):

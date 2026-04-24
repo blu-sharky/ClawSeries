@@ -22,9 +22,113 @@ from repositories.settings_repo import get_setting
 from routers.websocket import send_agent_monitor
 from integrations.video import is_video_configured, generate_video, get_video_config
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
-from config import RENDERS_DIR
+from config import RENDERS_DIR, ASSETS_DIR
 from models import ProductionStage, STAGE_AGENT_MAP
 
+
+
+async def _plan_shots_with_llm(
+    project_id: str, episode: dict, shots: list[dict],
+    character_assets: list[dict]
+) -> list[dict]:
+    """Use LLM to plan visual prompts and character selection for each shot.
+
+    Returns list of dicts with keys: shot_id, visual_prompt, characters, camera_direction
+    """
+    from integrations.llm import call_llm, is_llm_configured
+
+    if not is_llm_configured():
+        # Fallback: use existing descriptions
+        return [_default_shot_plan(s) for s in shots]
+
+    # Build character info for LLM
+    char_info = []
+    for ca in character_assets:
+        char_info.append({
+            "name": ca.get("name", ""),
+            "description": ca.get("description", ""),
+            "anchor": ca.get("anchor_prompt", ""),
+        })
+
+    # Get script context
+    import json
+    import re
+    script_json = episode.get("script_json")
+    script = json.loads(script_json) if isinstance(script_json, str) else (script_json or {})
+    scenes = script.get("scenes", [])
+
+    shots_info = []
+    for s in shots:
+        shots_info.append({
+            "shot_id": s["shot_id"],
+            "shot_number": s["shot_number"],
+            "description": s.get("description", ""),
+            "camera_movement": s.get("camera_movement", ""),
+            "duration": s.get("duration", ""),
+        })
+
+    prompt = f"""你是一个专业的AI短剧视觉导演。根据以下分镜信息和角色设定，为每个镜头生成详细的视觉提示词。
+
+角色设定：
+{json.dumps(char_info, ensure_ascii=False, indent=2)}
+
+本集场景：
+{json.dumps(scenes[:5], ensure_ascii=False, indent=2)[:1500]}
+
+分镜列表：
+{json.dumps(shots_info, ensure_ascii=False, indent=2)}
+
+请为每个镜头生成：
+1. visual_prompt: 详细画面描述（英文），包含场景、人物位置/动作/表情、光线、氛围、构图。用于AI图片生成。
+2. characters: 本镜头出现的角色名称列表（从角色设定中选择）
+3. camera_direction: 镜头运动指导（如：缓慢推进、跟随镜头、固定机位、俯拍等）
+
+要求：
+- visual_prompt必须是英文，便于AI图像模型理解
+- 每个镜头描述要具体可视觉化，包含人物外观细节
+- 保持与前后镜头的视觉连贯性
+
+【输出格式 - 必须严格遵守】
+直接输出纯 JSON 数组，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
+
+正确示例：
+[{{\"shot_id\": \"xxx\", \"visual_prompt\": \"A young woman in business attire...\", \"characters\": [\"角色名1\"], \"camera_direction\": \"slow push in\"}}]
+
+错误示例（禁止）：
+```json
+[...]
+```"""
+
+    system_msg = {"role": "system", "content": "你是一个专业的AI短剧视觉导演。\n\n【输出规则 - 绝对遵守】\n1. 直接输出纯 JSON 数组，不要包裹在 markdown 代码块中。\n2. 禁止输出任何 JSON 以外的内容。\n3. 禁止使用 \\`\\`\\`json \\`\\`\\` 包裹。"}
+
+    try:
+        response = await call_llm(
+            [system_msg, {"role": "user", "content": prompt}],
+            temperature=0.5,
+            max_tokens=2048,
+        )
+
+        json_match = re.search(r'\[[\s\S]*\]', response)
+        if json_match:
+            plans = json.loads(json_match.group())
+            # Validate structure
+            if isinstance(plans, list) and len(plans) == len(shots):
+                return plans
+
+        # Fallback on parse failure
+        return [_default_shot_plan(s) for s in shots]
+    except Exception as e:
+        print(f"Shot planning LLM failed: {e}")
+        return [_default_shot_plan(s) for s in shots]
+
+
+def _default_shot_plan(shot: dict) -> dict:
+    return {
+        "shot_id": shot["shot_id"],
+        "visual_prompt": shot.get("description", ""),
+        "characters": [],
+        "camera_direction": shot.get("camera_movement", ""),
+    }
 
 async def shots_node(state: ProductionState) -> dict:
     """Generate first-frame images and videos for all shots in an episode.
@@ -99,11 +203,12 @@ async def shots_node(state: ProductionState) -> dict:
                 "current_episode_index": current_episode_index + 1,
             }
 
-    # Load character assets for building prompts
+    # Load character assets
     character_assets = get_assets(project_id, type="character")
-    char_descriptions = []
-    for ca in character_assets:
-        char_descriptions.append(ca.get("anchor_prompt") or ca.get("description", ""))
+
+    # Plan all shots with LLM
+    shot_plans = await _plan_shots_with_llm(project_id, ep, shots, character_assets)
+    plan_by_id = {p["shot_id"]: p for p in shot_plans}
 
     # Auto mode: generate first frames then videos
     shots_completed = 0
@@ -114,11 +219,21 @@ async def shots_node(state: ProductionState) -> dict:
         shot_id = shot["shot_id"]
         description = shot.get("description", "")
 
-        # Build first-frame prompt with character context
-        frame_prompt = description
-        if char_descriptions:
-            char_context = ", ".join(char_descriptions[:3])  # Limit to avoid overly long prompts
-            frame_prompt = f"{description}, characters: {char_context}"
+        # Use LLM-planned visual prompt
+        plan = plan_by_id.get(shot_id, _default_shot_plan(shot))
+        frame_prompt = plan.get("visual_prompt", description)
+        camera_dir = plan.get("camera_direction", shot.get("camera_movement", ""))
+        appearing_chars = plan.get("characters", [])
+
+        # Find character sheet images for appearing characters
+        char_sheet_paths = []
+        for ca in character_assets:
+            if ca.get("name") in appearing_chars and ca.get("image_path"):
+                real_path = str(ASSETS_DIR / ca["image_path"].replace("/assets/", ""))
+                from pathlib import Path
+                if Path(real_path).exists():
+                    char_sheet_paths.append(real_path)
+        char_sheet_paths = char_sheet_paths[:3]  # Limit to avoid overly large prompts
 
         first_frame_path = None
 
@@ -136,7 +251,7 @@ async def shots_node(state: ProductionState) -> dict:
                 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
                 frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
 
-                await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
+                await generate_image(frame_prompt, frame_output, reference_images=char_sheet_paths if char_sheet_paths else None, aspect_ratio="16:9")
 
                 first_frame_path = f"/renders/{shot_id}_frame.png"
                 update_shot(shot_id, first_frame_path=first_frame_path)
@@ -180,8 +295,9 @@ async def shots_node(state: ProductionState) -> dict:
                 if first_frame_path:
                     real_frame_path = str(RENDERS_DIR / first_frame_path.replace("/renders/", ""))
 
+                video_prompt = f"{frame_prompt}, {camera_dir}" if camera_dir else frame_prompt
                 await generate_video(
-                    description, video_output,
+                    video_prompt, video_output,
                     reference_image=real_frame_path,
                     duration_seconds=3, aspect_ratio="16:9"
                 )

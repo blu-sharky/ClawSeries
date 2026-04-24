@@ -66,7 +66,7 @@ async def generate_image(prompt: str, output_path: str,
         )
     elif provider == "google_genai":
         image_bytes = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: _google_generate(prompt, config, aspect_ratio)
+            None, lambda p=prompt, c=config, ar=aspect_ratio, ri=reference_images: _google_generate(p, c, ar, ri)
         )
     elif provider == "openai":
         image_bytes = await asyncio.get_event_loop().run_in_executor(
@@ -197,8 +197,9 @@ def _get_google_client():
     return genai.Client(vertexai=True, project=project, location=location)
 
 
-def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1") -> bytes:
+def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", reference_images: list[str] | None = None) -> bytes:
     from google.genai import types
+    from pathlib import Path
 
     client = _get_google_client()
     model = config["model"]
@@ -206,7 +207,21 @@ def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1") -> by
     ar_map = {"1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "3:4": "3:4", "4:3": "4:3"}
     imagen_ar = ar_map.get(aspect_ratio, "1:1")
 
-    contents = [types.Content(role="user", parts=[types.Part(text=prompt)])]
+    parts = [types.Part(text=prompt)]
+
+    # Add reference images if provided
+    if reference_images:
+        for img_path in reference_images[:3]:  # Max 3 reference images
+            p = Path(img_path)
+            if p.exists():
+                img_data = p.read_bytes()
+                ext = p.suffix.lstrip('.').lower()
+                mime_type = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'webp': 'image/webp'}.get(ext, 'image/png')
+                parts.append(types.Part(
+                    inline_data=types.Blob(data=img_data, mime_type=mime_type)
+                ))
+
+    contents = [types.Content(role="user", parts=parts)]
     gen_config = types.GenerateContentConfig(
         temperature=1,
         top_p=0.95,

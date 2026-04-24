@@ -1,7 +1,9 @@
 """
-Video generation integration - supports Seedance 2.0 and compatible providers.
+Video generation integration - supports Seedance 2.0 and OpenAI Sora providers.
 """
 
+import asyncio
+import base64
 import json
 import struct
 from pathlib import Path
@@ -81,6 +83,73 @@ def get_video_config() -> dict:
     }
 
 
+async def _generate_openai_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio):
+    """Generate video via OpenAI Sora API (POST /videos, poll, download)."""
+    import httpx
+    base = config['base_url'].rstrip('/')
+
+    # Convert aspect_ratio to size string
+    ar_to_size = {
+        '16:9': '1280x720', '9:16': '720x1280', '1:1': '720x720',
+    }
+    size = ar_to_size.get(aspect_ratio, '1280x720')
+
+    payload = {
+        'model': config['model'],
+        'prompt': prompt,
+        'size': size,
+        'seconds': str(duration_seconds),
+    }
+
+    # If reference_image provided, encode as base64 data URL
+    if reference_image:
+        img_path = Path(reference_image)
+        if img_path.exists():
+            img_data = base64.b64encode(img_path.read_bytes()).decode()
+            ext = img_path.suffix.lstrip('.')
+            mime = {
+                'png': 'image/png', 'jpg': 'image/jpeg',
+                'jpeg': 'image/jpeg', 'webp': 'image/webp',
+            }.get(ext, 'image/png')
+            payload['input_reference'] = {'image_url': f'data:{mime};base64,{img_data}'}
+
+    headers = {
+        'Authorization': f"Bearer {config['api_key']}",
+        'Content-Type': 'application/json',
+    }
+
+    async with httpx.AsyncClient(timeout=300.0) as client:
+        # Submit
+        resp = await client.post(f'{base}/videos', headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        video_id = data['id']
+
+        # Poll for completion
+        for _ in range(120):
+            await asyncio.sleep(5)
+            status_resp = await client.get(f'{base}/videos/{video_id}', headers=headers)
+            status_resp.raise_for_status()
+            status_data = status_resp.json()
+
+            if status_data.get('status') == 'completed':
+                # Download video content
+                content_resp = await client.get(
+                    f'{base}/videos/{video_id}/content',
+                    headers=headers, follow_redirects=True,
+                )
+                Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                with open(output_path, 'wb') as f:
+                    f.write(content_resp.content)
+                return output_path
+
+            if status_data.get('status') == 'failed':
+                error = status_data.get('error', {})
+                msg = error.get('message', 'Unknown error') if isinstance(error, dict) else str(error)
+                raise RuntimeError(f'Video generation failed: {msg}')
+
+        raise RuntimeError('Video generation timed out')
+
 async def generate_video(prompt: str, output_path: str,
                           reference_image: str | None = None,
                           duration_seconds: int = 5,
@@ -98,8 +167,14 @@ async def generate_video(prompt: str, output_path: str,
         return output_path
 
     config = get_video_config()
-    if not config["api_key"]:
-        raise RuntimeError("Video API key not configured. Please configure in Settings.")
+    if not config['api_key']:
+        raise RuntimeError('Video API key not configured. Please configure in Settings.')
+
+    # Route to provider-specific implementation
+    provider = config.get('provider', 'seedance').lower()
+    if provider in ('openai', 'sora'):
+        return await _generate_openai_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio)
+
 
     import httpx
     url = f"{config['base_url'].rstrip('/')}/video/generate"
@@ -148,9 +223,6 @@ async def generate_video(prompt: str, output_path: str,
         raise RuntimeError("Video generation timed out")
 
     return output_path
-
-
-import asyncio
 
 
 def test_video_connection(api_key: str, base_url: str, model: str) -> dict:

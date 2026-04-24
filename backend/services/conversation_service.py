@@ -422,6 +422,19 @@ JSON 结构：
 
 {HOT_HOOK_REFERENCE}
 
+逐集结构要求（每集必须遵循）：
+- 开场5秒内必须有强钩子（悬念/冲突/身份反差/意外事件）
+- 中段必须有升级点（新信息揭示/关系变化/危机加深）
+- 结尾必须有反转或悬念（让用户忍不住点下一集）
+- 每集场景控制在2-4个，便于AI视频生成
+- 对白简洁有力，动作描写可视化（便于后续分镜和视频生成）
+
+AI视频生成适配要求：
+- 场景描写要具体可视觉化（明确的时间、地点、光线、氛围）
+- 角色动作要清晰具体（便于AI生成分镜画面）
+- 避免抽象内心独白，用动作和对白表达情感
+- 每场戏有明确的空间感（室内/室外、近景/远景、日/夜）
+
 用户需求：
 - 类型：{genre}
 - 建议集数：{episode_count}集
@@ -441,13 +454,14 @@ JSON 结构：
 1. 剧名（吸引人的标题）
 2. 故事梗概（100-200字）
 3. 主要角色（3-5个角色，每个包含姓名、年龄、角色定位、性格描述）
-4. 逐集标题（为每一集生成一个有悬念、有吸引力的标题，不能重复）
+4. 逐集标题和结构（每集包含开场钩子、中段升级点、结尾悬念）
+5. 逐集详情（包含每集的钩子、升级点、悬念、关键场景描述）
 
 【输出格式 - 必须严格遵守】
 直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
 
 正确示例：
-{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}]}}
+{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}], "episodes_detail": [{{"episode": 1, "title": "第1集标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}]}}
 
 错误示例（禁止）：
 ```json
@@ -459,7 +473,8 @@ JSON 结构：
 - synopsis: 故事梗概
 - characters: 角色数组 [{{name, age, role, description}}]
 - episode_titles: 逐集标题数组
-- episodes_summary: 分集概要数组 [{{range, theme}}]"""
+- episodes_summary: 分集概要数组 [{{range, theme}}]
+- episodes_detail: 逐集详情数组 [{{"episode": 集号, "title": "标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}]"""
 
     def _build_outline_stream_prompt(self, collected: dict) -> str:
         genre = collected.get("genre", "都市爱情")
@@ -479,9 +494,11 @@ JSON 结构：
 2. 结构尽量贴近最终确认文案：剧名、故事梗概、主要角色、分集概要。
 3. 这是 AI 短剧，内容要高钩子、强反转、角色关系清晰、场景集中。
 4. 语气像已经整理好方案后在向用户汇报，不要解释你的思考过程。
+5. 每集都要有明确的开场钩子、冲突升级和结尾悬念
 
 {HOT_HOOK_REFERENCE}
 
+逐集结构要求：每集必须有开场钩子（前5秒抓人）、中段升级点、结尾反转或悬念。场景描写要具体可视觉化。
 用户需求：
 - 类型：{genre}
 - 建议集数：{episode_count}集
