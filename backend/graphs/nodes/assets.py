@@ -77,7 +77,7 @@ async def assets_node(state: ProductionState) -> dict:
 
     # --- Generate character turnaround reference sheets ---
     for i, char in enumerate(characters, start=1):
-        asset_id = f"asset_char_{i:03d}"
+        asset_id = f"{project_id}_char_{i:03d}"
         
         # Character turnaround reference sheet prompt
         # Layout: Full body front view | Full body side view | Full body back view | Large face close-up
@@ -141,7 +141,7 @@ Style requirements:
 
     # --- Generate scene establishing shots ---
     for i, scene_name in enumerate(scene_names, start=1):
-        asset_id = f"asset_scene_{i:03d}"
+        asset_id = f"{project_id}_scene_{i:03d}"
         prompt = f"{scene_name}, establishing shot, cinematic, high quality, wide angle"
 
         create_asset(
