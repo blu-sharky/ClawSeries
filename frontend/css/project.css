@@ -810,10 +810,24 @@
 .monitor-stream-card .agent-monitor-text {
     margin: 0;
     border: none;
-    border-radius: 8px;
-    background: #0d1422;
-    color: #c9d1d9;
+    border-radius: 0;
+    background: var(--bg-primary);
+    color: var(--text-primary);
     max-height: 320px;
+    font-family: inherit;
+    font-size: 13px;
+}
+
+.agent-monitor-text h1,
+.agent-monitor-text h2,
+.agent-monitor-text h3 {
+    margin: 0 0 8px;
+    font-size: 15px;
+}
+
+.agent-monitor-text ul {
+    margin: 6px 0;
+    padding-left: 20px;
 }
 
 .agent-monitor-meta {
