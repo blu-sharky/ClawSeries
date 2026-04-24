@@ -832,10 +832,13 @@ async def _execute_project_compose(project_id: str, task: dict):
         f"《{project_repo.get_project(project_id)['title']}》已全部完成，共 {len(completed_eps)} 集"
     )
 
-    # Reset all agent states
+    # Reset all agent states to completed
     states = agent_repo.get_agent_states(project_id)
     for s in states:
-        agent_repo.update_agent_state(project_id, s["agent_id"], status="idle", current_task=None)
+        total = s["total_tasks"] or 1
+        agent_repo.update_agent_state(project_id, s["agent_id"],
+                                       status="idle", current_task=None,
+                                       completed_tasks=total, total_tasks=total)
 
     await send_project_completed(project_id, project_repo.get_project(project_id)["title"], len(completed_eps))
 
