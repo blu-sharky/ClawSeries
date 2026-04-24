@@ -29,7 +29,8 @@ from models import ProductionStage, STAGE_AGENT_MAP
 
 async def _plan_shots_with_llm(
     project_id: str, episode: dict, shots: list[dict],
-    character_assets: list[dict], series_type: str = "live-action"
+    character_assets: list[dict], series_type: str = "live-action",
+    episode_count: int | str = "?", episode_duration: str = "3分钟"
 ) -> list[dict]:
     """Use LLM to plan visual prompts and character selection for each shot.
 
@@ -74,6 +75,8 @@ async def _plan_shots_with_llm(
         style_instruction = "\n\n重要风格要求：这是一部真人短剧，所有 visual_prompt 必须使用写实电影风格描述，包含关键词：photorealistic, cinematic lighting, natural。不要使用 anime、illustration、cartoon 等动画风关键词。"
 
     prompt = f"""你是一个专业的AI短剧视觉导演。根据以下分镜信息和角色设定，为每个镜头生成详细的视觉提示词。{style_instruction}
+
+全剧设定：总集数{episode_count}集，每集{episode_duration}。
 
 角色设定：
 {json.dumps(char_info, ensure_ascii=False, indent=2)}
@@ -221,7 +224,10 @@ async def shots_node(state: ProductionState) -> dict:
     series_type = state.get("series_type") or proj_config.get("series_type", "live-action")
 
     # Plan all shots with LLM
-    shot_plans = await _plan_shots_with_llm(project_id, ep, shots, character_assets, series_type)
+    episode_count = proj_config.get("episode_count", "?")
+    episode_duration = proj_config.get("episode_duration", "3分钟")
+    shot_plans = await _plan_shots_with_llm(project_id, ep, shots, character_assets, series_type,
+                                             episode_count=episode_count, episode_duration=episode_duration)
     plan_by_id = {p["shot_id"]: p for p in shot_plans}
 
     # Auto mode: generate first frames then videos

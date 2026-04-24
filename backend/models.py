@@ -215,6 +215,8 @@ class ScriptOutline(BaseModel):
     episode_titles: List[str] = []
     episodes_summary: List[Dict[str, Any]]
     episodes_detail: List[Dict[str, Any]] = []
+    episode_count: int = 0
+    episode_duration: str = ""
 
 
 class ConfirmResponse(BaseModel):

@@ -129,6 +129,8 @@ async def script_node(state: ProductionState) -> dict:
 剧名: {project['title']}
 类型: {config.get('genre', '都市爱情')}
 风格: {config.get('style', '轻松幽默')}
+总集数: {config.get('episode_count', '?')}集
+单集时长: {config.get('episode_duration', '3分钟')}
 
 主要角色:
 {char_desc}

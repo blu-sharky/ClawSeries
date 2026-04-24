@@ -22,7 +22,7 @@ from prompt_reference import HOT_HOOK_REFERENCE, SHORT_DRAMA_PROMPT_REFERENCE
 GENRE_OPTIONS = ["都市爱情", "悬疑推理", "古风仙侠", "职场商战"]
 SERIES_TYPE_OPTIONS = ["真人短剧", "动画漫剧"]
 EPISODE_COUNT_OPTIONS = ["8集", "12集", "20集", "30集"]
-EPISODE_DURATION_OPTIONS = ["1-2分钟", "3-5分钟", "5-8分钟", "10分钟左右"]
+EPISODE_DURATION_OPTIONS = ["1分钟", "2分钟", "3分钟", "5分钟", "8分钟"]
 TARGET_AUDIENCE_OPTIONS = ["年轻女性", "年轻男性", "全年龄向", "中年群体"]
 STYLE_TONE_OPTIONS = ["轻松幽默", "紧张刺激", "温馨治愈", "暗黑深沉"]
 
@@ -414,7 +414,7 @@ JSON 结构：
     def _build_outline_prompt(self, collected: dict) -> str:
         genre = collected.get("genre", "都市爱情")
         episode_count = collected.get("episode_count", 20)
-        episode_duration = collected.get("episode_duration", "3-5分钟")
+        episode_duration = collected.get("episode_duration", "3分钟")
         target_audience = collected.get("target_audience", "全年龄向")
         story_background = collected.get("story_background", "")
         style_tone = collected.get("style_tone", "")
@@ -471,7 +471,7 @@ AI视频生成适配要求：
 直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
 
 正确示例：
-{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}], "episodes_detail": [{{"episode": 1, "title": "第1集标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}]}}
+{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}], "episodes_detail": [{{"episode": 1, "title": "第1集标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}], "episode_count": 6, "episode_duration": "3-5分钟"}}
 
 错误示例（禁止）：
 ```json
@@ -484,12 +484,14 @@ JSON 结构：
 - characters: 角色数组 [{{name, age, role, description}}]
 - episode_titles: 逐集标题数组
 - episodes_summary: 分集概要数组 [{{range, theme}}]
-- episodes_detail: 逐集详情数组 [{{"episode": 集号, "title": "标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}]"""
+- episodes_detail: 逐集详情数组 [{{"episode": 集号, "title": "标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}]
+- episode_count: 总集数（必须与用户选择一致）
+- episode_duration: 单集时长，必须是一个确切分钟数（如"3分钟"、"4分钟"），不要写范围"""
 
     def _build_outline_stream_prompt(self, collected: dict) -> str:
         genre = collected.get("genre", "都市爱情")
         episode_count = collected.get("episode_count", 20)
-        episode_duration = collected.get("episode_duration", "3-5分钟")
+        episode_duration = collected.get("episode_duration", "3分钟")
         target_audience = collected.get("target_audience", "全年龄向")
         story_background = collected.get("story_background", "")
         style_tone = collected.get("style_tone", "")
@@ -747,10 +749,12 @@ JSON 结构：
 
     def _create_project_in_db(self, project_id: str, conversation_id: str,
                                outline: ScriptOutline, collected: dict):
-        episode_count = collected.get("episode_count", 20)
+        # Prefer LLM-confirmed values, fall back to user-selected values
+        episode_count = outline.episode_count or collected.get("episode_count", 20)
+        episode_duration = outline.episode_duration or collected.get("episode_duration", "3分钟")
         config = {
             "episode_count": episode_count,
-            "episode_duration": collected.get("episode_duration", "3-5分钟"),
+            "episode_duration": episode_duration,
             "genre": collected.get("genre", "都市爱情"),
             "style": collected.get("style_tone", "轻松幽默"),
         }
@@ -772,7 +776,7 @@ JSON 结构：
             )
 
         # Create episodes with titles from LLM outline
-        actual_count = min(episode_count, 5)
+        actual_count = episode_count
         llm_titles = outline.episode_titles or []
         for i in range(actual_count):
             ep_id = f"{project_id}_ep_{i + 1:03d}"
@@ -947,7 +951,7 @@ JSON 结构：
         if round_num == 1:
             first_round_instruction = """\n\n【重要】这是第一轮对话，你的问题中必须包含以下两个问题：
 1. 总集数（select，选项建议：6集/8集/10集/12集/自定义）
-2. 单集时长（select，选项建议：1-2分钟/2-3分钟/3-5分钟/自定义）
+2. 单集时长（select，选项建议：1分钟/2分钟/3分钟/5分钟/自定义）
 以上两个问题必须出现，其余问题自由发挥。"""
 
         at_max_round = round_num >= MAX_ROUNDS
