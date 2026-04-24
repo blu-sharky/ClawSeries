@@ -24,5 +24,26 @@ for d in [DATA_DIR, SCRIPTS_DIR, ASSETS_DIR, RENDERS_DIR, OUTPUTS_DIR, CHROMA_DI
     d.mkdir(parents=True, exist_ok=True)
 
 
+def project_assets_dir(project_id: str) -> Path:
+    """Per-project asset subdirectory."""
+    d = ASSETS_DIR / project_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def project_renders_dir(project_id: str) -> Path:
+    """Per-project renders subdirectory."""
+    d = RENDERS_DIR / project_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def project_outputs_dir(project_id: str) -> Path:
+    """Per-project outputs subdirectory."""
+    d = OUTPUTS_DIR / project_id
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
 def get_db_url() -> str:
     return f"sqlite:///{DB_PATH}"

@@ -477,3 +477,91 @@ def start_dubbing(source_video: str, target_language: str, source_language: str 
     t.start()
 
     return task_id
+
+
+def get_completed_projects_for_dubbing() -> list[dict]:
+    """Return all completed projects with their episodes and existing dubbing tasks."""
+    from repositories import project_repo
+
+    projects = project_repo.get_all_projects()
+    completed = [p for p in projects if p.get("status") == "completed"]
+
+    result = []
+    for proj in completed:
+        episodes = project_repo.get_episodes(proj["project_id"])
+        ep_list = []
+        for ep in episodes:
+            video_url = ep.get("video_url")
+            if not video_url:
+                continue
+
+            # Find existing dubbing tasks for this episode's video
+            conn = get_connection()
+            rows = conn.execute(
+                "SELECT * FROM dubbing_tasks WHERE source_video_path LIKE ? ORDER BY created_at DESC LIMIT 5",
+                (f"%{ep['episode_id']}%",)
+            ).fetchall()
+            conn.close()
+
+            dub_tasks = [dict(r) for r in rows]
+            ep_list.append({
+                "episode_id": ep["episode_id"],
+                "episode_number": ep.get("episode_number", 0),
+                "title": ep.get("title", ""),
+                "video_url": video_url,
+                "dubbing_tasks": dub_tasks,
+            })
+
+        if ep_list:
+            result.append({
+                "project_id": proj["project_id"],
+                "title": proj.get("title", ""),
+                "episodes": ep_list,
+            })
+
+    return result
+
+
+def start_batch_dubbing(
+    project_id: str,
+    target_language: str,
+    episode_ids: list[str] | None = None,
+    source_language: str | None = None,
+) -> list[dict]:
+    """Start dubbing for selected episodes of a completed project.
+
+    Returns list of {task_id, episode_id, status}.
+    """
+    from repositories import project_repo
+    from config import OUTPUTS_DIR
+
+    episodes = project_repo.get_episodes(project_id)
+    if episode_ids:
+        episodes = [ep for ep in episodes if ep["episode_id"] in episode_ids]
+
+    tasks = []
+    for ep in episodes:
+        video_url = ep.get("video_url")
+        if not video_url:
+            continue
+
+        # Resolve actual video path from URL
+        # video_url format: /videos/{project_id}/{episode_id}.mp4
+        actual_path = str(OUTPUTS_DIR / video_url.replace("/videos/", ""))
+        if not os.path.exists(actual_path):
+            # Fallback: try old flat path
+            actual_path = str(OUTPUTS_DIR / f"{ep['episode_id']}.mp4")
+            if not os.path.exists(actual_path):
+                log.warning("[Dubbing] episode video not found: %s", ep["episode_id"])
+                continue
+
+        task_id = start_dubbing(actual_path, target_language, source_language)
+        tasks.append({
+            "task_id": task_id,
+            "episode_id": ep["episode_id"],
+            "episode_number": ep.get("episode_number", 0),
+            "title": ep.get("title", ""),
+            "status": "pending",
+        })
+
+    return tasks

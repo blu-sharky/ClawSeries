@@ -1,5 +1,5 @@
 /**
- * Dubbing module — video dubbing UI
+ * Dubbing module — video dubbing UI with project selection and batch dubbing
  */
 
 const DubbingView = {
@@ -7,6 +7,11 @@ const DubbingView = {
     selectedVideoPath: null,
     currentTaskId: null,
     pollingTimer: null,
+    batchTaskIds: [],
+    demoMode: false,
+    completedProjects: [],
+    selectedProject: null,
+    selectedEpisodes: new Set(),
 
     LANGUAGES: {
         en: "🇺🇸 English", zh: "🇨🇳 Chinese", ja: "🇯🇵 Japanese",
@@ -34,7 +39,24 @@ const DubbingView = {
         this.selectedLang = null;
         this.selectedVideoPath = null;
         this.currentTaskId = null;
+        this.batchTaskIds = [];
+        this.selectedProject = null;
+        this.selectedEpisodes = new Set();
+
+        // Load settings to check demo mode
+        try {
+            const res = await fetch('http://localhost:8000/api/v1/settings/models');
+            const data = await res.json();
+            this.demoMode = data.dubbing_test_mode === true || data.dubbing_test_mode === "true";
+        } catch (e) {
+            this.demoMode = false;
+        }
+
         this.render();
+
+        if (!this.demoMode) {
+            this.loadCompletedProjects();
+        }
         this.loadHistory();
     },
 
@@ -45,11 +67,13 @@ const DubbingView = {
         container.innerHTML = `
             <div class="dubbing-header">
                 <h2>AI 多语言配音</h2>
-                <p>一键配音整个剧集到指定语言，保持原音色和情感</p>
+                <p>${this.demoMode
+                    ? 'Demo 模式 — 可上传视频或使用内置测试视频'
+                    : '选择已完成的短剧项目，一键或逐集配音到指定语言'}</p>
             </div>
             <div class="dubbing-panel">
                 ${this._renderLangSelector()}
-                ${this._renderSourceSection()}
+                ${this.demoMode ? this._renderDemoSourceSection() : this._renderProjectSelector()}
                 ${this._renderStartButton()}
                 <div id="dubbing-progress-area"></div>
                 <div id="dubbing-result-area"></div>
@@ -59,6 +83,7 @@ const DubbingView = {
         this._bindEvents();
     },
 
+    // ── Language selector ────────────────────────────────────────────────
     _renderLangSelector() {
         const btns = Object.entries(this.LANGUAGES).map(([code, name]) =>
             `<button class="dubbing-lang-btn${this.selectedLang === code ? ' selected' : ''}" data-lang="${code}">${name}</button>`
@@ -71,8 +96,8 @@ const DubbingView = {
         `;
     },
 
-    _renderSourceSection() {
-        const testVideoExists = true; // test-video.mp4 is in project root
+    // ── Demo mode source (file upload + test video) ──────────────────────
+    _renderDemoSourceSection() {
         const selectedFile = this.selectedVideoPath
             ? `<div class="dubbing-selected-file">
                 <span class="file-icon">📎</span>
@@ -101,6 +126,75 @@ const DubbingView = {
         `;
     },
 
+    // ── Project selector (non-demo mode) ─────────────────────────────────
+    _renderProjectSelector() {
+        if (this.completedProjects.length === 0) {
+            return `
+                <div class="dubbing-source-section">
+                    <h3>选择短剧项目</h3>
+                    <div class="dubbing-empty-state">
+                        <div class="dubbing-empty-icon">📺</div>
+                        <p>暂无已完成的短剧项目</p>
+                        <p class="dubbing-empty-hint">请先在"制作"流程中完成一个短剧项目，然后在此处进行配音</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        const projectCards = this.completedProjects.map(p => {
+            const isSelected = this.selectedProject === p.project_id;
+            return `
+                <div class="dubbing-project-card${isSelected ? ' selected' : ''}" data-project-id="${p.project_id}">
+                    <div class="dubbing-project-info">
+                        <h4>${p.title}</h4>
+                        <span class="dubbing-project-meta">${p.episodes.length} 集</span>
+                    </div>
+                    ${isSelected ? this._renderEpisodeList(p) : ''}
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="dubbing-source-section">
+                <h3>选择短剧项目</h3>
+                <div class="dubbing-project-list">${projectCards}</div>
+            </div>
+        `;
+    },
+
+    _renderEpisodeList(project) {
+        const allSelected = project.episodes.every(ep => this.selectedEpisodes.has(ep.episode_id));
+        const items = project.episodes.map(ep => {
+            const checked = this.selectedEpisodes.has(ep.episode_id) ? 'checked' : '';
+            const dubCount = ep.dubbing_tasks ? ep.dubbing_tasks.length : 0;
+            const dubInfo = dubCount > 0
+                ? `<span class="dubbing-ep-dub-count">${dubCount} 个配音任务</span>`
+                : '';
+            return `
+                <div class="dubbing-episode-item">
+                    <label class="dubbing-episode-label">
+                        <input type="checkbox" class="dubbing-ep-checkbox" data-ep-id="${ep.episode_id}" ${checked}>
+                        <span>第${ep.episode_number}集: ${ep.title}</span>
+                    </label>
+                    ${dubInfo}
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="dubbing-episode-list">
+                <div class="dubbing-episode-header">
+                    <label class="dubbing-episode-label">
+                        <input type="checkbox" class="dubbing-ep-select-all" ${allSelected ? 'checked' : ''}>
+                        <span class="dubbing-select-all-text">全选</span>
+                    </label>
+                </div>
+                ${items}
+            </div>
+        `;
+    },
+
+    // ── Start button ─────────────────────────────────────────────────────
     _renderStartButton() {
         return `
             <div class="dubbing-start-section">
@@ -111,6 +205,7 @@ const DubbingView = {
         `;
     },
 
+    // ── Progress & result renderers ──────────────────────────────────────
     _renderProgress(status) {
         const pct = status.progress || 0;
         const currentStep = status.current_step || status.status || '';
@@ -137,6 +232,31 @@ const DubbingView = {
                     <div class="dubbing-progress-fill" style="width: ${pct}%"></div>
                 </div>
                 <div class="dubbing-progress-steps">${stepsHtml}</div>
+            </div>
+        `;
+    },
+
+    _renderBatchProgress(tasks) {
+        const total = tasks.length;
+        const completed = tasks.filter(t => t.status === 'completed').length;
+        const failed = tasks.filter(t => t.status === 'failed').length;
+        const running = tasks.filter(t => !['completed', 'failed'].includes(t.status)).length;
+        const pct = total > 0 ? Math.round((completed + failed) / total * 100) : 0;
+
+        return `
+            <div class="dubbing-progress-section">
+                <div class="dubbing-progress-header">
+                    <h3>批量配音进度</h3>
+                    <span class="dubbing-progress-percent">${completed}/${total} 完成</span>
+                </div>
+                <div class="dubbing-progress-bar">
+                    <div class="dubbing-progress-fill" style="width: ${pct}%"></div>
+                </div>
+                <div class="dubbing-batch-stats">
+                    <span class="dubbing-batch-stat done">✓ ${completed} 完成</span>
+                    <span class="dubbing-batch-stat fail">✗ ${failed} 失败</span>
+                    <span class="dubbing-batch-stat run">⏳ ${running} 进行中</span>
+                </div>
             </div>
         `;
     },
@@ -170,6 +290,7 @@ const DubbingView = {
         `;
     },
 
+    // ── Event binding ────────────────────────────────────────────────────
     _bindEvents() {
         // Language selection
         const langGrid = document.querySelector('.dubbing-lang-grid');
@@ -184,6 +305,14 @@ const DubbingView = {
             });
         }
 
+        if (this.demoMode) {
+            this._bindDemoEvents();
+        } else {
+            this._bindProjectEvents();
+        }
+    },
+
+    _bindDemoEvents() {
         // File upload
         const fileInput = document.getElementById('dubbing-file-input');
         if (fileInput) {
@@ -215,6 +344,57 @@ const DubbingView = {
                 this._updateStartButton();
             });
         }
+    },
+
+    _bindProjectEvents() {
+        const list = document.querySelector('.dubbing-project-list');
+        if (!list) return;
+
+        // Project card click
+        list.addEventListener('click', (e) => {
+            const card = e.target.closest('.dubbing-project-card');
+            if (!card) return;
+            // If clicking on episode list internals, don't toggle project
+            if (e.target.closest('.dubbing-episode-list')) return;
+
+            const projectId = card.dataset.projectId;
+            if (this.selectedProject === projectId) {
+                this.selectedProject = null;
+                this.selectedEpisodes.clear();
+            } else {
+                this.selectedProject = projectId;
+                this.selectedEpisodes.clear();
+            }
+            this.render();
+            this.loadHistory();
+        });
+
+        // Episode checkbox
+        list.addEventListener('change', (e) => {
+            if (e.target.classList.contains('dubbing-ep-checkbox')) {
+                const epId = e.target.dataset.epId;
+                if (e.target.checked) {
+                    this.selectedEpisodes.add(epId);
+                } else {
+                    this.selectedEpisodes.delete(epId);
+                }
+                this._updateStartButton();
+            }
+
+            // Select all
+            if (e.target.classList.contains('dubbing-ep-select-all')) {
+                const project = this.completedProjects.find(p => p.project_id === this.selectedProject);
+                if (project) {
+                    if (e.target.checked) {
+                        project.episodes.forEach(ep => this.selectedEpisodes.add(ep.episode_id));
+                    } else {
+                        this.selectedEpisodes.clear();
+                    }
+                    this.render();
+                    this.loadHistory();
+                }
+            }
+        });
     },
 
     async _handleFileUpload(file) {
@@ -249,14 +429,19 @@ const DubbingView = {
                 <span>${this.selectedVideoPath.split('/').pop()}</span>
                 <span class="file-remove" onclick="DubbingView.clearVideo()">✕</span>
             `;
-            section.querySelector('.dubbing-upload-area').after(div);
+            section.querySelector('.dubbing-upload-area')?.after(div);
         }
     },
 
     _updateStartButton() {
         const btn = document.getElementById('dubbing-start-btn');
         if (!btn) return;
-        btn.disabled = !(this.selectedLang && this.selectedVideoPath);
+
+        if (this.demoMode) {
+            btn.disabled = !(this.selectedLang && this.selectedVideoPath);
+        } else {
+            btn.disabled = !(this.selectedLang && this.selectedEpisodes.size > 0);
+        }
     },
 
     clearVideo() {
@@ -267,28 +452,53 @@ const DubbingView = {
         this._updateStartButton();
     },
 
+    // ── Start dubbing ────────────────────────────────────────────────────
     async startDubbing() {
-        if (!this.selectedLang || !this.selectedVideoPath) return;
+        if (!this.selectedLang) return;
 
         const btn = document.getElementById('dubbing-start-btn');
         if (btn) { btn.disabled = true; btn.textContent = '⏳ 启动中...'; }
 
         try {
-            const res = await fetch('http://localhost:8000/api/v1/dubbing/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    video_path: this.selectedVideoPath,
-                    target_language: this.selectedLang,
-                }),
-            });
-            const data = await res.json();
-            if (data.task_id) {
-                this.currentTaskId = data.task_id;
-                this._startPolling(data.task_id);
+            if (this.demoMode) {
+                // Single video dubbing
+                if (!this.selectedVideoPath) return;
+                const res = await fetch('http://localhost:8000/api/v1/dubbing/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        video_path: this.selectedVideoPath,
+                        target_language: this.selectedLang,
+                    }),
+                });
+                const data = await res.json();
+                if (data.task_id) {
+                    this.currentTaskId = data.task_id;
+                    this._startPolling(data.task_id);
+                } else {
+                    alert('启动失败: ' + (data.detail || JSON.stringify(data)));
+                    if (btn) { btn.disabled = false; btn.textContent = '🎬 开始配音'; }
+                }
             } else {
-                alert('启动失败: ' + (data.detail || JSON.stringify(data)));
-                if (btn) { btn.disabled = false; btn.textContent = '🎬 开始配音'; }
+                // Batch project dubbing
+                if (this.selectedEpisodes.size === 0) return;
+                const res = await fetch('http://localhost:8000/api/v1/dubbing/start-batch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: this.selectedProject,
+                        target_language: this.selectedLang,
+                        episode_ids: Array.from(this.selectedEpisodes),
+                    }),
+                });
+                const data = await res.json();
+                if (data.tasks && data.tasks.length > 0) {
+                    this.batchTaskIds = data.tasks.map(t => t.task_id);
+                    this._startBatchPolling();
+                } else {
+                    alert('启动失败: ' + (data.detail || JSON.stringify(data)));
+                    if (btn) { btn.disabled = false; btn.textContent = '🎬 开始配音'; }
+                }
             }
         } catch (err) {
             alert('启动失败: ' + err.message);
@@ -297,11 +507,15 @@ const DubbingView = {
     },
 
     _startPolling(taskId) {
-        // Hide start section, show progress
         const startSection = document.querySelector('.dubbing-start-section');
         if (startSection) startSection.style.display = 'none';
-
         this._pollStatus(taskId);
+    },
+
+    _startBatchPolling() {
+        const startSection = document.querySelector('.dubbing-start-section');
+        if (startSection) startSection.style.display = 'none';
+        this._pollBatchStatus();
     },
 
     async _pollStatus(taskId) {
@@ -316,25 +530,90 @@ const DubbingView = {
                 if (progressArea) progressArea.innerHTML = this._renderProgress({ ...status, progress: 100 });
                 if (resultArea) resultArea.innerHTML = this._renderResult(status);
                 this.loadHistory();
-                return; // stop polling
+                return;
             }
 
             if (status.status === 'failed') {
                 if (progressArea) progressArea.innerHTML = '';
                 if (resultArea) resultArea.innerHTML = this._renderError(status);
                 this.loadHistory();
-                return; // stop polling
+                return;
             }
 
-            // Still running
             if (progressArea) progressArea.innerHTML = this._renderProgress(status);
             if (resultArea) resultArea.innerHTML = '';
 
-            // Poll again
             this.pollingTimer = setTimeout(() => this._pollStatus(taskId), 2000);
         } catch (err) {
             console.error('Poll error:', err);
             this.pollingTimer = setTimeout(() => this._pollStatus(taskId), 5000);
+        }
+    },
+
+    async _pollBatchStatus() {
+        try {
+            const tasks = [];
+            for (const tid of this.batchTaskIds) {
+                const res = await fetch(`http://localhost:8000/api/v1/dubbing/${tid}`);
+                tasks.push(await res.json());
+            }
+
+            const progressArea = document.getElementById('dubbing-progress-area');
+            const resultArea = document.getElementById('dubbing-result-area');
+
+            if (progressArea) progressArea.innerHTML = this._renderBatchProgress(tasks);
+
+            const allDone = tasks.every(t => t.status === 'completed' || t.status === 'failed');
+
+            if (allDone) {
+                const completed = tasks.filter(t => t.status === 'completed');
+                const failed = tasks.filter(t => t.status === 'failed');
+
+                if (resultArea) {
+                    resultArea.innerHTML = `
+                        <div class="dubbing-result-section">
+                            <h3>${completed.length === tasks.length ? '✓ 全部完成' : '⚠ 部分完成'}</h3>
+                            <p>成功: ${completed.length} / 失败: ${failed.length} / 总计: ${tasks.length}</p>
+                            <div class="dubbing-result-actions">
+                                <button class="btn-secondary" onclick="DubbingView.init()">🔄 再次配音</button>
+                            </div>
+                        </div>
+                    `;
+                }
+                this.loadHistory();
+                return;
+            }
+
+            this.pollingTimer = setTimeout(() => this._pollBatchStatus(), 3000);
+        } catch (err) {
+            console.error('Batch poll error:', err);
+            this.pollingTimer = setTimeout(() => this._pollBatchStatus(), 5000);
+        }
+    },
+
+    // ── Load data ────────────────────────────────────────────────────────
+    async loadCompletedProjects() {
+        try {
+            const res = await fetch('http://localhost:8000/api/v1/dubbing/completed-projects');
+            const data = await res.json();
+            this.completedProjects = data.projects || [];
+        } catch (err) {
+            this.completedProjects = [];
+        }
+
+        // Re-render project selector if we have data
+        const section = document.querySelector('.dubbing-source-section');
+        if (section) {
+            const oldList = section.querySelector('.dubbing-project-list, .dubbing-empty-state');
+            if (oldList) {
+                const tmp = document.createElement('div');
+                tmp.innerHTML = this._renderProjectSelector();
+                const newContent = tmp.querySelector('.dubbing-source-section');
+                if (newContent) {
+                    section.innerHTML = newContent.innerHTML;
+                    this._bindProjectEvents();
+                }
+            }
         }
     },
 

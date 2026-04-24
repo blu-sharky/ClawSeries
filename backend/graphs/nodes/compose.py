@@ -9,7 +9,7 @@ from repositories.production_event_repo import (
 )
 from routers.websocket import send_episode_completed, send_project_completed
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
-from config import RENDERS_DIR, OUTPUTS_DIR
+from config import RENDERS_DIR, OUTPUTS_DIR, project_outputs_dir
 from models import ProductionStage, STAGE_AGENT_MAP
 
 
@@ -56,20 +56,19 @@ async def episode_compose_node(state: ProductionState) -> dict:
 
     if video_paths and is_ffmpeg_available():
         try:
-            OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-            output_path = str(OUTPUTS_DIR / f"{episode_id}.mp4")
+            output_path = str(project_outputs_dir(project_id) / f"{episode_id}.mp4")
             actual_paths = [str(RENDERS_DIR / p.replace("/renders/", "")) for p in video_paths]
             concatenate_videos(actual_paths, output_path)
             project_repo.update_episode(
-                episode_id, video_url=f"/videos/{episode_id}.mp4", status="completed", progress=100
+                episode_id, video_url=f"/videos/{project_id}/{episode_id}.mp4", status="completed", progress=100
             )
             add_production_event(
                 project_id, agent_id, ProductionStage.EPISODE_COMPOSING.value,
                 "episode_completed", f"第{ep['episode_number']}集完成", "已合成成片",
-                episode_id=episode_id, payload={"video_url": f"/videos/{episode_id}.mp4"}
+                episode_id=episode_id, payload={"video_url": f"/videos/{project_id}/{episode_id}.mp4"}
             )
             await send_episode_completed(
-                project_id, episode_id, ep["episode_number"], ep["title"], f"/videos/{episode_id}.mp4"
+                project_id, episode_id, ep["episode_number"], ep["title"], f"/videos/{project_id}/{episode_id}.mp4"
             )
         except Exception as e:
             project_repo.update_episode(episode_id, status="failed")
@@ -127,8 +126,7 @@ async def project_compose_node(state: ProductionState) -> dict:
 
     if is_ffmpeg_available() and len(completed_eps) > 1:
         try:
-            OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
-            output_path = str(OUTPUTS_DIR / f"{project_id}_final.mp4")
+            output_path = str(project_outputs_dir(project_id) / f"{project_id}_final.mp4")
             video_paths = [ep["video_url"] for ep in completed_eps if ep.get("video_url")]
             if video_paths:
                 actual_paths = [str(OUTPUTS_DIR / p.replace("/videos/", "")) for p in video_paths]

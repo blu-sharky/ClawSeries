@@ -22,14 +22,14 @@ from repositories.settings_repo import get_setting
 from routers.websocket import send_agent_monitor
 from integrations.video import is_video_configured, generate_video, get_video_config
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
-from config import RENDERS_DIR, ASSETS_DIR
+from config import RENDERS_DIR, ASSETS_DIR, project_renders_dir, project_assets_dir
 from models import ProductionStage, STAGE_AGENT_MAP
 
 
 
 async def _plan_shots_with_llm(
     project_id: str, episode: dict, shots: list[dict],
-    character_assets: list[dict]
+    character_assets: list[dict], series_type: str = "live-action"
 ) -> list[dict]:
     """Use LLM to plan visual prompts and character selection for each shot.
 
@@ -67,7 +67,13 @@ async def _plan_shots_with_llm(
             "duration": s.get("duration", ""),
         })
 
-    prompt = f"""你是一个专业的AI短剧视觉导演。根据以下分镜信息和角色设定，为每个镜头生成详细的视觉提示词。
+    style_instruction = ""
+    if series_type == "animation":
+        style_instruction = "\n\n重要风格要求：这是一部动画漫剧，所有 visual_prompt 必须使用动漫/插画面风描述，包含关键词：anime style, cel-shaded, vibrant colors, illustration。不要使用 photorealistic、realistic 等真人风关键词。"
+    else:
+        style_instruction = "\n\n重要风格要求：这是一部真人短剧，所有 visual_prompt 必须使用写实电影风格描述，包含关键词：photorealistic, cinematic lighting, natural。不要使用 anime、illustration、cartoon 等动画风关键词。"
+
+    prompt = f"""你是一个专业的AI短剧视觉导演。根据以下分镜信息和角色设定，为每个镜头生成详细的视觉提示词。{style_instruction}
 
 角色设定：
 {json.dumps(char_info, ensure_ascii=False, indent=2)}
@@ -206,8 +212,16 @@ async def shots_node(state: ProductionState) -> dict:
     # Load character assets
     character_assets = get_assets(project_id, type="character")
 
+    # Determine series type
+    proj = project_repo.get_project(project_id)
+    proj_config = proj.get("config", {}) if proj else {}
+    if isinstance(proj_config, str):
+        import json as _json
+        proj_config = _json.loads(proj_config)
+    series_type = state.get("series_type") or proj_config.get("series_type", "live-action")
+
     # Plan all shots with LLM
-    shot_plans = await _plan_shots_with_llm(project_id, ep, shots, character_assets)
+    shot_plans = await _plan_shots_with_llm(project_id, ep, shots, character_assets, series_type)
     plan_by_id = {p["shot_id"]: p for p in shot_plans}
 
     # Auto mode: generate first frames then videos
@@ -248,12 +262,11 @@ async def shots_node(state: ProductionState) -> dict:
             )
 
             try:
-                RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-                frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
+                frame_output = str(project_renders_dir(project_id) / f"{shot_id}_frame.png")
 
                 await generate_image(frame_prompt, frame_output, reference_images=char_sheet_paths if char_sheet_paths else None, aspect_ratio="16:9")
 
-                first_frame_path = f"/renders/{shot_id}_frame.png"
+                first_frame_path = f"/renders/{project_id}/{shot_id}_frame.png"
                 update_shot(shot_id, first_frame_path=first_frame_path)
 
                 add_production_event(
@@ -280,8 +293,7 @@ async def shots_node(state: ProductionState) -> dict:
             )
 
             try:
-                RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-                video_output = str(RENDERS_DIR / f"{shot_id}.mp4")
+                video_output = str(project_renders_dir(project_id) / f"{shot_id}.mp4")
                 video_config = get_video_config()
                 add_shot_trace(
                     shot_id, project_id, "video_generation", agent_id=agent_id,
@@ -302,7 +314,7 @@ async def shots_node(state: ProductionState) -> dict:
                     duration_seconds=3, aspect_ratio="16:9"
                 )
 
-                update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
+                update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")
                 add_shot_trace(
                     shot_id, project_id, "video_completed", agent_id=agent_id,
                     output_path=video_output, provider_name=video_config["provider"],
@@ -314,7 +326,7 @@ async def shots_node(state: ProductionState) -> dict:
                     project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                     "output_captured", f"镜头 {shot['shot_number']} 输出", "视频已生成",
                     episode_id=episode_id, shot_id=shot_id,
-                    payload={"output": f"/renders/{shot_id}.mp4"}
+                    payload={"output": f"/renders/{project_id}/{shot_id}.mp4"}
                 )
                 add_production_event(
                     project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,

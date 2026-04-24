@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 
-from models import DubbingRequest, DubbingTaskInfo, DUBBING_LANGUAGES
+from models import DubbingRequest, DubbingTaskInfo, DUBBING_LANGUAGES, BatchDubbingRequest, BatchDubbingResponse, CompletedProjectForDubbing, EpisodeForDubbing
 from services import dubbing_service
 from config import DUBBING_DIR
 
@@ -31,6 +31,13 @@ class DubbingLanguagesResponse(BaseModel):
 async def get_supported_languages():
     """Return supported target languages for dubbing."""
     return {"languages": DUBBING_LANGUAGES}
+
+
+@router.get("/dubbing/completed-projects")
+async def get_completed_projects():
+    """Return completed projects with their episodes for dubbing selection."""
+    projects = dubbing_service.get_completed_projects_for_dubbing()
+    return {"projects": projects}
 
 
 @router.post("/dubbing/start", response_model=StartDubbingResponse)
@@ -170,3 +177,28 @@ async def download_dubbed_video(task_id: str):
         media_type="video/mp4",
         filename=f"dubbed_{task['target_language']}_{task_id}.mp4",
     )
+
+
+@router.post("/dubbing/start-batch")
+async def start_batch_dubbing(req: BatchDubbingRequest):
+    """Start dubbing for selected episodes of a completed project.
+
+    If episode_ids is not provided, dubs all episodes.
+    """
+    if req.target_language not in DUBBING_LANGUAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported target language: {req.target_language}. Supported: {list(DUBBING_LANGUAGES.keys())}"
+        )
+
+    tasks = dubbing_service.start_batch_dubbing(
+        project_id=req.project_id,
+        target_language=req.target_language,
+        episode_ids=req.episode_ids,
+        source_language=req.source_language,
+    )
+
+    if not tasks:
+        raise HTTPException(status_code=400, detail="No dubbing tasks created — episodes may have no video")
+
+    return {"tasks": tasks, "total": len(tasks)}

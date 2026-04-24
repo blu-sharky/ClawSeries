@@ -20,6 +20,7 @@ from prompt_reference import HOT_HOOK_REFERENCE, SHORT_DRAMA_PROMPT_REFERENCE
 
 # Genre options remain useful for lightweight classification and fallbacks.
 GENRE_OPTIONS = ["都市爱情", "悬疑推理", "古风仙侠", "职场商战"]
+SERIES_TYPE_OPTIONS = ["真人短剧", "动画漫剧"]
 EPISODE_COUNT_OPTIONS = ["8集", "12集", "20集", "30集"]
 EPISODE_DURATION_OPTIONS = ["1-2分钟", "3-5分钟", "5-8分钟", "10分钟左右"]
 TARGET_AUDIENCE_OPTIONS = ["年轻女性", "年轻男性", "全年龄向", "中年群体"]
@@ -308,6 +309,15 @@ JSON 结构：
 
     def _missing_production_questions(self, collected: dict) -> list[QuestionOption]:
         questions: list[QuestionOption] = []
+        if "series_type" not in collected:
+            questions.append(
+                QuestionOption(
+                    id="series_type",
+                    question="您想制作真人短剧还是动画漫剧？",
+                    type="select",
+                    options=SERIES_TYPE_OPTIONS,
+                )
+            )
         if "episode_count" not in collected:
             questions.append(
                 QuestionOption(
@@ -788,6 +798,13 @@ JSON 结构：
                 info["genre"] = genre
                 break
 
+        # Series type: 真人短剧 vs 动画漫剧
+        if "series_type" not in info:
+            if any(kw in user_message for kw in ["真人", "实拍", "live-action", "live action"]):
+                info["series_type"] = "live-action"
+            elif any(kw in user_message for kw in ["动画", "动漫", "二次元", "anime", "animation", "漫剧"]):
+                info["series_type"] = "animation"
+
         episode_count = self._parse_episode_count(user_message)
         if episode_count and "episode_count" not in info:
             info["episode_count"] = episode_count
@@ -842,6 +859,8 @@ JSON 结构：
             self._extract_common_preferences(info, user_message)
             if "genre" not in info:
                 info["genre"] = "都市爱情"
+            if "series_type" not in info:
+                info["series_type"] = "live-action"
             return
 
         self._extract_common_preferences(info, user_message)

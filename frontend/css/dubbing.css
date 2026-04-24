@@ -420,3 +420,129 @@
     display: flex;
     gap: 8px;
 }
+
+/* ── Project selector ─────────────────────────────────────────────── */
+
+.dubbing-project-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.dubbing-project-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: var(--bg-primary);
+}
+
+.dubbing-project-card:hover {
+    border-color: var(--accent);
+}
+
+.dubbing-project-card.selected {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent);
+}
+
+.dubbing-project-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.dubbing-project-info h4 {
+    margin: 0;
+    font-size: 15px;
+    color: var(--text-primary);
+}
+
+.dubbing-project-meta {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.dubbing-episode-list {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.dubbing-episode-header {
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px dashed var(--border);
+}
+
+.dubbing-episode-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 4px;
+    border-radius: 6px;
+    transition: background 0.1s;
+}
+
+.dubbing-episode-item:hover {
+    background: var(--bg-tertiary);
+}
+
+.dubbing-episode-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.dubbing-ep-dub-count {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    background: var(--bg-tertiary);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.dubbing-select-all-text {
+    font-weight: 500;
+    color: var(--text-secondary);
+}
+
+/* ── Empty state ──────────────────────────────────────────────────── */
+
+.dubbing-empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--text-tertiary);
+}
+
+.dubbing-empty-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.dubbing-empty-hint {
+    font-size: 13px;
+    margin-top: 4px;
+}
+
+/* ── Batch progress ───────────────────────────────────────────────── */
+
+.dubbing-batch-stats {
+    display: flex;
+    gap: 16px;
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+.dubbing-batch-stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.dubbing-batch-stat.done { color: #10b981; }
+.dubbing-batch-stat.fail { color: #ef4444; }
+.dubbing-batch-stat.run  { color: #f59e0b; }

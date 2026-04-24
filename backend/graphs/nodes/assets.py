@@ -18,7 +18,7 @@ from repositories.production_event_repo import (
 )
 from models import ProductionStage, STAGE_AGENT_MAP
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
-from config import ASSETS_DIR
+from config import ASSETS_DIR, project_assets_dir
 
 
 async def assets_node(state: ProductionState) -> dict:
@@ -75,27 +75,57 @@ async def assets_node(state: ProductionState) -> dict:
     image_configured = is_image_configured()
     demo_mode = is_image_demo_mode()
 
+    # Determine series type for style-aware prompts
+    project = project_repo.get_project(project_id)
+    config = project.get("config", {}) if project else {}
+    if isinstance(config, str):
+        import json as _json
+        config = _json.loads(config)
+    series_type = config.get("series_type", "live-action")
+    state_series_type = state.get("series_type", series_type)
+    series_type = state_series_type or series_type
+
     # --- Generate character turnaround reference sheets ---
     for i, char in enumerate(characters, start=1):
         asset_id = f"{project_id}_char_{i:03d}"
-        
-        # Character turnaround reference sheet prompt
-        # Layout: Full body front view | Full body side view | Full body back view | Large face close-up
-        prompt = f"""Character design reference sheet for {char['name']}, {char['role']}, {char['description']}. 
 
-A professional character turnaround sheet showing the same character from multiple angles in a single horizontal image:
-- LEFT: Full body front view (standing straight, arms at sides or slightly away from body)
-- CENTER-LEFT: Full body side/profile view (facing left, showing profile details)
-- CENTER-RIGHT: Full body back view (showing back of head, clothing details from behind)
-- RIGHT: Large face close-up portrait (detailed facial features, expression neutral)
+        name, role, desc = char['name'], char['role'], char['description']
 
-Style requirements:
-- Consistent character design across all views
-- Clean white or neutral background
-- Professional concept art quality
-- Clear outlines and details
-- Same clothing, hairstyle, and accessories in all views
-- Character reference sheet layout, horizontal composition
+        if series_type == "animation":
+            prompt = f"""Professional anime character turnaround reference sheet for {name}, {role}, {desc}.
+
+STRICT LAYOUT — Generate exactly 4 views in a single horizontal 2:1 image:
+Panel 1 (LEFT): Full-body front view — standing straight, arms at sides, neutral expression
+Panel 2 (CENTER-LEFT): Full-body 3/4 view — slightly turned, showing depth
+Panel 3 (CENTER-RIGHT): Full-body side/profile view — facing left, showing profile
+Panel 4 (RIGHT): Close-up face portrait — detailed facial features, neutral expression
+
+ANIME/ILLUSTRATION STYLE:
+- Clean anime/manga art style with crisp outlines
+- Cel-shaded coloring, vibrant but balanced palette
+- Consistent character design across all 4 views (same proportions, same outfit)
+- Clean white background, no gradients or patterns
+- Professional character design sheet quality
+- Same hairstyle, eye design, and accessories in every view
+- NO text labels, NO grid lines, NO arrows — only the character views
+- High quality, detailed"""
+        else:
+            prompt = f"""Professional character turnaround reference sheet for {name}, {role}, {desc}.
+
+STRICT LAYOUT — Generate exactly 4 views in a single horizontal 2:1 image:
+Panel 1 (LEFT): Full-body front view — standing straight, arms at sides, neutral expression
+Panel 2 (CENTER-LEFT): Full-body 3/4 view — slightly turned, showing depth
+Panel 3 (CENTER-RIGHT): Full-body side/profile view — facing left, showing profile
+Panel 4 (RIGHT): Close-up face portrait — detailed facial features, neutral expression
+
+PHOTOREALISTIC STYLE:
+- Hyper-realistic rendering, as if photographed
+- Natural skin texture, realistic lighting (soft studio 3-point lighting)
+- Professional actor headshot quality
+- Consistent clothing, hairstyle, accessories across all 4 views
+- Clean white studio background with subtle shadow on ground
+- Same body proportions and facial features in every view
+- NO text labels, NO grid lines, NO arrows — only the character views
 - High quality, detailed"""
 
         add_production_event(
@@ -107,22 +137,21 @@ Style requirements:
 
         create_asset(
             asset_id, project_id, "character", char["name"], char["description"],
-            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, character turnaround reference sheet, front/side/back/face views"
+            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, character turnaround reference sheet, front/side/back/face views, {'anime' if series_type == 'animation' else 'photorealistic'}"
         )
 
         if image_configured or demo_mode:
             try:
-                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-                output_path = str(ASSETS_DIR / f"{asset_id}.png")
+                output_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
 
                 await generate_image(prompt, output_path, aspect_ratio="2:1")
 
-                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+                update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
                 add_production_event(
                     project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
                     "output_captured", f"角色设定图完成：{char['name']}",
                     "已生成角色设定图（全身前/侧/后视图+大脸照）",
-                    payload={"output": f"/assets/{asset_id}.png"}
+                    payload={"output": f"/assets/{project_id}/{asset_id}.png"}
                 )
             except Exception as e:
                 add_production_event(
@@ -142,7 +171,10 @@ Style requirements:
     # --- Generate scene establishing shots ---
     for i, scene_name in enumerate(scene_names, start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
-        prompt = f"{scene_name}, establishing shot, cinematic, high quality, wide angle"
+        if series_type == "animation":
+            prompt = f"{scene_name}, anime style establishing shot, vibrant, cel-shaded, wide angle, cinematic composition, illustration"
+        else:
+            prompt = f"{scene_name}, establishing shot, photorealistic, cinematic, natural lighting, high quality, wide angle"
 
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",
@@ -151,17 +183,16 @@ Style requirements:
 
         if image_configured or demo_mode:
             try:
-                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-                output_path = str(ASSETS_DIR / f"{asset_id}.png")
+                output_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
 
                 await generate_image(prompt, output_path, aspect_ratio="16:9")
 
-                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+                update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
                 add_production_event(
                     project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
                     "output_captured", f"场景图完成：{scene_name}",
                     "已生成场景图",
-                    payload={"output": f"/assets/{asset_id}.png"}
+                    payload={"output": f"/assets/{project_id}/{asset_id}.png"}
                 )
             except Exception as e:
                 add_production_event(

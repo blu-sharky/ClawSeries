@@ -63,3 +63,6 @@ class ProductionState(TypedDict, total=False):
 
     # Video mode
     video_mode: str  # "manual" or "auto"
+
+    # Series type
+    series_type: str  # "live-action" or "animation"

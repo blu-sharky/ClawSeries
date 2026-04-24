@@ -377,3 +377,30 @@ class DubbingTaskInfo(BaseModel):
     error_message: Optional[str] = None
     created_at: Optional[str] = None
     completed_at: Optional[str] = None
+
+
+# === Batch Dubbing Models ===
+
+class EpisodeForDubbing(BaseModel):
+    episode_id: str
+    episode_number: int
+    title: str
+    video_url: Optional[str] = None
+    dubbing_tasks: List[DubbingTaskInfo] = []
+
+
+class CompletedProjectForDubbing(BaseModel):
+    project_id: str
+    title: str
+    episodes: List[EpisodeForDubbing]
+
+
+class BatchDubbingRequest(BaseModel):
+    project_id: str
+    target_language: str
+    episode_ids: Optional[List[str]] = None  # None = all episodes
+    source_language: Optional[str] = None
+
+
+class BatchDubbingResponse(BaseModel):
+    tasks: List[DubbingTaskInfo]
