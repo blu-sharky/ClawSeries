@@ -5,6 +5,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     padding: var(--space-lg);
+    border-radius: 12px;
     transition: transform var(--transition-normal), border-color var(--transition-fast), box-shadow var(--transition-normal);
 }
 
@@ -21,6 +22,7 @@
     padding: 2px 8px;
     font-size: 11px;
     font-weight: 500;
+    border-radius: 4px;
 }
 
 /* Section Title */

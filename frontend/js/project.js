@@ -5,32 +5,32 @@
 const AGENT_META = {
     agent_director: {
         name: '项目总监',
-        icon: '📋',
-        description: '监控全局制片进度，调度各环节任务',
+        icon: 'assignment',
+        description: '',
         color: '#6c5ce7',
     },
     agent_chief_director: {
         name: '总导演',
-        icon: '🎬',
-        description: '编写剧本、设计分镜，把控创作方向',
+        icon: 'movie_creation',
+        description: '',
         color: '#e17055',
     },
     agent_visual: {
         name: '视觉总监',
-        icon: '🎨',
-        description: '生成角色/场景视觉素材，驱动视频生成',
+        icon: 'palette',
+        description: '',
         color: '#00b894',
     },
     agent_prompt: {
         name: '提示词架构师',
-        icon: '✍️',
-        description: '将文学分镜转化为精准 Prompt，优化生成效果',
+        icon: 'edit_note',
+        description: '',
         color: '#fdcb6e',
     },
     agent_editor: {
         name: '自动化剪辑师',
-        icon: '🎞️',
-        description: '拼接分镜片段，添加字幕与BGM，输出成片',
+        icon: 'video_library',
+        description: '',
         color: '#74b9ff',
     },
 };
@@ -190,21 +190,20 @@ const ProjectView = {
 
         let html = '<div class="pipeline-container">';
         html += '<div class="section-title">制片流水线</div>';
-        html += '<div class="pipeline-subtitle">严格线性流程：每一阶段必须完成后才能进入下一阶段</div>';
+
 
         html += '<div class="pipeline-steps">';
         for (const ps of PIPELINE_STAGES) {
             const stageInfo = stageMap[ps.stage];
             const status = stageInfo?.status || 'pending';
-            const agent = AGENT_META[ps.agent] || { icon: '\u{1F916}', color: '#6b7280', description: '' };
+            const agent = AGENT_META[ps.agent] || { icon: 'smart_toy', color: '#6b7280', description: '' };
             const statusLabel = { pending: '等待中', in_progress: '进行中', completed: '已完成', failed: '失败' }[status] || status;
 
             html += `
                 <div class="pipeline-step ${status}">
-                    <div class="pipeline-step-icon" style="background: ${agent.color}">${agent.icon}</div>
+                    <div class="pipeline-step-icon" style="background: ${agent.color}"><span class="material-symbols-outlined">${agent.icon}</span></div>
                     <div class="pipeline-step-content">
                         <div class="pipeline-step-title">${ps.label}</div>
-                        <div class="pipeline-step-agent">${agent.description || ''}</div>
                         <div class="pipeline-step-status ${status}">${statusLabel}</div>
                     </div>
                 </div>
@@ -237,10 +236,10 @@ const ProjectView = {
 
             let html = '<div class="timeline-list">';
             for (const e of events.slice(-30)) {
-                const agent = AGENT_META[e.agent_id] || { icon: '\u{1F916}', color: '#6b7280', name: 'Agent' };
+                const agent = AGENT_META[e.agent_id] || { icon: 'smart_toy', color: '#6b7280', name: 'Agent' };
                 html += `
                     <div class="timeline-entry">
-                        <div class="timeline-icon" style="background: ${agent.color}">${agent.icon}</div>
+                        <div class="timeline-icon" style="background: ${agent.color}"><span class="material-symbols-outlined">${agent.icon}</span></div>
                         <div class="timeline-content">
                             <div class="timeline-header">
                                 <span class="timeline-agent">${agent.name}</span>
@@ -294,7 +293,6 @@ const ProjectView = {
             </div>
 
             <div class="section-title">当前阶段</div>
-            <div class="agent-subtitle">${project.current_stage ? '制片流程正在推进中' : '项目尚未启动制片流程'}</div>
             <div id="overview-agents"></div>
         `;
 
@@ -309,19 +307,20 @@ const ProjectView = {
         const agentsData = await Api.getAgents(project.project_id);
         let html = '<div class="agents-grid">';
         for (const agent of this._orderedAgents(agentsData.agents || [])) {
-            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
             const progress = agent.total_tasks > 0 ? Math.round(agent.completed_tasks / agent.total_tasks * 100) : 0;
             html += `
                 <div class="agent-card">
                     <div class="agent-card-header">
-                        <span class="agent-icon">${meta.icon}</span>
-                        <span class="agent-name">${agent.name}</span>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="agent-icon"><span class="material-symbols-outlined">${meta.icon}</span></span>
+                            <span class="agent-name">${agent.name}</span>
+                        </div>
                         <span class="agent-status">
                             <span class="agent-status-dot ${agent.status}"></span>
                             ${this._agentStatusText(agent.status)}
                         </span>
                     </div>
-                    <div class="agent-description">${meta.description}</div>
                     <div class="agent-task">${this._escapeHtml(agent.current_task || '等待任务')}</div>
                     <div class="agent-progress">
                         <span>${agent.completed_tasks} / ${agent.total_tasks}</span>
@@ -378,7 +377,7 @@ const ProjectView = {
             .at(-1);
         const recentSignals = agentDetails
             .flatMap(({ agent, events }) => {
-                const meta = AGENT_META[agent.agent_id] || { icon: '🤖', color: '#6b7280' };
+                const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', color: '#6b7280' };
                 return events.slice(-3).map(event => ({ agent, meta, event }));
             })
             .sort((a, b) => new Date(b.event.created_at) - new Date(a.event.created_at))
@@ -388,11 +387,9 @@ const ProjectView = {
         let html = `
             <section class="monitor-hero">
                 <div class="monitor-hero-main">
-                    <div class="monitor-eyebrow">TOTAL CONSOLE</div>
                     <div class="monitor-hero-heading">
                         <div>
                             <div class="section-title" style="margin: 0;">总控台</div>
-                            <div class="agent-subtitle">把五个智能体的提示词、实时输出、最近事件和当前任务压成一张战情面板，方便盯住整条线性制片链路。</div>
                         </div>
                         <div class="monitor-stage-badge ${project.status}">${this._escapeHtml(currentStageLabel)}</div>
                     </div>
@@ -401,11 +398,11 @@ const ProjectView = {
                         ${PIPELINE_STAGES.map(ps => {
                             const stageInfo = stageMap[ps.stage];
                             const status = stageInfo?.status || (project.current_stage === ps.stage && project.status !== 'pending' ? 'in_progress' : 'pending');
-                            const meta = AGENT_META[ps.agent] || { icon: '🤖', color: '#6b7280' };
+                            const meta = AGENT_META[ps.agent] || { icon: 'smart_toy', color: '#6b7280' };
                             const stageAgent = orderedAgents.find(agent => agent.agent_id === ps.agent);
                             return `
                                 <div class="monitor-stage-chip ${status} ${project.current_stage === ps.stage ? 'current' : ''}">
-                                    <div class="monitor-stage-chip-icon" style="color: ${meta.color}">${meta.icon}</div>
+                                    <div class="monitor-stage-chip-icon" style="color: ${meta.color}"><span class="material-symbols-outlined">${meta.icon}</span></div>
                                     <div class="monitor-stage-chip-body">
                                         <div class="monitor-stage-chip-title">${ps.label}</div>
                                         <div class="monitor-stage-chip-meta">${this._escapeHtml(stageAgent?.name || '待分配')}</div>
@@ -441,7 +438,7 @@ const ProjectView = {
         `;
 
         if (active) {
-            const activeMeta = AGENT_META[active.agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const activeMeta = AGENT_META[active.agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
             const activeSummary = active.events.length > 0
                 ? [active.events.at(-1).title, active.events.at(-1).message].filter(Boolean).map(text => this._escapeHtml(text)).join(' · ')
                 : this._escapeHtml(active.monitor.metaText || '最近暂无反馈');
@@ -452,11 +449,9 @@ const ProjectView = {
                 <section class="monitor-focus monitor-focus-rich">
                     <div class="monitor-focus-header">
                         <div>
-                            <div class="monitor-eyebrow">ACTIVE SEAT</div>
                             <div class="section-title" style="margin: 0;">当前执行智能体</div>
-                            <div class="agent-subtitle">${this._escapeHtml(activeMeta.description)}</div>
                         </div>
-                        <div class="monitor-focus-agent" style="color: ${activeMeta.color}">${activeMeta.icon} ${active.agent.name}</div>
+                        <div class="monitor-focus-agent" style="color: ${activeMeta.color};display:inline-flex;align-items:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:20px;">${activeMeta.icon}</span> ${active.agent.name}</div>
                     </div>
                     <div class="monitor-focus-grid">
                         <div class="monitor-focus-card emphasis">
@@ -483,14 +478,13 @@ const ProjectView = {
                     <div class="monitor-pulse-header">
                         <div>
                             <div class="section-title" style="margin: 0;">全局信号流</div>
-                            <div class="agent-subtitle">先看异常，再看产出，把最近发生的关键事件压成一条总线。</div>
                         </div>
                     </div>
                     <div class="monitor-pulse-grid">
                         ${recentSignals.map(({ meta, event, agent }) => `
                             <div class="monitor-pulse-item">
                                 <div class="monitor-pulse-item-header">
-                                    <span class="monitor-pulse-agent" style="color: ${meta.color}">${meta.icon} ${this._escapeHtml(agent.name)}</span>
+                                    <span class="monitor-pulse-agent" style="color: ${meta.color};display:inline-flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:16px;">${meta.icon}</span> ${this._escapeHtml(agent.name)}</span>
                                     <span class="monitor-pulse-time">${new Date(event.created_at).toLocaleTimeString()}</span>
                                 </div>
                                 <div class="monitor-pulse-title">${this._escapeHtml(event.title)}</div>
@@ -507,17 +501,16 @@ const ProjectView = {
                 <aside class="monitor-sidebar">
                     <div class="monitor-sidebar-header">
                         <div class="section-title" style="margin: 0;">执行席位</div>
-                        <div class="agent-subtitle">按执行顺序查看每位智能体的实时状态</div>
                     </div>
                     <div class="monitor-sidebar-stack">
                         ${agentDetails.map(({ agent, events, monitor }) => {
-                            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+                            const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
                             const progress = agent.total_tasks > 0 ? Math.round((agent.completed_tasks / agent.total_tasks) * 100) : 0;
                             const lastEvent = events.at(-1);
                             return `
                                 <div class="monitor-sidebar-card ${agent.status} ${active?.agent.agent_id === agent.agent_id ? 'active' : ''}">
                                     <div class="monitor-sidebar-card-header">
-                                        <div class="monitor-sidebar-agent" style="color: ${meta.color}">${meta.icon} ${agent.name}</div>
+                                        <div class="monitor-sidebar-agent" style="color: ${meta.color};display:flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:18px;">${meta.icon}</span> ${agent.name}</div>
                                         <div class="agent-status">
                                             <span class="agent-status-dot ${agent.status}"></span>
                                             ${this._agentStatusText(agent.status)}
@@ -539,15 +532,12 @@ const ProjectView = {
         `;
 
         for (const { agent, logs, events, monitor } of agentDetails) {
-            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
             const stageLabel = this._stageTitle(monitor.stage) || '未进入阶段';
             html += `
                 <section class="monitor-panel ${agent.status}">
                     <div class="monitor-panel-header">
-                        <div>
-                            <div class="monitor-panel-title" style="color: ${meta.color}">${meta.icon} ${agent.name}</div>
-                            <div class="agent-description">${this._escapeHtml(meta.description)}</div>
-                        </div>
+                        <div class="monitor-panel-title" style="color: ${meta.color};display:flex;align-items:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:20px;">${meta.icon}</span> ${agent.name}</div>
                         <div class="monitor-panel-badges">
                             <span class="monitor-pill stage" id="monitor-stage-${agent.agent_id}">${this._escapeHtml(stageLabel)}</span>
                             <span class="monitor-pill status ${agent.status}">${this._agentStatusText(agent.status)}</span>
@@ -638,28 +628,26 @@ const ProjectView = {
         );
 
         let html = `
-            <div class="agents-intro">
-                <p>这里保留分智能体视角，适合分别查看每个角色当前任务、完成度和最近日志。详细提示词与流式输出请切到“总控台”。</p>
-            </div>
-            <div class="agents-grid">
+            <div class=”agents-grid”>
         `;
 
         orderedAgents.forEach((agent, index) => {
-            const meta = AGENT_META[agent.agent_id] || { icon: '🤖', description: '', color: '#6b7280' };
+            const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
             const logs = agentLogs[index].logs || [];
             const progress = agent.total_tasks > 0 ? Math.round(agent.completed_tasks / agent.total_tasks * 100) : 0;
             html += `
                 <div class="agent-card">
                     <div class="agent-card-header">
-                        <span class="agent-icon">${meta.icon}</span>
-                        <span class="agent-name">${agent.name}</span>
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span class="agent-icon"><span class="material-symbols-outlined">${meta.icon}</span></span>
+                            <span class="agent-name">${agent.name}</span>
+                        </div>
                         <span class="agent-status">
                             <span class="agent-status-dot ${agent.status}"></span>
                             ${this._agentStatusText(agent.status)}
                         </span>
                     </div>
                     <div class="agent-id">${agent.agent_id}</div>
-                    <div class="agent-description">${meta.description}</div>
                     <div class="agent-task" id="agent-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || '等待任务')}</div>
                     <div class="agent-progress">
                         <span id="agent-progress-text-${agent.agent_id}">${agent.completed_tasks} / ${agent.total_tasks}</span>
@@ -708,6 +696,18 @@ const ProjectView = {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;');
+    },
+
+    _playShotVideo(thumbnail, videoUrl) {
+        if (!videoUrl) return;
+        const row = thumbnail.closest('.shot-row');
+        if (!row) return;
+        const shotId = thumbnail.closest('.shot-row').querySelector('[id^="shot-video-"]')?.id?.replace('shot-video-', '');
+        if (!shotId) return;
+        const container = document.getElementById(`shot-video-${shotId}`);
+        if (container) {
+            container.style.display = container.style.display === 'none' ? 'block' : 'none';
+        }
     },
 
     _stageTitle(stage) {
@@ -776,7 +776,10 @@ const ProjectView = {
             const color = roleColors[char.role] || '#6b7280';
             html += `
                 <div class="character-card">
-                    <div class="character-avatar" style="background: ${color}">${char.name[0]}</div>
+                    ${char.portrait_url
+                        ? `<div class="character-avatar" style="background: ${color}; padding: 0; overflow: hidden;"><img src="${char.portrait_url}" style="width:100%;height:100%;object-fit:cover;"></div>`
+                        : `<div class="character-avatar" style="background: ${color}">${char.name[0]}</div>`
+                    }
                     <div class="character-info">
                         <h3>${char.name}</h3>
                         <div class="character-meta">${char.age}\u5C81 \xB7 ${char.role}</div>
@@ -900,10 +903,10 @@ const ProjectView = {
                     <div class="section-title" style="margin-top: 16px;">生产时间线</div>
                     <div class="timeline-list">
                         ${episode.timeline.map(e => {
-                            const agent = AGENT_META[e.agent_id] || { icon: '🤖', color: '#6b7280', name: 'Agent' };
+                            const agent = AGENT_META[e.agent_id] || { icon: 'smart_toy', color: '#6b7280', name: 'Agent' };
                             return `
                                 <div class="timeline-entry">
-                                    <div class="timeline-icon" style="background: ${agent.color}">${agent.icon}</div>
+                                    <div class="timeline-icon" style="background: ${agent.color}"><span class="material-symbols-outlined">${agent.icon}</span></div>
                                     <div class="timeline-content">
                                         <div class="timeline-header">
                                             <span class="timeline-agent">${this._escapeHtml(agent.name || this._agentName(e.agent_id))}</span>
@@ -947,12 +950,29 @@ const ProjectView = {
                     <div class="section-title" style="margin-top: 16px;">分镜视频</div>
                     <div class="shots-table">
                         ${episode.shots.map(s => `
-                            <div class="shot-row">
-                                <span>镜头 ${s.shot_number}</span>
-                                <span class="episode-status ${s.status}">${s.status}</span>
-                                ${s.video_url ? `<a href="${s.video_url}" target="_blank" class="btn-secondary btn-sm">查看视频</a>` : ''}
+                            <div class="shot-row" style="flex-wrap: wrap;">
+                                <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:200px;">
+                                    ${s.first_frame_path ? `<img src="${s.first_frame_path}" class="shot-thumbnail" onclick="ProjectView._playShotVideo(this, '${s.video_url || ''}')">` : '<div class="shot-thumbnail" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;">无图片</div>'}
+                                    <div class="shot-info">
+                                        <span><strong>镜头 ${s.shot_number}</strong></span>
+                                        <span class="episode-status ${s.status}" style="margin-left:8px;">${s.status}</span>
+                                    </div>
+                                </div>
+                                <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; width:100%; padding-left:0;">${s.description || ''}</div>
+                                ${s.video_url ? `<a href="${s.video_url}" target="_blank" class="btn-secondary btn-sm" style="flex-shrink:0;">查看视频</a>` : ''}
                             </div>
+                            ${s.video_url ? `<div class="shot-video-container" id="shot-video-${s.shot_id}" style="display:none; margin-top:8px;"><video src="${s.video_url}" controls style="width:100%;max-width:480px;border-radius:6px;"></video></div>` : ''}
                         `).join('')}
+                    </div>
+                `;
+            }
+
+            // Episode video player
+            if (episode.video_url) {
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">剧集视频</div>
+                    <div style="margin-top: 8px;">
+                        <video src="${episode.video_url}" controls style="width:100%; max-width:640px; border-radius:8px; background:#000;"></video>
                     </div>
                 `;
             }

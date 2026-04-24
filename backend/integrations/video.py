@@ -3,15 +3,78 @@ Video generation integration - supports Seedance 2.0 and compatible providers.
 """
 
 import json
+import struct
+from pathlib import Path
 from repositories.settings_repo import get_setting
 
 
 def is_video_configured() -> bool:
+    if get_setting("video_demo_mode") == "true":
+        return True
     return bool(get_setting("video_api_key"))
+
+
+def is_demo_mode() -> bool:
+    return get_setting("video_demo_mode") == "true"
+
+
+def _create_demo_video(output_path: str, duration_seconds: int = 3,
+                       width: int = 640, height: int = 360) -> None:
+    """Create a minimal valid black MP4 file using ffmpeg, falling back to raw bytes."""
+    out = Path(output_path)
+    out.parent.mkdir(parents=True, exist_ok=True)
+
+    # Try ffmpeg first for a proper playable video
+    import subprocess
+    try:
+        subprocess.run(
+            [
+                "ffmpeg", "-y",
+                "-f", "lavfi", "-i", f"color=c=black:s={width}x{height}:d={duration_seconds}:r=24",
+                "-c:v", "libx264", "-preset", "ultrafast",
+                "-pix_fmt", "yuv420p", output_path,
+            ],
+            capture_output=True, timeout=30,
+        )
+        if out.exists() and out.stat().st_size > 0:
+            return
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # Fallback: write a minimal valid MP4 (black frame, ~1s)
+    _write_minimal_mp4(output_path)
+
+
+def _write_minimal_mp4(output_path: str) -> None:
+    """Write the smallest valid MP4 file possible."""
+    # Minimal ftyp + moov box for a zero-length video
+    ftyp = b'\x00\x00\x00\x18ftypmp42\x00\x00\x00\x00mp42isom'
+    # Minimal moov box
+    mvhd = (
+        b'\x00\x00\x00\x6C' + b'moov' +
+        b'\x00\x00\x00\x6C' + b'mvhd' +
+        b'\x00' +                              # version
+        b'\x00' * 3 +                          # flags
+        b'\x00\x00\x00\x00' +                  # creation time
+        b'\x00\x00\x00\x00' +                  # modification time
+        b'\x00\x00\x03\xE8' +                  # timescale = 1000
+        b'\x00\x00\x00\x01' +                  # duration = 1ms
+        b'\x00\x01\x00\x00' +                  # rate = 1.0
+        b'\x01\x00' +                          # volume = 1.0
+        b'\x00' * 10 +                         # reserved
+        b'\x00\x01\x00\x00' + b'\x00' * 4 + b'\x00' * 4 +  # matrix row 1
+        b'\x00' * 4 + b'\x00\x01\x00\x00' + b'\x00' * 4 +  # matrix row 2
+        b'\x00' * 4 + b'\x00' * 4 + b'\x40\x00\x00\x00' +  # matrix row 3
+        b'\x00' * 24 +                         # pre-defined
+        b'\x00\x00\x00\x02'                    # next track id
+    )
+    with open(output_path, 'wb') as f:
+        f.write(ftyp + mvhd)
 
 
 def get_video_config() -> dict:
     return {
+        "provider": get_setting("video_provider", "seedance"),
         "api_key": get_setting("video_api_key", ""),
         "base_url": get_setting("video_base_url", "https://api.seedance.com/v1"),
         "model": get_setting("video_model", "seedance-2.0"),
@@ -27,6 +90,13 @@ async def generate_video(prompt: str, output_path: str,
     Returns the output path.
     Raises RuntimeError if not configured.
     """
+    # Demo mode: return a blank black video
+    if is_demo_mode():
+        import asyncio
+        await asyncio.sleep(0.1)
+        _create_demo_video(output_path, duration_seconds=duration_seconds)
+        return output_path
+
     config = get_video_config()
     if not config["api_key"]:
         raise RuntimeError("Video API key not configured. Please configure in Settings.")

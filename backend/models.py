@@ -254,10 +254,13 @@ class VideoProviderConfig(BaseModel):
 
 
 class ImageProviderConfig(BaseModel):
-    provider: str = "openai"  # openai, google_genai, stability, custom
+    provider: str = "openai"  # openai, google_genai, siliconflow, stability, custom
     base_url: str = ""
     api_key: str = ""
-    model: str = "dall-e-3"  # dall-e-3, imagen-4.0-generate-001, etc.
+    model: str = "dall-e-3"  # dall-e-3, imagen-4.0-generate-001, Kwai-Kolors/Kolors, etc.
+    image_size: str = "1024x1024"
+    num_inference_steps: int = 20
+    guidance_scale: float = 7.5
 
 
 class GoogleCloudConfig(BaseModel):
@@ -271,6 +274,8 @@ class ModelsConfig(BaseModel):
     video: Optional[VideoProviderConfig] = None
     google: Optional[GoogleCloudConfig] = None
     video_generation_mode: str = "manual"
+    video_demo_mode: bool = False
+    image_demo_mode: bool = False
 
 
 class TestConnectionRequest(BaseModel):

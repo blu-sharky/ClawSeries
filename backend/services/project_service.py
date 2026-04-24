@@ -5,7 +5,7 @@ Project service - SQLite-backed project management with stage tracking.
 import json
 from repositories import project_repo
 from storage.db import get_connection
-from repositories.production_event_repo import get_project_stages, get_current_stage, get_production_events
+from repositories.production_event_repo import get_project_stages, get_current_stage, get_production_events, get_assets
 from models import (
     ProjectSummary, ProjectDetail, Character, EpisodeSummary,
     ProjectSummaryExtended, StageInfo, STAGE_AGENT_MAP,
@@ -69,6 +69,10 @@ class ProjectService:
             return None
 
         characters = project_repo.get_characters(project_id)
+
+        # Load character portrait assets
+        char_assets = {a["name"]: a for a in get_assets(project_id, type="character")}
+
         char_models = [
             {
                 "character_id": c["character_id"],
@@ -77,6 +81,7 @@ class ProjectService:
                 "role": c["role"],
                 "description": c["description"],
                 "visual_assets": c.get("visual_assets", {}),
+                "portrait_url": char_assets.get(c["name"], {}).get("image_path"),
             }
             for c in characters
         ]

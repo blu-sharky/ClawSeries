@@ -1,4 +1,9 @@
-"""Shot video generation node - Stage 4 of production pipeline."""
+"""Shot video generation node - Stage 4 of production pipeline.
+
+For each shot:
+1. Generate a first-frame image using the shot description
+2. Pass the first frame as reference to video generation
+"""
 
 import hashlib
 
@@ -11,19 +16,24 @@ from repositories.production_event_repo import (
     add_production_event,
     update_project_stage,
     is_stage_completed,
+    get_assets,
 )
 from repositories.settings_repo import get_setting
 from routers.websocket import send_agent_monitor
 from integrations.video import is_video_configured, generate_video, get_video_config
+from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from config import RENDERS_DIR
 from models import ProductionStage, STAGE_AGENT_MAP
 
 
 async def shots_node(state: ProductionState) -> dict:
-    """Generate videos for all shots in an episode.
+    """Generate first-frame images and videos for all shots in an episode.
 
     This is Stage 4 of the production pipeline.
-    Supports human-in-the-loop via interrupt() for manual video mode.
+    For each shot:
+    1. Build a first-frame prompt from shot description + character assets
+    2. Generate a first-frame image
+    3. Use that image as reference for video generation
     """
     project_id = state["project_id"]
     current_episode_index = state.get("current_episode_index", 0)
@@ -55,7 +65,7 @@ async def shots_node(state: ProductionState) -> dict:
     add_production_event(
         project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
         "stage_started", f"开始生成第{ep['episode_number']}集镜头",
-        "正在为每个分镜逐个生成视频...", episode_id=episode_id
+        "正在为每个分镜生成首帧图片和视频...", episode_id=episode_id
     )
 
     project_repo.update_episode(episode_id, status="rendering", progress=70)
@@ -64,7 +74,6 @@ async def shots_node(state: ProductionState) -> dict:
     video_mode = get_setting("video_generation_mode") or "manual"
 
     if video_mode == "manual":
-        # Human-in-the-loop: interrupt for manual approval
         add_production_event(
             project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
             "manual_mode", "手动模式", "视频生成模式为手动，请手动触发镜头生成",
@@ -72,7 +81,6 @@ async def shots_node(state: ProductionState) -> dict:
         )
         project_repo.update_episode(episode_id, status="rendering", progress=72)
 
-        # Interrupt and wait for human decision
         human_input = interrupt({
             "type": "manual_video",
             "message": "Manual video generation mode",
@@ -84,7 +92,6 @@ async def shots_node(state: ProductionState) -> dict:
             ],
         })
 
-        # Resume with human decision
         if human_input.get("skip"):
             agent_repo.update_agent_state(project_id, agent_id, status="idle", current_task=None)
             return {
@@ -92,24 +99,74 @@ async def shots_node(state: ProductionState) -> dict:
                 "current_episode_index": current_episode_index + 1,
             }
 
-    # Auto mode: generate videos
+    # Load character assets for building prompts
+    character_assets = get_assets(project_id, type="character")
+    char_descriptions = []
+    for ca in character_assets:
+        char_descriptions.append(ca.get("anchor_prompt") or ca.get("description", ""))
+
+    # Auto mode: generate first frames then videos
     shots_completed = 0
+    image_configured = is_image_configured() or is_image_demo_mode()
+    video_ok = is_video_configured()
+
     for idx, shot in enumerate(shots, start=1):
         shot_id = shot["shot_id"]
         description = shot.get("description", "")
 
-        add_production_event(
-            project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-            "prompt_issued", f"镜头 {shot['shot_number']} 视频提示词",
-            f"开始生成第{ep['episode_number']}集镜头 {shot['shot_number']} 视频",
-            episode_id=episode_id, shot_id=shot_id,
-            payload={"prompt": description[:100]}
-        )
+        # Build first-frame prompt with character context
+        frame_prompt = description
+        if char_descriptions:
+            char_context = ", ".join(char_descriptions[:3])  # Limit to avoid overly long prompts
+            frame_prompt = f"{description}, characters: {char_context}"
 
-        try:
-            if is_video_configured():
+        first_frame_path = None
+
+        # Step 1: Generate first-frame image
+        if image_configured:
+            add_production_event(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                "prompt_issued", f"镜头 {shot['shot_number']} 首帧图片",
+                f"开始生成第{ep['episode_number']}集镜头 {shot['shot_number']} 首帧",
+                episode_id=episode_id, shot_id=shot_id,
+                payload={"prompt": frame_prompt[:100]}
+            )
+
+            try:
                 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-                output_path = str(RENDERS_DIR / f"{shot_id}.mp4")
+                frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
+
+                await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
+
+                first_frame_path = f"/renders/{shot_id}_frame.png"
+                update_shot(shot_id, first_frame_path=first_frame_path)
+
+                add_production_event(
+                    project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                    "output_captured", f"镜头 {shot['shot_number']} 首帧完成", "首帧图片已生成",
+                    episode_id=episode_id, shot_id=shot_id,
+                    payload={"output": first_frame_path}
+                )
+            except Exception as e:
+                add_production_event(
+                    project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                    "first_frame_failed", f"镜头 {shot['shot_number']} 首帧失败", str(e),
+                    episode_id=episode_id, shot_id=shot_id,
+                )
+
+        # Step 2: Generate video using first frame as reference
+        if video_ok:
+            add_production_event(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                "prompt_issued", f"镜头 {shot['shot_number']} 视频生成",
+                f"开始用首帧生成第{ep['episode_number']}集镜头 {shot['shot_number']} 视频",
+                episode_id=episode_id, shot_id=shot_id,
+                payload={"prompt": description[:100], "has_first_frame": first_frame_path is not None}
+            )
+
+            try:
+                RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+                video_output = str(RENDERS_DIR / f"{shot_id}.mp4")
                 video_config = get_video_config()
                 add_shot_trace(
                     shot_id, project_id, "video_generation", agent_id=agent_id,
@@ -118,12 +175,21 @@ async def shots_node(state: ProductionState) -> dict:
                     provider_name=video_config["provider"], model_name=video_config["model"],
                 )
 
-                await generate_video(description, output_path, duration_seconds=3, aspect_ratio="16:9")
+                # Pass first frame image path as reference
+                real_frame_path = None
+                if first_frame_path:
+                    real_frame_path = str(RENDERS_DIR / first_frame_path.replace("/renders/", ""))
+
+                await generate_video(
+                    description, video_output,
+                    reference_image=real_frame_path,
+                    duration_seconds=3, aspect_ratio="16:9"
+                )
 
                 update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
                 add_shot_trace(
                     shot_id, project_id, "video_completed", agent_id=agent_id,
-                    output_path=output_path, provider_name=video_config["provider"],
+                    output_path=video_output, provider_name=video_config["provider"],
                     model_name=video_config["model"],
                 )
                 shots_completed += 1
@@ -139,16 +205,16 @@ async def shots_node(state: ProductionState) -> dict:
                     "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
                     episode_id=episode_id, shot_id=shot_id
                 )
-            else:
+            except Exception as e:
                 update_shot(shot_id, status="failed")
                 add_shot_trace(
-                    shot_id, project_id, "video_failed", agent_id=agent_id,
-                    error_reason="Video provider not configured"
+                    shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
                 )
-        except Exception as e:
+        else:
             update_shot(shot_id, status="failed")
             add_shot_trace(
-                shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
+                shot_id, project_id, "video_failed", agent_id=agent_id,
+                error_reason="Video provider not configured"
             )
 
         # Update progress
@@ -175,5 +241,4 @@ async def shots_node(state: ProductionState) -> dict:
 
     return {
         "current_stage": ProductionStage.SHOTS_COMPLETED.value,
-        "current_episode_index": current_episode_index + 1,
     }

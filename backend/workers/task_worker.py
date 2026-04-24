@@ -30,6 +30,7 @@ from repositories.production_event_repo import (
     is_stage_completed,
     get_current_stage,
     create_asset,
+    update_asset,
     get_assets,
 )
 from routers.websocket import (
@@ -40,8 +41,9 @@ from routers.websocket import (
 )
 from integrations.llm import is_llm_configured, stream_llm
 from integrations.video import is_video_configured, generate_video, get_video_config
+from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
-from config import RENDERS_DIR, OUTPUTS_DIR
+from config import RENDERS_DIR, OUTPUTS_DIR, ASSETS_DIR
 
 from prompt_reference import HOT_HOOK_REFERENCE
 
@@ -441,6 +443,19 @@ async def _execute_project_assets(project_id: str, task: dict):
             asset_id, project_id, "character", char["name"], char["description"],
             prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, consistent face"
         )
+
+        # Generate character portrait image
+        if is_image_configured() or is_image_demo_mode():
+            try:
+                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+                portrait_path = str(ASSETS_DIR / f"{asset_id}.png")
+                portrait_prompt = f"{char['name']}, {char.get('role', '')}, {char['description']}, portrait, character design, front view, consistent"
+                await generate_image(portrait_prompt, portrait_path, aspect_ratio="3:4")
+                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+            except Exception as e:
+                agent_repo.add_agent_log(project_id, agent_id, "warning",
+                                         f"Portrait generation failed for {char['name']}: {e}")
+
         await _emit_agent_output(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
             f"角色资产已锁定：{char['name']}", f"角色资产完成：{char['name']}",
@@ -465,10 +480,22 @@ async def _execute_project_assets(project_id: str, task: dict):
 
     for i, scene_name in enumerate(scene_names, start=1):
         asset_id = f"asset_scene_{i:03d}"
+        scene_prompt = f"{scene_name}, establishing shot, cinematic lighting, film still"
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",
-            prompt=f"{scene_name}, establishing shot, cinematic"
+            prompt=scene_prompt
         )
+
+        # Generate scene image
+        if is_image_configured() or is_image_demo_mode():
+            try:
+                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+                scene_output = str(ASSETS_DIR / f"{asset_id}.png")
+                await generate_image(scene_prompt, scene_output, aspect_ratio="16:9")
+                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+            except Exception as e:
+                agent_repo.add_agent_log(project_id, agent_id, "warning",
+                                         f"Scene image generation failed for {scene_name}: {e}")
 
     for ep in episodes:
         project_repo.update_episode(ep["episode_id"], status="asset_generating", progress=60)
@@ -564,6 +591,20 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
             episode_id=episode_id, shot_id=shot_id
         )
 
+        # Generate first-frame image
+        first_frame_path = None
+        if is_image_configured() or is_image_demo_mode():
+            try:
+                RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+                frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
+                frame_prompt = f"{description}, cinematic frame, film still"
+                await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
+                first_frame_path = f"/renders/{shot_id}_frame.png"
+                update_shot(shot_id, first_frame_path=first_frame_path)
+            except Exception as e:
+                agent_repo.add_agent_log(project_id, agent_id, "warning",
+                                         f"First-frame generation failed for shot {shot_id}: {e}")
+
         try:
             if is_video_configured():
                 RENDERS_DIR.mkdir(parents=True, exist_ok=True)
@@ -576,7 +617,10 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
                     provider_name=video_config["provider"], model_name=video_config["model"],
                 )
 
-                await generate_video(description, output_path, duration_seconds=3, aspect_ratio="16:9")
+                # Pass first frame as reference image if available
+                ref_image = str(RENDERS_DIR / f"{shot_id}_frame.png") if first_frame_path else None
+                await generate_video(description, output_path, reference_image=ref_image,
+                                     duration_seconds=3, aspect_ratio="16:9")
 
                 update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
                 add_shot_trace(

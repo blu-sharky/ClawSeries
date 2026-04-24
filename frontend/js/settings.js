@@ -54,7 +54,7 @@ const Settings = {
         return `
             <div class="settings-section">
                 <div class="settings-section-header">
-                    <div class="settings-section-icon" style="background: rgba(108, 92, 231, 0.15); color: #6c5ce7;">💬</div>
+                    <div class="settings-section-icon material-symbols-outlined" style="background: rgba(108, 92, 231, 0.15); color: #6c5ce7;">smart_toy</div>
                     <div>
                         <h3>LLM 模型</h3>
                         <p class="settings-desc">剧本生成、分镜设计等文本任务</p>
@@ -107,10 +107,13 @@ const Settings = {
 
     _renderImageSection(image) {
         const isGoogle = image.provider === 'google_genai';
+        const isSiliconFlow = image.provider === 'siliconflow';
+        const showAdvanced = isSiliconFlow;
+        const imageDemoMode = this.currentConfig?.image_demo_mode || false;
         return `
             <div class="settings-section">
                 <div class="settings-section-header">
-                    <div class="settings-section-icon" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">🎨</div>
+                    <div class="settings-section-icon material-symbols-outlined" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">palette</div>
                     <div>
                         <h3>图片生成</h3>
                         <p class="settings-desc">角色立绘、场景图、分镜参考图</p>
@@ -118,8 +121,18 @@ const Settings = {
                 </div>
 
                 <div class="form-group">
+                    <label>图片 Demo 测试模式</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="image-demo-mode" ${imageDemoMode ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <p class="form-hint">启用后使用占位图替代真实生成，无需 API 密钥</p>
+                </div>
+
+                <div class="form-group">
                     <label>Provider</label>
                     <select id="image-provider">
+                        <option value="siliconflow" ${image.provider === 'siliconflow' ? 'selected' : ''}>SiliconFlow</option>
                         <option value="openai" ${image.provider === 'openai' ? 'selected' : ''}>OpenAI (DALL-E)</option>
                         <option value="google_genai" ${image.provider === 'google_genai' ? 'selected' : ''}>Google Imagen</option>
                         <option value="stability" ${image.provider === 'stability' ? 'selected' : ''}>Stability AI</option>
@@ -130,7 +143,7 @@ const Settings = {
                 <div class="form-group" id="image-base-url-group">
                     <label>Base URL</label>
                     <input type="text" id="image-base-url" value="${image.base_url || ''}"
-                           placeholder="https://api.openai.com/v1">
+                           placeholder="https://api.siliconflow.cn/v1">
                 </div>
 
                 <div class="form-group" id="image-api-key-group">
@@ -144,9 +157,33 @@ const Settings = {
 
                 <div class="form-group">
                     <label>Model</label>
-                    <input type="text" id="image-model" value="${image.model || 'dall-e-3'}"
-                           placeholder="dall-e-3">
-                    <p class="form-hint">Imagen: imagen-4.0-generate-001</p>
+                    <input type="text" id="image-model" value="${image.model || 'Kwai-Kolors/Kolors'}"
+                           placeholder="Kwai-Kolors/Kolors">
+                    <p class="form-hint">SiliconFlow: Kwai-Kolors/Kolors, stabilityai/stable-diffusion-3-5-large</p>
+                </div>
+
+                <div class="form-group" id="image-size-group" style="display: ${showAdvanced || !isGoogle ? 'block' : 'none'};">
+                    <label>Image Size</label>
+                    <select id="image-size">
+                        <option value="1024x1024" ${image.image_size === '1024x1024' ? 'selected' : ''}>1024 x 1024</option>
+                        <option value="1024x768" ${image.image_size === '1024x768' ? 'selected' : ''}>1024 x 768</option>
+                        <option value="768x1024" ${image.image_size === '768x1024' ? 'selected' : ''}>768 x 1024</option>
+                        <option value="768x768" ${image.image_size === '768x768' ? 'selected' : ''}>768 x 768</option>
+                        <option value="512x512" ${image.image_size === '512x512' ? 'selected' : ''}>512 x 512</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="image-advanced-group" style="display: ${showAdvanced ? 'block' : 'none'};">
+                    <label style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+                        <span>
+                            Inference Steps
+                            <input type="number" id="image-inference-steps" value="${image.num_inference_steps || 20}" min="1" max="100" style="margin-top:6px;">
+                        </span>
+                        <span>
+                            Guidance Scale
+                            <input type="number" id="image-guidance-scale" value="${image.guidance_scale || 7.5}" min="1" max="20" step="0.5" style="margin-top:6px;">
+                        </span>
+                    </label>
                 </div>
 
                 <div class="form-group" id="image-google-test-row" style="display: ${isGoogle ? 'block' : 'none'};">
@@ -161,10 +198,11 @@ const Settings = {
     },
 
     _renderVideoSection(video, mode) {
+        const demoMode = this.currentConfig?.video_demo_mode || false;
         return `
             <div class="settings-section">
                 <div class="settings-section-header">
-                    <div class="settings-section-icon" style="background: rgba(233, 69, 96, 0.15); color: #e94560;">🎬</div>
+                    <div class="settings-section-icon material-symbols-outlined" style="background: rgba(233, 69, 96, 0.15); color: #e94560;">movie</div>
                     <div>
                         <h3>视频生成</h3>
                         <p class="settings-desc">分镜视频、成片渲染</p>
@@ -172,34 +210,45 @@ const Settings = {
                 </div>
 
                 <div class="form-group">
-                    <label>Provider</label>
-                    <select id="video-provider">
-                        <option value="seedance" ${video.provider === 'seedance' ? 'selected' : ''}>Seedance</option>
-                        <option value="runway" ${video.provider === 'runway' ? 'selected' : ''}>Runway</option>
-                        <option value="pika" ${video.provider === 'pika' ? 'selected' : ''}>Pika</option>
-                        <option value="custom" ${video.provider === 'custom' ? 'selected' : ''}>自定义</option>
-                    </select>
+                    <label>Demo 测试模式</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="video-demo-mode" ${demoMode ? 'checked' : ''}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <p class="form-hint">启用后使用空白视频替代真实生成，无需填写 API 密钥</p>
                 </div>
 
-                <div class="form-group">
-                    <label>Base URL</label>
-                    <input type="text" id="video-base-url" value="${video.base_url || ''}"
-                           placeholder="https://api.seedance.com/v1">
-                </div>
-
-                <div class="form-group">
-                    <label>API Key</label>
-                    <div class="input-with-button">
-                        <input type="password" id="video-api-key"
-                               placeholder="${video.has_api_key ? '已配置' : '输入 API Key'}">
-                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('video')">测试</button>
+                <div id="video-real-config" style="${demoMode ? 'opacity: 0.4; pointer-events: none;' : ''}">
+                    <div class="form-group">
+                        <label>Provider</label>
+                        <select id="video-provider">
+                            <option value="seedance" ${video.provider === 'seedance' ? 'selected' : ''}>Seedance</option>
+                            <option value="runway" ${video.provider === 'runway' ? 'selected' : ''}>Runway</option>
+                            <option value="pika" ${video.provider === 'pika' ? 'selected' : ''}>Pika</option>
+                            <option value="custom" ${video.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                        </select>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label>Model</label>
-                    <input type="text" id="video-model" value="${video.model || 'seedance-2.0'}"
-                           placeholder="seedance-2.0">
+                    <div class="form-group">
+                        <label>Base URL</label>
+                        <input type="text" id="video-base-url" value="${video.base_url || ''}"
+                               placeholder="https://api.seedance.com/v1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <div class="input-with-button">
+                            <input type="password" id="video-api-key"
+                                   placeholder="${video.has_api_key ? '已配置' : '输入 API Key'}">
+                            <button class="btn-secondary btn-sm" onclick="Settings.testConnection('video')">测试</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Model</label>
+                        <input type="text" id="video-model" value="${video.model || 'seedance-2.0'}"
+                               placeholder="seedance-2.0">
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -218,7 +267,7 @@ const Settings = {
         return `
             <div class="settings-section" style="margin-top: var(--space-lg);">
                 <div class="settings-section-header">
-                    <div class="settings-section-icon" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;">☁️</div>
+                    <div class="settings-section-icon material-symbols-outlined" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;">cloud</div>
                     <div>
                         <h3>Google Cloud 配置</h3>
                         <p class="settings-desc">Vertex AI 认证使用 Application Default Credentials (ADC)，无需 API Key</p>
@@ -254,8 +303,18 @@ const Settings = {
                 this.handleLLMProviderChange(e.target.value);
             } else if (e.target.id === 'image-provider') {
                 this.handleImageProviderChange(e.target.value);
+            } else if (e.target.id === 'video-demo-mode') {
+                this.handleVideoDemoModeChange(e.target.checked);
             }
         });
+    },
+
+    handleVideoDemoModeChange(enabled) {
+        const realConfig = document.getElementById('video-real-config');
+        if (realConfig) {
+            realConfig.style.opacity = enabled ? '0.4' : '1';
+            realConfig.style.pointerEvents = enabled ? 'none' : '';
+        }
     },
 
     handleLLMProviderChange(provider) {
@@ -295,22 +354,29 @@ const Settings = {
         const apiKeyGroup = document.getElementById('image-api-key-group');
         const googleSection = document.getElementById('google-config-section');
         const googleTestRow = document.getElementById('image-google-test-row');
+        const sizeGroup = document.getElementById('image-size-group');
+        const advancedGroup = document.getElementById('image-advanced-group');
 
         const isGoogle = provider === 'google_genai';
+        const isSiliconFlow = provider === 'siliconflow';
 
         baseUrlGroup.style.display = isGoogle ? 'none' : 'block';
         apiKeyGroup.style.display = isGoogle ? 'none' : 'block';
         if (googleTestRow) googleTestRow.style.display = isGoogle ? 'block' : 'none';
+        if (sizeGroup) sizeGroup.style.display = isGoogle ? 'none' : 'block';
+        if (advancedGroup) advancedGroup.style.display = isSiliconFlow ? 'block' : 'none';
+
+        const configs = {
+            siliconflow: { url: 'https://api.siliconflow.cn/v1', model: 'Kwai-Kolors/Kolors' },
+            openai: { url: 'https://api.openai.com/v1', model: 'dall-e-3' },
+            stability: { url: 'https://api.stability.ai/v1', model: 'stable-diffusion-xl-1024-v1-0' },
+        };
 
         if (isGoogle) {
             modelInput.placeholder = 'imagen-4.0-generate-001';
             googleSection.style.display = 'block';
         } else {
             googleSection.style.display = this._shouldShowGoogle() ? 'block' : 'none';
-            const configs = {
-                openai: { url: 'https://api.openai.com/v1', model: 'dall-e-3' },
-                stability: { url: 'https://api.stability.ai/v1', model: 'stable-diffusion-xl-1024-v1-0' },
-            };
             const cfg = configs[provider] || { url: '', model: '' };
             baseInput.placeholder = cfg.url || 'Base URL';
             modelInput.placeholder = cfg.model;
@@ -345,7 +411,10 @@ const Settings = {
                 provider: document.getElementById('image-provider')?.value || 'openai',
                 base_url: document.getElementById('image-base-url')?.value || '',
                 api_key: document.getElementById('image-api-key')?.value || '',
-                model: document.getElementById('image-model')?.value || 'dall-e-3',
+                model: document.getElementById('image-model')?.value || 'Kwai-Kolors/Kolors',
+                image_size: document.getElementById('image-size')?.value || '1024x1024',
+                num_inference_steps: parseInt(document.getElementById('image-inference-steps')?.value || '20'),
+                guidance_scale: parseFloat(document.getElementById('image-guidance-scale')?.value || '7.5'),
             },
             video: {
                 provider: document.getElementById('video-provider')?.value || 'seedance',
@@ -358,6 +427,8 @@ const Settings = {
                 location: document.getElementById('google-location')?.value || 'us-central1',
             },
             video_generation_mode: document.getElementById('video-generation-mode')?.value || 'manual',
+            video_demo_mode: document.getElementById('video-demo-mode')?.checked || false,
+            image_demo_mode: document.getElementById('image-demo-mode')?.checked || false,
         };
 
         try {
@@ -424,7 +495,7 @@ const Settings = {
         if (container) {
             container.innerHTML = `
                 <div class="error-state">
-                    <div class="error-icon">⚠️</div>
+                    <div class="error-icon material-symbols-outlined">warning</div>
                     <p>${message}</p>
                     <button class="btn-secondary" onclick="Settings.loadSettings()">重试</button>
                 </div>

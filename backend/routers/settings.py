@@ -35,6 +35,9 @@ async def get_models_settings():
         "model": all_settings.get("image_model", "dall-e-3"),
         "has_api_key": bool(all_settings.get("image_api_key")),
         "masked_api_key": _mask_key(all_settings.get("image_api_key", "")),
+        "image_size": all_settings.get("image_size", "1024x1024"),
+        "num_inference_steps": int(all_settings.get("num_inference_steps", "20")),
+        "guidance_scale": float(all_settings.get("guidance_scale", "7.5")),
     }
 
     video_config = {
@@ -56,6 +59,8 @@ async def get_models_settings():
         "video": video_config,
         "google": google_config,
         "video_generation_mode": all_settings.get("video_generation_mode", "manual"),
+        "video_demo_mode": all_settings.get("video_demo_mode", "false") == "true",
+        "image_demo_mode": all_settings.get("image_demo_mode", "false") == "true",
     }
 
 
@@ -81,6 +86,10 @@ async def update_models_settings(config: ModelsConfig):
             set_setting("image_api_key", config.image.api_key)
         if config.image.model:
             set_setting("image_model", config.image.model)
+        if config.image.image_size:
+            set_setting("image_size", config.image.image_size)
+        set_setting("num_inference_steps", str(config.image.num_inference_steps))
+        set_setting("guidance_scale", str(config.image.guidance_scale))
 
     if config.video:
         if config.video.provider:
@@ -100,6 +109,12 @@ async def update_models_settings(config: ModelsConfig):
 
     if config.video_generation_mode:
         set_setting("video_generation_mode", config.video_generation_mode)
+
+    if config.video_demo_mode is not None:
+        set_setting("video_demo_mode", "true" if config.video_demo_mode else "false")
+
+    if config.image_demo_mode is not None:
+        set_setting("image_demo_mode", "true" if config.image_demo_mode else "false")
 
     return {"status": "ok"}
 
@@ -127,10 +142,21 @@ async def test_connection(request: TestConnectionRequest):
     elif request.provider_type == "image":
         import asyncio
         from integrations.image import test_image_connection
-        model = all_settings.get("image_model", "gemini-2.5-flash-image")
+        provider = all_settings.get("image_provider", "openai")
+        model = all_settings.get("image_model", "dall-e-3")
+        api_key = all_settings.get("image_api_key", "")
+        base_url = all_settings.get("image_base_url", "")
 
+        # Google Gen AI doesn't need API key (uses ADC)
+        if provider == "google_genai":
+            return await asyncio.get_event_loop().run_in_executor(
+                None, lambda: test_image_connection(provider, model)
+            )
+
+        if not api_key:
+            return {"success": False, "message": "Image API key not configured"}
         return await asyncio.get_event_loop().run_in_executor(
-            None, lambda: test_image_connection(model)
+            None, lambda: test_image_connection(provider, model, api_key, base_url)
         )
 
     elif request.provider_type == "video":

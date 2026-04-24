@@ -4,11 +4,11 @@
 
 // Agent identity map matching README five agents
 const AGENT_IDENTITIES = {
-    agent_director: { icon: '\u{1F4CB}', name: '\u9879\u76EE\u603B\u76D1', color: '#6c5ce7' },
-    agent_chief_director: { icon: '\u{1F3AC}', name: '\u603B\u5BFC\u6F14', color: '#e17055' },
-    agent_prompt: { icon: '\u270D\uFE0F', name: '\u63D0\u793A\u8BCD\u67B6\u6784\u5E08', color: '#fdcb6e' },
-    agent_visual: { icon: '\u{1F3A8}', name: '\u89C6\u89C9\u603B\u76D1', color: '#00b894' },
-    agent_editor: { icon: '\u{1F39E}\uFE0F', name: '\u81EA\u52A8\u5316\u526A\u8F91\u5E08', color: '#74b9ff' },
+    agent_director: { icon: 'assignment', name: '\u9879\u76EE\u603B\u76D1', color: '#6c5ce7' },
+    agent_chief_director: { icon: 'movie_creation', name: '\u603B\u5BFC\u6F14', color: '#e17055' },
+    agent_prompt: { icon: 'edit_note', name: '\u63D0\u793A\u8BCD\u67B6\u6784\u5E08', color: '#fdcb6e' },
+    agent_visual: { icon: 'palette', name: '\u89C6\u89C9\u603B\u76D1', color: '#00b894' },
+    agent_editor: { icon: 'video_library', name: '\u81EA\u52A8\u5316\u526A\u8F91\u5E08', color: '#74b9ff' },
 };
 
 const Chat = {
@@ -39,13 +39,13 @@ const Chat = {
     },
 
     _getAgentInfo(agentId) {
-        if (!agentId) return { icon: '\u{1F4CB}', name: '\u9879\u76EE\u603B\u76D1', color: '#6c5ce7' };
-        return AGENT_IDENTITIES[agentId] || { icon: '\u{1F916}', name: 'Agent', color: '#6b7280' };
+        if (!agentId) return { icon: 'assignment', name: '\u9879\u76EE\u603B\u76D1', color: '#6c5ce7' };
+        return AGENT_IDENTITIES[agentId] || { icon: 'smart_toy', name: 'Agent', color: '#6b7280' };
     },
 
     _renderAvatar(agentId) {
         const agent = this._getAgentInfo(agentId);
-        return `<div class="message-avatar" style="background: ${agent.color}" title="${agent.name}">${agent.icon}</div>`;
+        return `<div class="message-avatar material-symbols-outlined" style="background: ${agent.color}" title="${agent.name}">${agent.icon}</div>`;
     },
 
     async sendQuickStart(text) {

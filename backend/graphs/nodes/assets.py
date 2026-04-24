@@ -1,4 +1,8 @@
-"""Asset generation node - Stage 3 of production pipeline."""
+"""Asset generation node - Stage 3 of production pipeline.
+
+Generates character portraits and scene images using the configured
+image generation provider.
+"""
 
 import json
 
@@ -9,14 +13,20 @@ from repositories.production_event_repo import (
     update_project_stage,
     is_stage_completed,
     create_asset,
+    update_asset,
+    get_assets,
 )
 from models import ProductionStage, STAGE_AGENT_MAP
+from integrations.image import is_image_configured, generate_image, is_image_demo_mode
+from config import ASSETS_DIR
 
 
 async def assets_node(state: ProductionState) -> dict:
-    """Generate character and scene assets.
+    """Generate character portraits and scene establishing shots.
 
     This is Stage 3 of the production pipeline.
+    For each character, generates a portrait image to lock visual identity.
+    For each scene, generates an establishing shot.
     """
     project_id = state["project_id"]
     agent_id = STAGE_AGENT_MAP[ProductionStage.ASSETS_GENERATING]
@@ -30,50 +40,7 @@ async def assets_node(state: ProductionState) -> dict:
     characters = project_repo.get_characters(project_id)
     episodes = project_repo.get_episodes(project_id)
 
-    agent_repo.update_agent_state(
-        project_id, agent_id,
-        status="working",
-        current_task="生成视觉资产",
-        completed_tasks=0,
-        total_tasks=max(1, len(characters)),
-    )
-
-    add_production_event(
-        project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
-        "stage_started", "开始生成视觉资产", "正在为角色和场景生成视觉资产..."
-    )
-
-    # Update all episodes to asset_generating status
-    for ep in episodes:
-        project_repo.update_episode(ep["episode_id"], status="asset_generating", progress=55)
-
-    # Create character assets
-    for i, char in enumerate(characters, start=1):
-        asset_id = f"asset_char_{i:03d}"
-        prompt = f"{char['name']}, {char['description']}, portrait, consistent character design"
-        add_production_event(
-            project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
-            "prompt_issued", f"角色资产提示词：{char['name']}",
-            f"开始为角色 {char['name']} 锁定视觉锚点",
-            payload={"prompt": prompt}
-        )
-        create_asset(
-            asset_id, project_id, "character", char["name"], char["description"],
-            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, consistent face"
-        )
-        add_production_event(
-            project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
-            "output_captured", f"角色资产完成：{char['name']}",
-            "已锁定角色视觉锚点",
-            payload={"output": f"角色资产已锁定：{char['name']}"}
-        )
-        agent_repo.update_agent_state(
-            project_id, agent_id, status="working",
-            current_task=f"资产生成：角色 {char['name']}",
-            completed_tasks=i, total_tasks=max(1, len(characters))
-        )
-
-    # Extract scene names from scripts
+    # Count total assets to generate
     scene_names = set()
     for ep in episodes:
         script_json = ep.get("script_json")
@@ -85,13 +52,108 @@ async def assets_node(state: ProductionState) -> dict:
             if loc:
                 scene_names.add(loc)
 
-    # Create scene assets
+    total_assets = len(characters) + len(scene_names)
+
+    agent_repo.update_agent_state(
+        project_id, agent_id,
+        status="working",
+        current_task="生成视觉资产",
+        completed_tasks=0,
+        total_tasks=max(1, total_assets),
+    )
+
+    add_production_event(
+        project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
+        "stage_started", "开始生成视觉资产", "正在为角色和场景生成视觉资产..."
+    )
+
+    # Update all episodes to asset_generating status
+    for ep in episodes:
+        project_repo.update_episode(ep["episode_id"], status="asset_generating", progress=55)
+
+    completed_count = 0
+    image_configured = is_image_configured()
+    demo_mode = is_image_demo_mode()
+
+    # --- Generate character portraits ---
+    for i, char in enumerate(characters, start=1):
+        asset_id = f"asset_char_{i:03d}"
+        prompt = f"{char['name']}, {char['role']}, {char['description']}, portrait, consistent character design, front view, high quality"
+
+        add_production_event(
+            project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
+            "prompt_issued", f"角色资产提示词：{char['name']}",
+            f"开始为角色 {char['name']} 生成肖像",
+            payload={"prompt": prompt}
+        )
+
+        create_asset(
+            asset_id, project_id, "character", char["name"], char["description"],
+            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, consistent face"
+        )
+
+        if image_configured or demo_mode:
+            try:
+                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+                output_path = str(ASSETS_DIR / f"{asset_id}.png")
+
+                await generate_image(prompt, output_path, aspect_ratio="3:4")
+
+                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+                add_production_event(
+                    project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
+                    "output_captured", f"角色肖像完成：{char['name']}",
+                    "已生成角色肖像图",
+                    payload={"output": f"/assets/{asset_id}.png"}
+                )
+            except Exception as e:
+                add_production_event(
+                    project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
+                    "asset_failed", f"角色肖像失败：{char['name']}",
+                    str(e),
+                    payload={"error": str(e)}
+                )
+
+        completed_count += 1
+        agent_repo.update_agent_state(
+            project_id, agent_id, status="working",
+            current_task=f"资产生成：角色 {char['name']}",
+            completed_tasks=completed_count, total_tasks=max(1, total_assets)
+        )
+
+    # --- Generate scene establishing shots ---
     for i, scene_name in enumerate(scene_names, start=1):
         asset_id = f"asset_scene_{i:03d}"
+        prompt = f"{scene_name}, establishing shot, cinematic, high quality, wide angle"
+
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",
-            prompt=f"{scene_name}, establishing shot, cinematic"
+            prompt=prompt
         )
+
+        if image_configured or demo_mode:
+            try:
+                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
+                output_path = str(ASSETS_DIR / f"{asset_id}.png")
+
+                await generate_image(prompt, output_path, aspect_ratio="16:9")
+
+                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+                add_production_event(
+                    project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
+                    "output_captured", f"场景图完成：{scene_name}",
+                    "已生成场景图",
+                    payload={"output": f"/assets/{asset_id}.png"}
+                )
+            except Exception as e:
+                add_production_event(
+                    project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
+                    "asset_failed", f"场景图失败：{scene_name}",
+                    str(e),
+                    payload={"error": str(e)}
+                )
+
+        completed_count += 1
 
     # Update episode progress
     for ep in episodes:
@@ -109,7 +171,7 @@ async def assets_node(state: ProductionState) -> dict:
 
     agent_repo.update_agent_state(
         project_id, agent_id, status="idle", current_task=None,
-        completed_tasks=max(1, len(characters)), total_tasks=max(1, len(characters))
+        completed_tasks=max(1, total_assets), total_tasks=max(1, total_assets)
     )
 
     return {

@@ -96,6 +96,7 @@ async def episode_compose_node(state: ProductionState) -> dict:
 
     return {
         "current_stage": ProductionStage.EPISODE_COMPLETED.value,
+        "current_episode_index": current_episode_index + 1,
     }
 
 

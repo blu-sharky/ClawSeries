@@ -35,6 +35,7 @@ for d in [RENDERS_DIR, OUTPUTS_DIR, ASSETS_DIR]:
 
 app.mount("/videos", StaticFiles(directory=str(OUTPUTS_DIR)), name="videos")
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+app.mount("/renders", StaticFiles(directory=str(RENDERS_DIR)), name="renders")
 
 # Register routes
 app.include_router(conversations.router, prefix="/api/v1", tags=["会话管理"])
@@ -50,8 +51,12 @@ app.include_router(websocket.router, tags=["WebSocket"])
 
 
 @app.on_event("startup")
-def startup():
+async def startup():
     init_db()
+    # Start the task worker
+    from workers.task_worker import start_worker
+    import asyncio
+    asyncio.create_task(start_worker())
 
 @app.get("/")
 async def root():

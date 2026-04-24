@@ -29,6 +29,7 @@
     padding: 3px 10px;
     font-size: 12px;
     font-weight: 500;
+    border-radius: 999px;
 }
 
 .project-badge.in-progress { background: var(--bg-info); color: var(--color-info); }
@@ -100,6 +101,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     padding: var(--space-lg);
+    border-radius: 12px;
     transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
 }
 
@@ -138,11 +140,13 @@
     height: 8px;
     background: var(--bg-tertiary);
     overflow: hidden;
+    border-radius: 4px;
 }
 
 .progress-bar-fill {
     height: 100%;
     background: var(--color-accent);
+    border-radius: 4px;
     transition: width 0.5s ease;
 }
 
@@ -166,6 +170,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     padding: var(--space-lg);
+    border-radius: 12px;
     transition: transform var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
 }
 
@@ -196,6 +201,7 @@
 .agent-status-dot {
     width: 8px;
     height: 8px;
+    border-radius: 50%;
 }
 
 .agent-status-dot.working { background: var(--color-info); }
@@ -300,7 +306,7 @@
 }
 
 .monitor-hero-main {
-    background: radial-gradient(circle at top right, rgba(108, 92, 231, 0.16), transparent 34%), var(--bg-card);
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: 16px;
     padding: var(--space-xl);
@@ -368,7 +374,7 @@
 .monitor-stage-chip {
     display: flex;
     gap: var(--space-sm);
-    align-items: flex-start;
+    align-items: center;
     padding: 12px;
     border-radius: 12px;
     border: 1px solid var(--border-color-light);
@@ -397,7 +403,6 @@
 .monitor-stage-chip-icon {
     font-size: 18px;
     line-height: 1;
-    margin-top: 2px;
 }
 
 .monitor-stage-chip-title {
@@ -427,7 +432,7 @@
 }
 
 .monitor-kpi-card.primary {
-    background: linear-gradient(180deg, rgba(108, 92, 231, 0.16), rgba(108, 92, 231, 0.04));
+    background: rgba(108, 92, 231, 0.08);
     border-color: rgba(108, 92, 231, 0.28);
 }
 
@@ -465,7 +470,7 @@
 }
 
 .monitor-focus-rich {
-    background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(108, 92, 231, 0.04));
+    background: rgba(108, 92, 231, 0.04);
     border-color: rgba(108, 92, 231, 0.22);
 }
 
@@ -559,7 +564,7 @@
 }
 
 .monitor-sidebar-card.working {
-    background: linear-gradient(180deg, rgba(108, 92, 231, 0.08), rgba(108, 92, 231, 0.02));
+    background: rgba(108, 92, 231, 0.04);
 }
 
 .monitor-sidebar-card-header {
@@ -805,7 +810,7 @@
 .monitor-stream-card .agent-monitor-text {
     margin: 0;
     border: none;
-    border-radius: 0;
+    border-radius: 8px;
     background: #0d1422;
     color: #c9d1d9;
     max-height: 320px;
@@ -897,6 +902,7 @@
     padding: var(--space-lg);
     display: flex;
     gap: var(--space-md);
+    border-radius: 12px;
 }
 
 .character-avatar {
@@ -910,6 +916,7 @@
     font-size: 20px;
     font-weight: 600;
     flex-shrink: 0;
+    border-radius: 12px;
 }
 
 .character-info h3 {
@@ -937,6 +944,7 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     overflow: hidden;
+    border-radius: 12px;
 }
 
 .episodes-table th {
@@ -971,6 +979,7 @@
     gap: var(--space-xs);
     font-size: 12px;
     padding: 2px 8px;
+    border-radius: 999px;
 }
 
 .episode-status.completed { background: var(--bg-success); color: var(--color-success); }
@@ -986,11 +995,13 @@
     height: 6px;
     background: var(--bg-tertiary);
     overflow: hidden;
+    border-radius: 3px;
 }
 
 .episode-progress-fill {
     height: 100%;
     background: var(--color-accent);
+    border-radius: 3px;
     transition: width 0.3s ease;
 }
 
@@ -1005,6 +1016,7 @@
     font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
     font-size: 12px;
     line-height: 1.8;
+    border-radius: 12px;
 }
 
 .log-entry {
@@ -1218,6 +1230,36 @@
     font-size: 13px;
 }
 
+.shot-thumbnail {
+    width: 80px;
+    height: 45px;
+    object-fit: cover;
+    border-radius: 4px;
+    flex-shrink: 0;
+    background: var(--bg-tertiary);
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.shot-thumbnail:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.shot-video-container {
+    padding: 8px;
+    background: rgba(0,0,0,0.2);
+    border-radius: 6px;
+    margin-bottom: 8px;
+}
+
+.shot-info {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
 /* Button sizes */
 .btn-sm {
     padding: 4px 10px;
@@ -1259,6 +1301,7 @@
     border: 1px solid var(--border-color);
     padding: var(--space-md);
     min-width: 180px;
+    border-radius: 12px;
     transition: all var(--transition-fast);
 }
 
@@ -1318,6 +1361,7 @@
     padding: var(--space-sm);
     background: var(--bg-card);
     border: 1px solid var(--border-color-light);
+    border-radius: 8px;
 }
 
 .timeline-icon {

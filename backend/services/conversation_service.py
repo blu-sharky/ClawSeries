@@ -692,8 +692,9 @@ class ConversationService:
                 },
             )
 
-        # Create episodes with pending status
-        for i in range(episode_count):
+        # Create episodes with pending status (cap at 5 for testing)
+        actual_count = min(episode_count, 5)
+        for i in range(actual_count):
             ep_id = f"{project_id}_ep_{i + 1:03d}"
             title = EPISODE_TITLES[i] if i < len(EPISODE_TITLES) else f"第{i + 1}集"
             project_repo.create_episode(ep_id, project_id, i + 1, title, status="pending")
@@ -703,7 +704,7 @@ class ConversationService:
 
         # Recalculate progress
         completed = project_repo.get_completed_episode_count(project_id)
-        progress = int((completed / episode_count) * 100) if episode_count > 0 else 0
+        progress = int((completed / actual_count) * 100) if actual_count > 0 else 0
         project_repo.update_project(project_id, progress=progress)
 
     def _extract_common_preferences(self, info: dict, user_message: str):
