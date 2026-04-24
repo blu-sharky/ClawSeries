@@ -270,6 +270,7 @@ async def generate_video(prompt: str, output_path: str,
                 video_url = status_data.get("video_url") or status_data.get("output", {}).get("video_url")
                 if video_url:
                     # Download video
+                    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
                     vid_resp = await client.get(video_url)
                     with open(output_path, "wb") as f:
                         f.write(vid_resp.content)

@@ -90,7 +90,7 @@ async def assets_node(state: ProductionState) -> dict:
         asset_id = f"{project_id}_char_{i:03d}"
 
         name, role, desc = char['name'], char['role'], char['description']
-        prompt = build_character_sheet_prompt(name, role, desc, series_type)
+        prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get('age'))
 
         add_production_event(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
