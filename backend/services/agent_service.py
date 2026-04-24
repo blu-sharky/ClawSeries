@@ -9,9 +9,11 @@ from models import AgentInfo
 
 class AgentService:
     def get_agents(self, project_id: str) -> dict:
-        # Ensure agents exist for this project
-        agent_repo.init_agent_states(project_id)
+        # Check if agents already exist before initializing (avoid write on every poll)
         states = agent_repo.get_agent_states(project_id)
+        if not states:
+            agent_repo.init_agent_states(project_id)
+            states = agent_repo.get_agent_states(project_id)
         agents = [
             AgentInfo(
                 agent_id=s["agent_id"],

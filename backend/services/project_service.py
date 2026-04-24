@@ -70,7 +70,7 @@ class ProjectService:
 
         characters = project_repo.get_characters(project_id)
 
-        # Load character portrait assets
+        # Load character turnaround sheet assets
         char_assets = {a["name"]: a for a in get_assets(project_id, type="character")}
 
         char_models = [
@@ -82,6 +82,7 @@ class ProjectService:
                 "description": c["description"],
                 "visual_assets": c.get("visual_assets", {}),
                 "portrait_url": char_assets.get(c["name"], {}).get("image_path"),
+                "sheet_url": char_assets.get(c["name"], {}).get("image_path"),
             }
             for c in characters
         ]

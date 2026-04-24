@@ -891,7 +891,7 @@
 /* 角色卡片 */
 .characters-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
     gap: var(--space-md);
     margin-bottom: var(--space-xl);
 }
@@ -901,6 +901,7 @@
     border: 1px solid var(--border-color);
     padding: var(--space-lg);
     display: flex;
+    flex-direction: column;
     gap: var(--space-md);
     border-radius: 12px;
 }
@@ -935,6 +936,21 @@
     font-size: 13px;
     color: var(--text-secondary);
     line-height: 1.5;
+}
+
+.character-sheet {
+    width: 100%;
+    margin-top: var(--space-sm);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+}
+
+.character-sheet img {
+    width: 100%;
+    height: auto;
+    display: block;
+    object-fit: contain;
 }
 
 /* 剧集列表 */

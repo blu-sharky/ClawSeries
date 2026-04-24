@@ -183,6 +183,7 @@ def get_current_stage(project_id: str) -> dict | None:
            ORDER BY {case_expr} LIMIT 1""",
         (project_id,),
     ).fetchone()
+    conn.close()
     if row:
         return dict(row)
     return None
@@ -216,13 +217,19 @@ def create_asset(
     reference_image_path: str | None = None,
     embedding_ref: str | None = None,
 ):
-    """Create a new asset record."""
+    """Create or replace an asset record."""
     conn = get_connection()
     conn.execute(
         """INSERT INTO assets
            (asset_id, project_id, episode_id, type, name, description,
             prompt, image_path, anchor_prompt, reference_image_path, embedding_ref)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON CONFLICT(asset_id) DO UPDATE SET
+            type=excluded.type, name=excluded.name, description=excluded.description,
+            episode_id=excluded.episode_id, prompt=excluded.prompt,
+            anchor_prompt=excluded.anchor_prompt,
+            reference_image_path=excluded.reference_image_path,
+            embedding_ref=excluded.embedding_ref""",
         (
             asset_id,
             project_id,

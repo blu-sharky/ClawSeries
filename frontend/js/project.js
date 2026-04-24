@@ -562,15 +562,15 @@ const ProjectView = {
             const color = roleColors[char.role] || '#6b7280';
             html += `
                 <div class="character-card">
-                    ${char.portrait_url
-                        ? `<div class="character-avatar" style="background: ${color}; padding: 0; overflow: hidden;"><img src="${MEDIA_BASE}${char.portrait_url}" style="width:100%;height:100%;object-fit:cover;"></div>`
-                        : `<div class="character-avatar" style="background: ${color}">${char.name[0]}</div>`
-                    }
                     <div class="character-info">
                         <h3>${char.name}</h3>
                         <div class="character-meta">${char.age}\u5C81 \xB7 ${char.role}</div>
                         <div class="character-desc">${char.description}</div>
                     </div>
+                    ${char.sheet_url
+                        ? `<div class="character-sheet"><img src="${MEDIA_BASE}${char.sheet_url}" alt="${char.name} \u8BBE\u5B9A\u56FE"></div>`
+                        : ''
+                    }
                 </div>
             `;
         }

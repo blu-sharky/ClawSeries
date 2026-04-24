@@ -75,21 +75,39 @@ async def assets_node(state: ProductionState) -> dict:
     image_configured = is_image_configured()
     demo_mode = is_image_demo_mode()
 
-    # --- Generate character portraits ---
+    # --- Generate character turnaround reference sheets ---
     for i, char in enumerate(characters, start=1):
         asset_id = f"asset_char_{i:03d}"
-        prompt = f"{char['name']}, {char['role']}, {char['description']}, portrait, consistent character design, front view, high quality"
+        
+        # Character turnaround reference sheet prompt
+        # Layout: Full body front view | Full body side view | Full body back view | Large face close-up
+        prompt = f"""Character design reference sheet for {char['name']}, {char['role']}, {char['description']}. 
+
+A professional character turnaround sheet showing the same character from multiple angles in a single horizontal image:
+- LEFT: Full body front view (standing straight, arms at sides or slightly away from body)
+- CENTER-LEFT: Full body side/profile view (facing left, showing profile details)
+- CENTER-RIGHT: Full body back view (showing back of head, clothing details from behind)
+- RIGHT: Large face close-up portrait (detailed facial features, expression neutral)
+
+Style requirements:
+- Consistent character design across all views
+- Clean white or neutral background
+- Professional concept art quality
+- Clear outlines and details
+- Same clothing, hairstyle, and accessories in all views
+- Character reference sheet layout, horizontal composition
+- High quality, detailed"""
 
         add_production_event(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
-            "prompt_issued", f"角色资产提示词：{char['name']}",
-            f"开始为角色 {char['name']} 生成肖像",
-            payload={"prompt": prompt}
+            "prompt_issued", f"角色设定图提示词：{char['name']}",
+            f"开始为角色 {char['name']} 生成角色设定图",
+            payload={"prompt": prompt[:200]}
         )
 
         create_asset(
             asset_id, project_id, "character", char["name"], char["description"],
-            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, consistent face"
+            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, character turnaround reference sheet, front/side/back/face views"
         )
 
         if image_configured or demo_mode:
@@ -97,13 +115,13 @@ async def assets_node(state: ProductionState) -> dict:
                 ASSETS_DIR.mkdir(parents=True, exist_ok=True)
                 output_path = str(ASSETS_DIR / f"{asset_id}.png")
 
-                await generate_image(prompt, output_path, aspect_ratio="3:4")
+                await generate_image(prompt, output_path, aspect_ratio="2:1")
 
                 update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
                 add_production_event(
                     project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
-                    "output_captured", f"角色肖像完成：{char['name']}",
-                    "已生成角色肖像图",
+                    "output_captured", f"角色设定图完成：{char['name']}",
+                    "已生成角色设定图（全身前/侧/后视图+大脸照）",
                     payload={"output": f"/assets/{asset_id}.png"}
                 )
             except Exception as e:

@@ -144,15 +144,26 @@ async def script_node(state: ProductionState) -> dict:
 要求：
 1. 这是 AI 短剧，场景集中、节奏快、每场都要有推进。
 2. 角色行动与对白要清晰，便于后续转分镜和视频生成。
-3. 直接返回 JSON。
 
-JSON 包含 scenes 数组，每个 scene 包含:
-- scene_number: 场景编号
-- location: 场景地点
-- time_of_day: 时间
-- description: 场景描述
-- dialogues: 对话数组 [{{character, line, emotion}}]
-- actions: 动作描述数组"""
+【输出格式 - 必须严格遵守】
+直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
+
+正确示例：
+{{"scenes": [{{"scene_number": 1, "location": "办公室", "time_of_day": "上午", "description": "...", "dialogues": [...], "actions": [...]}}]}}
+
+错误示例（禁止）：
+```json
+{{"scenes": [...]}}
+```
+
+JSON 结构：
+- scenes: 场景数组
+  - scene_number: 场景编号
+  - location: 场景地点
+  - time_of_day: 时间
+  - description: 场景描述
+  - dialogues: 对话数组 [{{character, line, emotion}}]
+  - actions: 动作描述数组"""
 
         script = _fallback_script(ep)
         if is_llm_configured():
@@ -169,7 +180,7 @@ JSON 包含 scenes 数组，每个 scene 包含:
                     chunks = []
                     async for chunk in stream_llm(
                         [
-                            {"role": "system", "content": "你是一个专业的 AI 短剧编剧。你擅长高钩子、强反转、强情绪推进的短剧写法。只返回 JSON 格式剧本。"},
+                            {"role": "system", "content": "你是一个专业的 AI 短剧编剧。你擅长高钩子、强反转、强情绪推进的短剧写法。\n\n【输出规则 - 绝对遵守】\n1. 直接输出纯 JSON 对象，不要包裹在 markdown 代码块中。\n2. 禁止输出任何 JSON 以外的内容：不要解释、不要注释、不要前后缀文字。\n3. 禁止使用 ```json ``` 包裹。"},
                             {"role": "user", "content": prompt},
                         ],
                         temperature=0.8,

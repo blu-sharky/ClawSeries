@@ -230,34 +230,54 @@ class ConversationService:
 3. 如果用户已经给出集数、单集时长、目标观众，就不要再问这些。
 4. 不要问预算。
 
-请以 JSON 格式返回：
-{{
-  \"开场白\": \"一句自然的回应和引导语\",
-  \"问题\": [
-    {{
-      \"id\": \"英文ID，用于内部存储\",
-      \"问题\": \"具体自然的问题文本\",
-      \"类型\": \"select 或 text\",
-      \"选项\": [\"仅 select 类型需要，2-4 个选项\"],
-      \"占位符\": \"仅 text 类型需要\"
-    }}
-  ]
-}}
+【输出格式 - 必须严格遵守】
+直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
+
+正确示例：
+{{"开场白": "自然的回应", "问题": [{{"id": "q1", "问题": "问题文本", "类型": "select", "选项": ["选项1", "选项2"]}}]}}
+
+错误示例（禁止）：
+```json
+{{"开场白": ...}}
+```
+
+JSON 结构：
+- 开场白: 一句自然的回应和引导语
+- 问题: 问题数组
+  - id: 英文ID，用于内部存储
+  - 问题: 具体自然的问题文本
+  - 类型: select 或 text
+  - 选项: 仅 select 类型需要，2-4 个选项
+  - 占位符: 仅 text 类型需要
 
 要求：
 1. 问题必须能帮助编剧推进创作，而不是让用户填制片表格。
-2. 如果是 select，选项要有明显区分度。
-
-3. 只返回 JSON，不要额外解释。"""
+2. 如果是 select，选项要有明显区分度。"""
 
         try:
-            data = self._parse_llm_json(
-                await call_llm(
-                    [{"role": "user", "content": prompt}],
-                    temperature=0.7,
-                    max_tokens=1024,
-                )
-            )
+            data = None
+            system_msg = {"role": "system", "content": "你是一个专业的 AI 短剧制片顾问。\n\n【输出规则 - 绝对遵守】\n1. 直接输出纯 JSON 对象，不要包裹在 markdown 代码块中。\n2. 禁止输出任何 JSON 以外的内容：不要解释、不要注释、不要前后缀文字。\n3. 禁止使用 ```json ``` 包裹。"}
+
+            max_retries = 3
+            current_prompt = prompt
+            for attempt in range(1, max_retries + 1):
+                try:
+                    response = await call_llm(
+                        [system_msg, {"role": "user", "content": current_prompt}],
+                        temperature=0.7,
+                        max_tokens=1024,
+                    )
+                    data = self._parse_llm_json(response)
+                    break
+                except (json.JSONDecodeError, ValueError) as e:
+                    print(f"LLM question generation parse error (attempt {attempt}/{max_retries}): {e}")
+                    if attempt < max_retries:
+                        current_prompt = current_prompt + "\n\n注意：上一次返回的内容不是有效的JSON，请只返回纯JSON，不要包含任何其他文字或代码块。"
+                    else:
+                        data = None
+
+            if not data:
+                return self._fallback_questions(collected, phase)
 
             questions = []
             for q in data.get("问题", []):
@@ -423,22 +443,23 @@ class ConversationService:
 3. 主要角色（3-5个角色，每个包含姓名、年龄、角色定位、性格描述）
 4. 逐集标题（为每一集生成一个有悬念、有吸引力的标题，不能重复）
 
-请以JSON格式返回，格式如下：
-{{
-    \"title\": \"剧名\",
-    \"synopsis\": \"故事梗概\",
-    \"characters\": [
-        {{\"name\": \"姓名\", \"age\": 年龄, \"role\": \"角色定位\", \"description\": \"性格描述\"}}
-    ],
-    \"episode_titles\": [
-        \"第1集标题\", \"第2集标题\", \"第3集标题\", ...
-    ],
-    \"episodes_summary\": [
-        {{\"range\": \"1-5\", \"theme\": \"主题\"}}
-    ]
-}}
+【输出格式 - 必须严格遵守】
+直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
 
-只返回JSON，不要其他内容。"""
+正确示例：
+{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}]}}
+
+错误示例（禁止）：
+```json
+{{"title": ...}}
+```
+
+JSON 结构：
+- title: 剧名
+- synopsis: 故事梗概
+- characters: 角色数组 [{{name, age, role, description}}]
+- episode_titles: 逐集标题数组
+- episodes_summary: 分集概要数组 [{{range, theme}}]"""
 
     def _build_outline_stream_prompt(self, collected: dict) -> str:
         genre = collected.get("genre", "都市爱情")
@@ -482,17 +503,33 @@ class ConversationService:
         if not is_llm_configured():
             return self._fallback_outline(genre)
 
-        try:
-            prompt = self._build_outline_prompt(collected)
-            response = await call_llm(
-                [{"role": "user", "content": prompt}],
-                temperature=0.8,
-            )
-            data = self._parse_llm_json(response)
-            return ScriptOutline(**data)
-        except Exception as e:
-            print(f"LLM outline generation failed: {e}")
-            return self._fallback_outline(genre)
+        prompt = self._build_outline_prompt(collected)
+        system_msg = {"role": "system", "content": "你是一个专业的 AI 短剧编剧。\n\n【输出规则 - 绝对遵守】\n1. 直接输出纯 JSON 对象，不要包裹在 markdown 代码块中。\n2. 禁止输出任何 JSON 以外的内容：不要解释、不要注释、不要前后缀文字。\n3. 禁止使用 ```json ``` 包裹。"}
+
+        max_retries = 3
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = await call_llm(
+                    [system_msg, {"role": "user", "content": prompt}],
+                    temperature=0.8,
+                )
+                data = self._parse_llm_json(response)
+                return ScriptOutline(**data)
+            except json.JSONDecodeError as e:
+                print(f"LLM outline generation JSON parse error (attempt {attempt}/{max_retries}): {e}")
+                if attempt < max_retries:
+                    prompt = prompt + "\n\n注意：上一次返回的内容不是有效的JSON，请只返回纯JSON，不要包含任何其他文字或代码块。"
+            except TypeError as e:
+                print(f"LLM outline generation type error (attempt {attempt}/{max_retries}): {e}")
+                if attempt < max_retries:
+                    prompt = prompt + "\n\n注意：请确保返回的JSON结构正确，字段类型匹配。"
+            except Exception as e:
+                print(f"LLM outline generation failed (attempt {attempt}/{max_retries}): {e}")
+                if attempt >= max_retries:
+                    break
+
+        print(f"LLM outline generation failed after {max_retries} attempts, using fallback")
+        return self._fallback_outline(genre)
 
     def _fallback_outline(self, genre: str) -> ScriptOutline:
         """Fallback outline when LLM is not available."""
