@@ -138,14 +138,17 @@ async def _execute_task(task: dict):
             task_repo.update_task(task["task_id"], status="completed")
 
     except Exception as e:
+        retry_count = (task.get("retry_count") or 0) + 1
         task_repo.update_task(
             task["task_id"],
-            status="failed",
-            error_message=str(e),
-            completed_at=datetime.utcnow().isoformat(),
+            status="pending",
+            error_message=f"[retry {retry_count}] {e}",
+            retry_count=retry_count,
         )
-        agent_repo.add_agent_log(project_id, "agent_director", "error",
-                                  f"Task {task_type} failed: {e}")
+        agent_repo.add_agent_log(project_id, "agent_director", "warning",
+                                  f"Task {task_type} failed (retry {retry_count}), re-queuing: {e}")
+        # Backoff: wait longer for repeated failures
+        await asyncio.sleep(min(10 * retry_count, 120))
 
 
 # === Stage 1: Project Script Generation ===

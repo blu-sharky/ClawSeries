@@ -653,6 +653,38 @@ const ProjectView = {
             `;
 
             // Stage-gated display: only show sections when their data exists
+
+            // Outline section (available before script generation)
+            if (episode.outline && Object.keys(episode.outline).length > 0) {
+                const o = episode.outline;
+                html += `
+                    <div class="section-title" style="margin-top: 16px;">本集概要</div>
+                    <div class="card" style="padding: 12px;">
+                        ${o.hook ? `<div style="margin-bottom: 8px;"><strong>开场钩子：</strong><span style="color: var(--text-secondary);">${o.hook}</span></div>` : ''}
+                        ${o.escalation ? `<div style="margin-bottom: 8px;"><strong>中段升级：</strong><span style="color: var(--text-secondary);">${o.escalation}</span></div>` : ''}
+                        ${o.cliffhanger ? `<div style="margin-bottom: 8px;"><strong>结尾悬念：</strong><span style="color: var(--text-secondary);">${o.cliffhanger}</span></div>` : ''}
+                        ${o.scenes ? `<div><strong>关键场景：</strong><span style="color: var(--text-secondary);">${o.scenes}</span></div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Manual generation buttons
+            if (episode.status !== 'completed') {
+                html += `
+                    <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
+                `;
+                if (!episode.has_script) {
+                    html += `<button class="btn-primary btn-sm" onclick="Project.showEpisodeDetail('${episodeId}'); Project.triggerGenerate('${projectId}', 'script')">生成剧本</button>`;
+                }
+                if (episode.has_script && !episode.has_storyboard) {
+                    html += `<button class="btn-primary btn-sm" onclick="Project.showEpisodeDetail('${episodeId}'); Project.triggerGenerate('${projectId}', 'format')">生成分镜</button>`;
+                }
+                if (episode.has_storyboard && episode.status === 'rendering') {
+                    html += `<button class="btn-primary btn-sm" onclick="Project.showEpisodeDetail('${episodeId}'); Project.triggerGenerate('${projectId}', 'shots')">生成视频</button>`;
+                }
+                html += `</div>`;
+            }
+
             if (episode.has_script && episode.script) {
                 html += `
                     <div class="section-title" style="margin-top: 16px;">剧本</div>
@@ -781,6 +813,32 @@ const ProjectView = {
             }
         } catch (err) {
             console.error('Start production failed:', err);
+        }
+    },
+
+    async triggerGenerate(projectId, stage) {
+        try {
+            const baseUrl = 'http://localhost:8000/api/v1';
+            const endpoint = stage === 'script' ? `${baseUrl}/projects/${projectId}/generate-script`
+                           : stage === 'format' ? `${baseUrl}/projects/${projectId}/format-script`
+                           : `${baseUrl}/projects/${projectId}/generate-shots`;
+            const resp = await fetch(endpoint, { method: 'POST' });
+            if (!resp.ok) {
+                const err = await resp.json();
+                alert(err.detail || '生成失败');
+                return;
+            }
+            // Refresh after a short delay
+            setTimeout(() => {
+                const project = Api.getProject(projectId).then(p => {
+                    if (p) {
+                        this._renderHeader(p);
+                        this._renderTab(this.currentTab, p);
+                    }
+                });
+            }, 2000);
+        } catch (err) {
+            console.error('Trigger generate failed:', err);
         }
     },
 

@@ -134,6 +134,7 @@ def init_db():
             input_json TEXT,
             output_json TEXT,
             error_message TEXT,
+            retry_count INTEGER DEFAULT 0,
             status TEXT DEFAULT 'pending',
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             started_at TEXT,
@@ -281,6 +282,16 @@ def init_db():
             completed_at TEXT
         )
     """)
+
+    # Migrations: add columns that may not exist in older databases
+    migrations = [
+        ("ALTER TABLE tasks ADD COLUMN retry_count INTEGER DEFAULT 0", "retry_count"),
+    ]
+    for sql, col in migrations:
+        try:
+            cursor.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # Column already exists
 
     conn.commit()
     conn.close()

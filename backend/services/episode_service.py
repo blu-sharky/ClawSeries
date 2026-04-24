@@ -24,6 +24,16 @@ class EpisodeService:
         if recovered_script:
             script = recovered_script
 
+        # Get outline detail from project config
+        project = project_repo.get_project(project_id)
+        config = project.get("config", {}) if project else {}
+        episodes_detail = config.get("episodes_detail", [])
+        outline = {}
+        for d in episodes_detail:
+            if isinstance(d, dict) and d.get("episode") == episode["episode_number"]:
+                outline = d
+                break
+
         result = {
             "episode_id": episode["episode_id"],
             "episode_number": episode["episode_number"],
@@ -31,6 +41,8 @@ class EpisodeService:
             "status": episode["status"],
             "duration": episode.get("duration"),
             "progress": episode.get("progress", 0),
+            "synopsis": config.get("synopsis", ""),
+            "outline": outline,
             # Stage-gated: only show what exists
             "has_script": script is not None,
             "has_storyboard": storyboard is not None and len(storyboard) > 0,
