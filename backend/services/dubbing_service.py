@@ -27,62 +27,47 @@ from storage.db import get_connection
 
 log = logging.getLogger(__name__)
 
-# ── YouDub speed-adjustment constants (copied verbatim) ────────────────
-BASE_FACTOR_MIN = 0.8
-BASE_FACTOR_MAX = 1.2
-BASE_FACTOR_SAFETY = 0.99
-LOCAL_FACTOR_MIN = 0.9
-LOCAL_FACTOR_MAX = 1.1
-SPEED_NOOP_EPSILON = 1e-2
-
-# ── YouDub audio helpers (copied verbatim from audio.py) ───────────────
-
-import numpy as np
-from pathlib import Path as _Path
+# ── TransVideo-style audio helpers ─────────────────────────────────────
+import shutil
+from pydub import AudioSegment
 
 
-def _audio_duration(file: _Path) -> tuple[float, int]:
-    """Return (duration_seconds, sample_rate) for an audio file."""
-    import librosa
-    y, sr = librosa.load(str(file), sr=None)
-    return len(y) / sr, sr
+def _get_audio_duration_pydub(audio_file: str) -> float:
+    """Get audio duration in seconds using pydub."""
+    try:
+        audio = AudioSegment.from_file(audio_file)
+        return len(audio) / 1000.0
+    except Exception:
+        return 0.0
 
 
-def _base_speed_factor(translation: list[dict], tts_files: list[_Path]) -> float:
-    cur_total = 0.0
-    des_total = 0.0
-    for segment, tts_file in zip(translation, tts_files):
-        dur, _ = _audio_duration(tts_file)
-        cur_total += dur
-        des_total += max(0.0, (segment["end_time"] - segment["start_time"]) / 1000.0)
-    if cur_total <= 0:
-        return 1.0
-    factor = des_total / cur_total * BASE_FACTOR_SAFETY
-    return max(min(factor, BASE_FACTOR_MAX), BASE_FACTOR_MIN)
+def _adjust_audio_speed(input_file: str, output_file: str, speed_factor: float) -> bool:
+    """Adjust audio speed without pitch change using ffmpeg atempo filter.
+    Chains multiple filters if speed_factor > 2.0 (FFmpeg limit)."""
+    if abs(speed_factor - 1.0) < 0.01:
+        shutil.copy2(input_file, output_file)
+        return True
 
+    filters = []
+    temp_factor = speed_factor
+    while temp_factor > 2.0:
+        filters.append("atempo=2.0")
+        temp_factor /= 2.0
+    if temp_factor < 0.5:
+        while temp_factor < 0.5:
+            filters.append("atempo=0.5")
+            temp_factor /= 0.5
+    filters.append(f"atempo={temp_factor}")
+    filter_str = ",".join(filters)
 
-def _stretch_segment(audio_file: _Path, ratio: float, target_sec: float, cache_dir: _Path) -> tuple[np.ndarray, int]:
-    import librosa
-    from audiostretchy.stretch import stretch_audio
-
-    if abs(ratio - 1.0) < SPEED_NOOP_EPSILON:
-        y, sr = librosa.load(str(audio_file), sr=None)
-        return y, sr
-    out_path = cache_dir / audio_file.name
-    stretch_audio(str(audio_file), str(out_path), ratio=ratio)
-    y, sr = librosa.load(str(out_path), sr=None)
-    return y[: int(target_sec * sr)], sr
-
-
-def _local_factor(current_sec: float, base: float, desired_sec: float) -> float:
-    first = current_sec * base
-    if first <= 1e-3:
-        return 1.0
-    return max(min(desired_sec / first, LOCAL_FACTOR_MAX), LOCAL_FACTOR_MIN)
-
-
-def _silence(seconds: float, sample_rate: int) -> np.ndarray:
-    return np.zeros(int(seconds * sample_rate), dtype=np.float32)
+    cmd = ['ffmpeg', '-y', '-i', input_file, '-filter:a', filter_str, output_file]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        return True
+    except subprocess.CalledProcessError as e:
+        log.warning("[Dubbing] FFmpeg speed adjustment failed: %s", e)
+        shutil.copy2(input_file, output_file)
+        return False
 
 
 # ── status constants ──────────────────────────────────────────────────
@@ -333,43 +318,22 @@ class DubbingPipeline:
         self.dubbed_files = dubbed_files
         log.info("[Dubbing] generated %d dubbed segments", len(dubbed_files))
 
-    # ── Step 6: FFmpeg merge (YouDub two-pass approach) ────────────────
+    # ── Step 6: FFmpeg merge (TransVideo chunk-based approach) ────────────
     def _step_merge(self):
         _update_task(self.task_id, status=ST_MERGING, progress=92, current_step="Merging final video")
 
-        # 6a. Merge TTS audio with speed adjustment (YouDub algorithm)
+        # Merge TTS audio with BGM (TransVideo chunk-based mixing)
         dubbed_concat = str(self.work_dir / "audio_dubbing.wav")
         timings_path = str(self.work_dir / "timings.json")
         self._merge_tts_audio(dubbed_concat, timings_path)
 
-        # 6b. Two-pass FFmpeg merge (YouDub approach)
-        # Pass 1: Mix dubbing + BGM (amix with normalize=0)
-        mixed_audio = str(self.work_dir / "audio_mixed.m4a")
-        if os.path.exists(self.bgm_path):
-            cmd = [
-                "ffmpeg", "-y",
-                "-i", dubbed_concat,
-                "-i", self.bgm_path,
-                "-filter_complex",
-                "[0:a]volume=1.0[a0];[1:a]volume=0.30[a1];[a0][a1]amix=inputs=2:duration=longest:normalize=0[aout]",
-                "-map", "[aout]",
-                "-c:a", "aac",
-                mixed_audio,
-            ]
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            if r.returncode != 0:
-                log.warning("[Dubbing] BGM mixing failed, using voice only: %s", r.stderr[:300])
-                mixed_audio = dubbed_concat
-        else:
-            mixed_audio = dubbed_concat
-
-        # Pass 2: Video + mixed audio
+        # Combine video + mixed audio (BGM is already mixed in)
         src_video = self.task["source_video_path"]
         out_video = str(self.work_dir / f"dubbed_{self.task['target_language']}.mp4")
         cmd = [
             "ffmpeg", "-y",
             "-i", src_video,
-            "-i", mixed_audio,
+            "-i", dubbed_concat,
             "-map", "0:v:0",
             "-map", "1:a:0",
             "-c:v", "libx264",
@@ -393,70 +357,138 @@ class DubbingPipeline:
         )
         log.info("[Dubbing] final video → %s", out_video)
 
-    # ── YouDub merge_tts_audio (copied verbatim, adapted for our data format) ─
+    # ── TransVideo chunk-based merge ───────────────────────────────────
     def _merge_tts_audio(self, output_path: str, timings_path: str):
-        """Merge TTS segments with YouDub speed-adjustment algorithm.
+        """Chunk-based audio mixing (TransVideo algorithm).
 
-        Our translated segments use seconds for timestamps; YouDub uses milliseconds.
-        We convert to ms internally to keep the algorithm identical.
+        Groups segments into chunks by gaps > 0.5s, applies uniform speed
+        adjustment per chunk using FFmpeg atempo, overlays onto BGM using pydub.
         """
-        import librosa
-        import numpy as np
-        import soundfile as sf
-        from audiostretchy.stretch import stretch_audio
+        segments = self.dubbed_files  # [{path, start, end}, ...]
 
-        # Build translation list in YouDub format (milliseconds)
-        translation = []
-        for seg in self.dubbed_files:
-            translation.append({
-                "start_time": int(seg["start"] * 1000),  # seconds → ms
-                "end_time": int(seg["end"] * 1000),
+        # Build segment list in TransVideo format
+        seg_list = []
+        for i, seg in enumerate(segments):
+            seg_list.append({
+                'index': i,
+                'start': seg['start'],
+                'end': seg['end'],
+                'tts_file': seg['path'],
             })
 
-        tts_files = [Path(seg["path"]) for seg in self.dubbed_files]
+        # Load BGM
+        bg = AudioSegment.from_file(self.bgm_path)
+        # Background gain (+1.5 dB)
+        if bg.dBFS != float("-inf"):
+            bg = bg.apply_gain(1.5)
 
-        for p in tts_files:
-            if not p.exists():
-                raise FileNotFoundError(f"Missing TTS segment: {p}")
+        vocal = AudioSegment.silent(duration=len(bg))
+        placement_map = []
 
-        _, sample_rate = _audio_duration(tts_files[0])
-        base = _base_speed_factor(translation, tts_files)
+        # 1. Group segments into chunks (TOLERANCE = 0.5s gap)
+        TOLERANCE = 0.5
+        chunks = []
+        current_chunk = []
 
-        # Create cache dir for stretched files
-        cache_dir = self.work_dir / "stretched"
-        cache_dir.mkdir(parents=True, exist_ok=True)
+        for i, seg in enumerate(seg_list):
+            current_chunk.append(seg)
+            if i + 1 < len(seg_list):
+                gap = seg_list[i + 1]['start'] - seg['end']
+                if gap > TOLERANCE:
+                    chunks.append(current_chunk)
+                    current_chunk = []
+            else:
+                chunks.append(current_chunk)
 
-        final_audio = np.zeros(0, dtype=np.float32)
-        last_end_ms = 0.0
+        # 2. Process each chunk
+        for chunk_idx, chunk in enumerate(chunks):
+            if not chunk:
+                continue
 
-        for segment, tts_file in zip(translation, tts_files):
-            last_end_ms = final_audio.shape[0] / sample_rate * 1000.0
-            real_start_ms = max(float(segment["start_time"]), last_end_ms)
+            chunk_start_sec = chunk[0]['start']
+            chunk_end_sec = chunk[-1]['end']
+            absolute_limit_sec = chunk_end_sec + 0.5
 
-            if real_start_ms > last_end_ms:
-                final_audio = np.concatenate(
-                    [final_audio, _silence((real_start_ms - last_end_ms) / 1000.0, sample_rate)]
-                )
+            # Find next chunk start for absolute limit
+            next_chunk_idx = chunk_idx + 1
+            while next_chunk_idx < len(chunks):
+                if chunks[next_chunk_idx]:
+                    absolute_limit_sec = chunks[next_chunk_idx][0]['start']
+                    break
+                next_chunk_idx += 1
 
-            current_sec, _ = _audio_duration(tts_file)
-            desired_sec = (segment["end_time"] - real_start_ms) / 1000.0
-            speed = base * _local_factor(current_sec, base, desired_sec)
-            target_sec = current_sec * speed
-            y, _ = _stretch_segment(tts_file, speed, target_sec, cache_dir)
+            available_total_dur = absolute_limit_sec - chunk_start_sec
 
-            adjusted_sec = len(y) / sample_rate
-            real_end_ms = max(real_start_ms + adjusted_sec * 1000.0, float(segment["end_time"]))
-            final_audio = np.concatenate([final_audio, y])
-            segment["actual_start_time"] = int(real_start_ms)
-            segment["actual_end_time"] = int(real_end_ms)
+            # Calculate actual TTS durations
+            actual_tts_durations = []
+            valid_chunk_segs = []
+            for seg in chunk:
+                if os.path.exists(seg['tts_file']):
+                    actual_tts_durations.append(_get_audio_duration_pydub(seg['tts_file']))
+                    valid_chunk_segs.append(seg)
 
-        sf.write(output_path, final_audio, sample_rate)
+            if not valid_chunk_segs:
+                continue
 
+            total_actual_tts_dur = sum(actual_tts_durations)
+            internal_gaps = []
+            for j in range(len(valid_chunk_segs) - 1):
+                internal_gaps.append(valid_chunk_segs[j + 1]['start'] - valid_chunk_segs[j]['end'])
+            total_internal_gap = sum(internal_gaps)
+
+            # 3. Calculate speed factor
+            speed_factor = 1.0
+            keep_gaps = True
+            if available_total_dur > 0:
+                speed_factor = (total_actual_tts_dur + total_internal_gap) / available_total_dur
+                if speed_factor > 1.2:
+                    speed_factor = total_actual_tts_dur / available_total_dur
+                    keep_gaps = False
+
+            speed_factor = max(0.85, speed_factor)
+
+            log.info("[Dubbing] Chunk %03d | speed=%.2fx | tts=%.2fs | available=%.2fs",
+                     chunk_idx, speed_factor, total_actual_tts_dur, available_total_dur)
+
+            # 4. Reconstruct timeline and overlay
+            current_time_ms = int(chunk_start_sec * 1000)
+            cache_dir = self.work_dir / "adjusted"
+            cache_dir.mkdir(parents=True, exist_ok=True)
+
+            for j, seg in enumerate(valid_chunk_segs):
+                tts_file = seg['tts_file']
+                idx = seg['index']
+                processed_file = str(cache_dir / f"adj_{idx:04d}.wav")
+
+                _adjust_audio_speed(tts_file, processed_file, speed_factor)
+                seg_audio = AudioSegment.from_file(processed_file)
+
+                vocal = vocal.overlay(seg_audio, position=current_time_ms)
+
+                seg_dur_ms = len(seg_audio)
+                placement_map.append({
+                    'segment_index': idx,
+                    'actual_start': current_time_ms / 1000.0,
+                    'actual_end': (current_time_ms + seg_dur_ms) / 1000.0,
+                })
+
+                current_time_ms += seg_dur_ms
+                if keep_gaps and j < len(internal_gaps):
+                    current_time_ms += int((internal_gaps[j] / speed_factor) * 1000)
+
+        # 5. Mix: vocals -3.5dB, overlay onto BGM
+        if vocal.dBFS != float("-inf"):
+            vocal = vocal.apply_gain(-3.5)
+
+        final_audio = bg.overlay(vocal)
+        final_audio.export(output_path, format="wav")
+
+        # Save timings
         with open(timings_path, "w", encoding="utf-8") as f:
-            json.dump({"translation": translation}, f, ensure_ascii=False, indent=2)
+            json.dump({"placement_map": placement_map}, f, ensure_ascii=False, indent=2)
 
-        log.info("[Dubbing] merged %d TTS segments → %s (base_speed=%.3f)",
-                 len(translation), output_path, base)
+        log.info("[Dubbing] mixed %d chunks, %d segments → %s",
+                 len(chunks), len(placement_map), output_path)
 
 
 # ── Public API ────────────────────────────────────────────────────────

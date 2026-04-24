@@ -1,5 +1,5 @@
 """
-Video generation integration - supports Seedance 2.0 and OpenAI Sora providers.
+Video generation integration - supports Seedance, VectorEngine, and OpenAI Sora providers.
 """
 
 import asyncio
@@ -80,6 +80,7 @@ def get_video_config() -> dict:
         "api_key": get_setting("video_api_key", ""),
         "base_url": get_setting("video_base_url", "https://api.seedance.com/v1"),
         "model": get_setting("video_model", "seedance-2.0"),
+        "aspect_ratio": get_setting("video_aspect_ratio", "16:9"),
     }
 
 
@@ -150,6 +151,60 @@ async def _generate_openai_video(config, prompt, output_path, reference_image, d
 
         raise RuntimeError('Video generation timed out')
 
+async def _generate_vectorengine_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio):
+    """Generate video via VectorEngine API (POST /v1/video/create, poll GET /v1/video/query)."""
+    import httpx
+    base = config['base_url'].rstrip('/')
+
+    payload = {
+        'model': config['model'],
+        'prompt': prompt,
+        'aspect_ratio': aspect_ratio,
+        'enhance_prompt': True,
+    }
+    if reference_image:
+        payload['images'] = [reference_image]
+
+    headers = {
+        'Authorization': f"Bearer {config['api_key']}",
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+    }
+
+    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
+        # Submit
+        resp = await client.post(f'{base}/v1/video/create', headers=headers, json=payload)
+        resp.raise_for_status()
+        data = resp.json()
+        task_id = data.get('id')
+        if not task_id:
+            raise RuntimeError(f'VectorEngine did not return task id: {data}')
+
+        # Poll for completion
+        for _ in range(120):
+            await asyncio.sleep(5)
+            status_resp = await client.get(
+                f'{base}/v1/video/query?id={task_id}', headers=headers,
+            )
+            status_resp.raise_for_status()
+            status_data = status_resp.json()
+
+            if status_data.get('status') == 'completed':
+                video_url = status_data.get('video_url')
+                if video_url:
+                    vid_resp = await client.get(video_url, follow_redirects=True)
+                    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+                    with open(output_path, 'wb') as f:
+                        f.write(vid_resp.content)
+                    return output_path
+                raise RuntimeError('Video completed but no URL returned')
+
+            if status_data.get('status') == 'failed':
+                raise RuntimeError(f'VectorEngine generation failed: {status_data}')
+
+        raise RuntimeError('VectorEngine video generation timed out')
+
+
 async def generate_video(prompt: str, output_path: str,
                           reference_image: str | None = None,
                           duration_seconds: int = 5,
@@ -170,10 +225,15 @@ async def generate_video(prompt: str, output_path: str,
     if not config['api_key']:
         raise RuntimeError('Video API key not configured. Please configure in Settings.')
 
+    # Append language emphasis to prompt
+    prompt = f"{prompt}. The dialogue and any on-screen text must be in Chinese (中文)."
+
     # Route to provider-specific implementation
     provider = config.get('provider', 'seedance').lower()
     if provider in ('openai', 'sora'):
         return await _generate_openai_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio)
+    if provider == 'vectorengine':
+        return await _generate_vectorengine_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio)
 
 
     import httpx
@@ -225,10 +285,26 @@ async def generate_video(prompt: str, output_path: str,
     return output_path
 
 
-def test_video_connection(api_key: str, base_url: str, model: str) -> dict:
+def test_video_connection(api_key: str, base_url: str, model: str,
+                          provider: str = "seedance") -> dict:
     """Test video provider connection."""
     try:
         import httpx
+
+        if provider == "vectorengine":
+            url = f"{(base_url or 'https://api.vectorengine.ai').rstrip('/')}/v1/video/create"
+            headers = {"Authorization": f"Bearer {api_key}"}
+            # Just verify auth works — don't actually create a video
+            resp = httpx.post(url, headers=headers, json={}, timeout=10.0, trust_env=False)
+            # Expected: 400/422 (validation error means auth passed)
+            if resp.status_code in (400, 422):
+                return {"success": True, "message": f"Connected to VectorEngine ({model})"}
+            if resp.status_code == 401:
+                return {"success": False, "message": "Authentication failed - check API key"}
+            if resp.status_code == 200:
+                return {"success": True, "message": f"Connected to VectorEngine ({model})"}
+            return {"success": False, "message": f"HTTP {resp.status_code}: {resp.text[:200]}"}
+
         url = f"{(base_url or 'https://api.seedance.com/v1').rstrip('/')}/models"
         headers = {"Authorization": f"Bearer {api_key}"}
         resp = httpx.get(url, headers=headers, timeout=10.0, trust_env=False)

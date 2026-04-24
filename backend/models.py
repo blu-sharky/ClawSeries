@@ -253,6 +253,7 @@ class VideoProviderConfig(BaseModel):
     base_url: str = ""
     api_key: str = ""
     model: str = "seedance-2.0"
+    aspect_ratio: str = "16:9"
 
 
 class ImageProviderConfig(BaseModel):

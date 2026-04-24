@@ -226,6 +226,7 @@ const Settings = {
                         <label>Provider</label>
                         <select id="video-provider">
                             <option value="seedance" ${video.provider === 'seedance' ? 'selected' : ''}>Seedance</option>
+                            <option value="vectorengine" ${video.provider === 'vectorengine' ? 'selected' : ''}>VectorEngine</option>
                             <option value="runway" ${video.provider === 'runway' ? 'selected' : ''}>Runway</option>
                             <option value="pika" ${video.provider === 'pika' ? 'selected' : ''}>Pika</option>
                             <option value="custom" ${video.provider === 'custom' ? 'selected' : ''}>自定义</option>
@@ -251,6 +252,14 @@ const Settings = {
                         <label>Model</label>
                         <input type="text" id="video-model" value="${video.model || 'seedance-2.0'}"
                                placeholder="seedance-2.0">
+                    </div>
+
+                    <div class="form-group">
+                        <label>画面比例</label>
+                        <select id="video-aspect-ratio">
+                            <option value="16:9" ${(video.aspect_ratio || '16:9') === '16:9' ? 'selected' : ''}>横屏 16:9</option>
+                            <option value="9:16" ${video.aspect_ratio === '9:16' ? 'selected' : ''}>竖屏 9:16</option>
+                        </select>
                     </div>
                 </div>
 
@@ -340,6 +349,8 @@ const Settings = {
                 this.handleImageProviderChange(e.target.value);
             } else if (e.target.id === 'video-demo-mode') {
                 this.handleVideoDemoModeChange(e.target.checked);
+            } else if (e.target.id === 'video-provider') {
+                this.handleVideoProviderChange(e.target.value);
             }
         });
     },
@@ -350,6 +361,20 @@ const Settings = {
             realConfig.style.opacity = enabled ? '0.4' : '1';
             realConfig.style.pointerEvents = enabled ? 'none' : '';
         }
+    },
+
+    handleVideoProviderChange(provider) {
+        const baseInput = document.getElementById('video-base-url');
+        const modelInput = document.getElementById('video-model');
+        const defaults = {
+            seedance: { url: 'https://api.seedance.com/v1', model: 'seedance-2.0' },
+            vectorengine: { url: 'https://api.vectorengine.ai', model: 'veo3.1-fast' },
+            runway: { url: '', model: '' },
+            pika: { url: '', model: '' },
+        };
+        const cfg = defaults[provider] || { url: '', model: '' };
+        if (baseInput) baseInput.value = cfg.url;
+        if (modelInput) modelInput.value = cfg.model;
     },
 
     handleLLMProviderChange(provider) {
@@ -456,6 +481,7 @@ const Settings = {
                 base_url: document.getElementById('video-base-url')?.value || '',
                 api_key: document.getElementById('video-api-key')?.value || '',
                 model: document.getElementById('video-model')?.value || 'seedance-2.0',
+                aspect_ratio: document.getElementById('video-aspect-ratio')?.value || '16:9',
             },
             google: {
                 project: document.getElementById('google-project')?.value || '',

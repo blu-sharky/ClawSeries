@@ -71,6 +71,7 @@ logs/
 
 # Test files at root
 test_*.py
+test-video.mp4
 
 # Mock/prototype directories
 mock_backend/
@@ -82,3 +83,11 @@ plan.md
 *.tmp
 *.temp
 .cache/
+
+# Generated/output files
+*.wav
+*.mp3
+*.aac
+*.flac
+*.ogg
+output/

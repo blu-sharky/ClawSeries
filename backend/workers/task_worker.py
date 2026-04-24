@@ -621,7 +621,7 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
                 # Pass first frame as reference image if available
                 ref_image = str(RENDERS_DIR / f"{shot_id}_frame.png") if first_frame_path else None
                 await generate_video(description, output_path, reference_image=ref_image,
-                                     duration_seconds=3, aspect_ratio="16:9")
+                                     duration_seconds=3, aspect_ratio=video_config.get("aspect_ratio", "16:9"))
 
                 update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
                 add_shot_trace(

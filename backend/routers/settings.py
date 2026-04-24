@@ -46,6 +46,7 @@ async def get_models_settings():
         "model": all_settings.get("video_model", "seedance-2.0"),
         "has_api_key": bool(all_settings.get("video_api_key")),
         "masked_api_key": _mask_key(all_settings.get("video_api_key", "")),
+        "aspect_ratio": all_settings.get("video_aspect_ratio", "16:9"),
     }
 
     google_config = {
@@ -102,6 +103,8 @@ async def update_models_settings(config: ModelsConfig):
             set_setting("video_api_key", config.video.api_key)
         if config.video.model:
             set_setting("video_model", config.video.model)
+        if config.video.aspect_ratio:
+            set_setting("video_aspect_ratio", config.video.aspect_ratio)
 
     if config.google:
         if config.google.project:
@@ -174,6 +177,7 @@ async def test_connection(request: TestConnectionRequest):
         model = all_settings.get("video_model", "seedance-2.0")
         if not api_key:
             return {"success": False, "message": "Video API key not configured"}
-        return test_video_connection(api_key, base_url, model)
+        return test_video_connection(api_key, base_url, model,
+                                     provider=all_settings.get("video_provider", "seedance"))
 
     return {"success": False, "message": f"Unknown provider type: {request.provider_type}"}

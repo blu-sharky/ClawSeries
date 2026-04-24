@@ -311,7 +311,7 @@ async def shots_node(state: ProductionState) -> dict:
                 await generate_video(
                     video_prompt, video_output,
                     reference_image=real_frame_path,
-                    duration_seconds=3, aspect_ratio="16:9"
+                    duration_seconds=3, aspect_ratio=video_config.get("aspect_ratio", "16:9")
                 )
 
                 update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")
