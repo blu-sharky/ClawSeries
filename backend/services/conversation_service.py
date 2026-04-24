@@ -657,11 +657,18 @@ class ConversationService:
             completed_tasks=1, total_tasks=1,
         )
 
-        # Emit production start event
+        # Emit production start events
+        # First: mark requirements confirmed as completed by project director
+        add_production_event(
+            project_id, "agent_director", ProductionStage.REQUIREMENTS_CONFIRMED.value,
+            "stage_completed", "需求确认完成",
+            f"项目总监已完成需求收集与剧本大纲确认，项目《{outline.title}》正式立项"
+        )
+        # Second: announce production started
         add_production_event(
             project_id, "agent_director", ProductionStage.REQUIREMENTS_CONFIRMED.value,
             "production_started", "制片流程已启动",
-            f"项目已创建，即将开始生成剧本..."
+            f"即将开始生成剧本..."
         )
 
         # Queue the first linear stage task
