@@ -43,7 +43,7 @@ from integrations.llm import is_llm_configured, stream_llm
 from integrations.video import is_video_configured, generate_video, get_video_config
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
-from config import RENDERS_DIR, OUTPUTS_DIR, ASSETS_DIR
+from config import RENDERS_DIR, OUTPUTS_DIR, ASSETS_DIR, project_assets_dir
 
 from prompt_reference import HOT_HOOK_REFERENCE
 
@@ -484,7 +484,7 @@ async def _execute_project_assets(project_id: str, task: dict):
     await _push_progress_update(project_id)
 
     for i, char in enumerate(characters, start=1):
-        asset_id = f"asset_char_{i:03d}"
+        asset_id = f"{project_id}_char_{i:03d}"
         prompt = f"{char['name']}, {char['description']}, portrait, consistent character design"
         await _emit_agent_prompt(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value, prompt,
@@ -498,11 +498,10 @@ async def _execute_project_assets(project_id: str, task: dict):
         # Generate character portrait image
         if is_image_configured() or is_image_demo_mode():
             try:
-                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-                portrait_path = str(ASSETS_DIR / f"{asset_id}.png")
+                portrait_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
                 portrait_prompt = f"{char['name']}, {char.get('role', '')}, {char['description']}, portrait, character design, front view, consistent"
                 await generate_image(portrait_prompt, portrait_path, aspect_ratio="3:4")
-                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+                update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
             except Exception as e:
                 agent_repo.add_agent_log(project_id, agent_id, "warning",
                                          f"Portrait generation failed for {char['name']}: {e}")
@@ -530,7 +529,7 @@ async def _execute_project_assets(project_id: str, task: dict):
                 scene_names.add(loc)
 
     for i, scene_name in enumerate(scene_names, start=1):
-        asset_id = f"asset_scene_{i:03d}"
+        asset_id = f"{project_id}_scene_{i:03d}"
         scene_prompt = f"{scene_name}, establishing shot, cinematic lighting, film still"
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",
@@ -540,10 +539,9 @@ async def _execute_project_assets(project_id: str, task: dict):
         # Generate scene image
         if is_image_configured() or is_image_demo_mode():
             try:
-                ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-                scene_output = str(ASSETS_DIR / f"{asset_id}.png")
+                scene_output = str(project_assets_dir(project_id) / f"{asset_id}.png")
                 await generate_image(scene_prompt, scene_output, aspect_ratio="16:9")
-                update_asset(asset_id, image_path=f"/assets/{asset_id}.png")
+                update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
             except Exception as e:
                 agent_repo.add_agent_log(project_id, agent_id, "warning",
                                          f"Scene image generation failed for {scene_name}: {e}")
