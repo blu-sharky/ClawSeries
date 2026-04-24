@@ -92,41 +92,46 @@ async def assets_node(state: ProductionState) -> dict:
         name, role, desc = char['name'], char['role'], char['description']
 
         if series_type == "animation":
-            prompt = f"""Professional anime character turnaround reference sheet for {name}, {role}, {desc}.
+            prompt = f"""best quality, masterpiece, character design reference sheet, pure white background, same character shown in 4 views arranged horizontally left to right, {name}, {role}, {desc}.
 
-STRICT LAYOUT — Generate exactly 4 views in a single horizontal 2:1 image:
-Panel 1 (LEFT): Full-body front view — standing straight, arms at sides, neutral expression
-Panel 2 (CENTER-LEFT): Full-body 3/4 view — slightly turned, showing depth
-Panel 3 (CENTER-RIGHT): Full-body side/profile view — facing left, showing profile
-Panel 4 (RIGHT): Close-up face portrait — detailed facial features, neutral expression
+LAYOUT — 4 views in a single horizontal image:
+View 1 (FAR LEFT): Face close-up portrait — detailed facial features, eyes, hairstyle construction, neutral expression, head and shoulders only
+View 2 (LEFT): Full-body front view — standing straight, arms relaxed at sides, facing camera, neutral expression
+View 3 (CENTER): Full-body left side profile view — standing straight, facing left, showing nose/chin/body profile depth
+View 4 (RIGHT): Full-body back view — showing hair from behind, outfit rear details, same standing pose
 
 ANIME/ILLUSTRATION STYLE:
-- Clean anime/manga art style with crisp outlines
-- Cel-shaded coloring, vibrant but balanced palette
-- Consistent character design across all 4 views (same proportions, same outfit)
-- Clean white background, no gradients or patterns
-- Professional character design sheet quality
-- Same hairstyle, eye design, and accessories in every view
-- NO text labels, NO grid lines, NO arrows — only the character views
-- High quality, detailed"""
+- Clean anime/manga art style with crisp outlines and cel-shaded coloring
+- Vibrant but balanced palette
+- Pure solid white background (#FFFFFF) — no gradients, no shadows, no floor reflection
+- Consistent character design across all 4 views: identical proportions, outfit, hairstyle, eye design, accessories
+- Neutral relaxed standing pose in all full-body views
+- Clean even spacing between each view, no overlap
+- Flat even lighting with no dramatic shadows
+- Professional concept art reference sheet quality
+- NO text labels, NO grid lines, NO arrows, NO color swatches — only the character views
+- NO environmental background, NO props, NO scene context"""
         else:
-            prompt = f"""Professional character turnaround reference sheet for {name}, {role}, {desc}.
+            prompt = f"""best quality, masterpiece, photorealistic character design reference sheet, pure white background, same person shown in 4 views arranged horizontally left to right, {name}, {role}, {desc}.
 
-STRICT LAYOUT — Generate exactly 4 views in a single horizontal 2:1 image:
-Panel 1 (LEFT): Full-body front view — standing straight, arms at sides, neutral expression
-Panel 2 (CENTER-LEFT): Full-body 3/4 view — slightly turned, showing depth
-Panel 3 (CENTER-RIGHT): Full-body side/profile view — facing left, showing profile
-Panel 4 (RIGHT): Close-up face portrait — detailed facial features, neutral expression
+LAYOUT — 4 views in a single horizontal image:
+View 1 (FAR LEFT): Face close-up portrait — detailed facial features, skin texture, eyes, hairstyle, neutral expression, professional headshot framing
+View 2 (LEFT): Full-body front view — standing straight, arms relaxed at sides, facing camera, natural neutral expression
+View 3 (CENTER): Full-body left side profile view — standing straight, facing left, showing nose/chin/body profile depth and posture
+View 4 (RIGHT): Full-body back view — showing hair from behind, outfit rear details, same standing pose and build
 
 PHOTOREALISTIC STYLE:
-- Hyper-realistic rendering, as if photographed
-- Natural skin texture, realistic lighting (soft studio 3-point lighting)
-- Professional actor headshot quality
-- Consistent clothing, hairstyle, accessories across all 4 views
-- Clean white studio background with subtle shadow on ground
-- Same body proportions and facial features in every view
-- NO text labels, NO grid lines, NO arrows — only the character views
-- High quality, detailed"""
+- Hyper-realistic rendering, as if photographed in a professional studio
+- Natural skin texture, realistic proportions, professional actor headshot quality
+- Pure solid white background (#FFFFFF) — no gradients, no shadows, no floor
+- Flat even studio lighting — no dramatic shadows that alter appearance between views
+- Consistent person across all 4 views: identical face, body proportions, clothing, hairstyle, accessories in every view
+- Neutral relaxed standing pose in all full-body views
+- Clean even spacing between each view, no overlap between figures
+- Same outfit, same grooming, same accessories in every view without any variation
+- Professional casting photo reference sheet quality
+- NO text labels, NO grid lines, NO arrows — only the person views
+- NO environmental background, NO props, NO scene context"""
 
         add_production_event(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
@@ -137,7 +142,7 @@ PHOTOREALISTIC STYLE:
 
         create_asset(
             asset_id, project_id, "character", char["name"], char["description"],
-            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, character turnaround reference sheet, front/side/back/face views, {'anime' if series_type == 'animation' else 'photorealistic'}"
+            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, character design reference sheet, face closeup + full-body front/side/back views, pure white background, {'anime' if series_type == 'animation' else 'photorealistic'}"
         )
 
         if image_configured or demo_mode:
@@ -150,7 +155,7 @@ PHOTOREALISTIC STYLE:
                 add_production_event(
                     project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
                     "output_captured", f"角色设定图完成：{char['name']}",
-                    "已生成角色设定图（全身前/侧/后视图+大脸照）",
+                    "已生成角色设定图（脸部特写+全身前/侧/后视图，白底）",
                     payload={"output": f"/assets/{project_id}/{asset_id}.png"}
                 )
             except Exception as e:

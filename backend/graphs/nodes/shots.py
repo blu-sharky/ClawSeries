@@ -88,20 +88,25 @@ async def _plan_shots_with_llm(
 {json.dumps(shots_info, ensure_ascii=False, indent=2)}
 
 请为每个镜头生成：
-1. visual_prompt: 详细画面描述（英文），包含场景、人物位置/动作/表情、光线、氛围、构图。用于AI图片生成。
+1. visual_prompt: 详细画面描述（英文），包含场景环境、光线、氛围、构图。
+   - 如果本镜头有人物：还要包含人物位置/动作/表情/服装细节
+   - 如果是空镜头/环境全景/远景：只描述环境、光线、氛围，不要包含人物
 2. characters: 本镜头出现的角色名称列表（从角色设定中选择）
+   - 空镜头/全景/无人镜头：返回空数组 []
+   - 有人镜头：列出实际出现的角色名称
 3. camera_direction: 镜头运动指导（如：缓慢推进、跟随镜头、固定机位、俯拍等）
 
 要求：
 - visual_prompt必须是英文，便于AI图像模型理解
-- 每个镜头描述要具体可视觉化，包含人物外观细节
+- 空镜头（如建立镜头、环境转场）不要硬塞人物，保持纯粹的环境描写
+- 有人镜头要具体描述人物外观细节（服装、发型、表情）
 - 保持与前后镜头的视觉连贯性
 
 【输出格式 - 必须严格遵守】
 直接输出纯 JSON 数组，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
 
 正确示例：
-[{{\"shot_id\": \"xxx\", \"visual_prompt\": \"A young woman in business attire...\", \"characters\": [\"角色名1\"], \"camera_direction\": \"slow push in\"}}]
+[{{"shot_id": "xxx", "visual_prompt": "Wide establishing shot of a modern office lobby...", "characters": [], "camera_direction": "slow dolly forward"}}, {{"shot_id": "yyy", "visual_prompt": "Close-up of a young woman in business attire...", "characters": ["林薇"], "camera_direction": "slow push in"}}]
 
 错误示例（禁止）：
 ```json
