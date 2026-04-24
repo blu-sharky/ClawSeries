@@ -17,16 +17,73 @@ import json
 import logging
 import os
 import subprocess
-import tempfile
 import uuid
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Optional
 
 from config import DUBBING_DIR
 from repositories.settings_repo import get_setting
 from storage.db import get_connection
 
 log = logging.getLogger(__name__)
+
+# ── YouDub speed-adjustment constants (copied verbatim) ────────────────
+BASE_FACTOR_MIN = 0.8
+BASE_FACTOR_MAX = 1.2
+BASE_FACTOR_SAFETY = 0.99
+LOCAL_FACTOR_MIN = 0.9
+LOCAL_FACTOR_MAX = 1.1
+SPEED_NOOP_EPSILON = 1e-2
+
+# ── YouDub audio helpers (copied verbatim from audio.py) ───────────────
+
+import numpy as np
+from pathlib import Path as _Path
+
+
+def _audio_duration(file: _Path) -> tuple[float, int]:
+    """Return (duration_seconds, sample_rate) for an audio file."""
+    import librosa
+    y, sr = librosa.load(str(file), sr=None)
+    return len(y) / sr, sr
+
+
+def _base_speed_factor(translation: list[dict], tts_files: list[_Path]) -> float:
+    cur_total = 0.0
+    des_total = 0.0
+    for segment, tts_file in zip(translation, tts_files):
+        dur, _ = _audio_duration(tts_file)
+        cur_total += dur
+        des_total += max(0.0, (segment["end_time"] - segment["start_time"]) / 1000.0)
+    if cur_total <= 0:
+        return 1.0
+    factor = des_total / cur_total * BASE_FACTOR_SAFETY
+    return max(min(factor, BASE_FACTOR_MAX), BASE_FACTOR_MIN)
+
+
+def _stretch_segment(audio_file: _Path, ratio: float, target_sec: float, cache_dir: _Path) -> tuple[np.ndarray, int]:
+    import librosa
+    from audiostretchy.stretch import stretch_audio
+
+    if abs(ratio - 1.0) < SPEED_NOOP_EPSILON:
+        y, sr = librosa.load(str(audio_file), sr=None)
+        return y, sr
+    out_path = cache_dir / audio_file.name
+    stretch_audio(str(audio_file), str(out_path), ratio=ratio)
+    y, sr = librosa.load(str(out_path), sr=None)
+    return y[: int(target_sec * sr)], sr
+
+
+def _local_factor(current_sec: float, base: float, desired_sec: float) -> float:
+    first = current_sec * base
+    if first <= 1e-3:
+        return 1.0
+    return max(min(desired_sec / first, LOCAL_FACTOR_MAX), LOCAL_FACTOR_MIN)
+
+
+def _silence(seconds: float, sample_rate: int) -> np.ndarray:
+    return np.zeros(int(seconds * sample_rate), dtype=np.float32)
+
 
 # ── status constants ──────────────────────────────────────────────────
 ST_PENDING = "pending"
@@ -276,24 +333,27 @@ class DubbingPipeline:
         self.dubbed_files = dubbed_files
         log.info("[Dubbing] generated %d dubbed segments", len(dubbed_files))
 
-    # ── Step 6: FFmpeg merge ──────────────────────────────────────────
+    # ── Step 6: FFmpeg merge (YouDub two-pass approach) ────────────────
     def _step_merge(self):
         _update_task(self.task_id, status=ST_MERGING, progress=92, current_step="Merging final video")
 
-        # 6a. Concatenate dubbed segments with proper timing (silence padding)
-        dubbed_concat = str(self.work_dir / "dubbed_full.wav")
-        self._concat_dubbed_audio(dubbed_concat)
+        # 6a. Merge TTS audio with speed adjustment (YouDub algorithm)
+        dubbed_concat = str(self.work_dir / "audio_dubbing.wav")
+        timings_path = str(self.work_dir / "timings.json")
+        self._merge_tts_audio(dubbed_concat, timings_path)
 
-        # 6b. Mix dubbed voice with BGM
-        mixed_audio = str(self.work_dir / "mixed_audio.wav")
+        # 6b. Two-pass FFmpeg merge (YouDub approach)
+        # Pass 1: Mix dubbing + BGM (amix with normalize=0)
+        mixed_audio = str(self.work_dir / "audio_mixed.m4a")
         if os.path.exists(self.bgm_path):
             cmd = [
                 "ffmpeg", "-y",
-                "-i", self.bgm_path,
                 "-i", dubbed_concat,
+                "-i", self.bgm_path,
                 "-filter_complex",
-                "[0:a]volume=0.3[bgm];[1:a]volume=1.5[voice];[bgm][voice]amix=inputs=2:duration=longest:dropout_transition=2[aout]",
+                "[0:a]volume=1.0[a0];[1:a]volume=0.30[a1];[a0][a1]amix=inputs=2:duration=longest:normalize=0[aout]",
                 "-map", "[aout]",
+                "-c:a", "aac",
                 mixed_audio,
             ]
             r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
@@ -303,16 +363,20 @@ class DubbingPipeline:
         else:
             mixed_audio = dubbed_concat
 
-        # 6c. Replace audio in original video
+        # Pass 2: Video + mixed audio
         src_video = self.task["source_video_path"]
         out_video = str(self.work_dir / f"dubbed_{self.task['target_language']}.mp4")
         cmd = [
             "ffmpeg", "-y",
             "-i", src_video,
             "-i", mixed_audio,
-            "-c:v", "copy",
             "-map", "0:v:0",
             "-map", "1:a:0",
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", "23",
+            "-c:a", "aac",
+            "-movflags", "+faststart",
             "-shortest",
             out_video,
         ]
@@ -329,35 +393,70 @@ class DubbingPipeline:
         )
         log.info("[Dubbing] final video → %s", out_video)
 
-    def _concat_dubbed_audio(self, output_path: str):
-        """Concatenate dubbed segments with silence padding to match original timing."""
-        import torchaudio
-        import torch
+    # ── YouDub merge_tts_audio (copied verbatim, adapted for our data format) ─
+    def _merge_tts_audio(self, output_path: str, timings_path: str):
+        """Merge TTS segments with YouDub speed-adjustment algorithm.
 
-        # Load original audio to get total duration and sample rate
-        orig_wav, sr = torchaudio.load(self.vocals_path)
-        total_duration = orig_wav.shape[1] / sr
+        Our translated segments use seconds for timestamps; YouDub uses milliseconds.
+        We convert to ms internally to keep the algorithm identical.
+        """
+        import librosa
+        import numpy as np
+        import soundfile as sf
+        from audiostretchy.stretch import stretch_audio
 
-        # Create silent canvas
-        canvas = torch.zeros(1, int(total_duration * sr) + sr)  # +1s buffer
-
+        # Build translation list in YouDub format (milliseconds)
+        translation = []
         for seg in self.dubbed_files:
-            try:
-                dub_wav, dub_sr = torchaudio.load(seg["path"])
-                # Resample if needed
-                if dub_sr != sr:
-                    dub_wav = torchaudio.functional.resample(dub_wav, dub_sr, sr)
+            translation.append({
+                "start_time": int(seg["start"] * 1000),  # seconds → ms
+                "end_time": int(seg["end"] * 1000),
+            })
 
-                start_sample = int(seg["start"] * sr)
-                dub_len = dub_wav.shape[1]
-                end_sample = min(start_sample + dub_len, canvas.shape[1])
+        tts_files = [Path(seg["path"]) for seg in self.dubbed_files]
 
-                if start_sample < canvas.shape[1]:
-                    canvas[0, start_sample:end_sample] = dub_wav[0, :end_sample - start_sample]
-            except Exception as exc:
-                log.warning("[Dubbing] failed to place segment %s: %s", seg["path"], exc)
+        for p in tts_files:
+            if not p.exists():
+                raise FileNotFoundError(f"Missing TTS segment: {p}")
 
-        torchaudio.save(output_path, canvas, sr)
+        _, sample_rate = _audio_duration(tts_files[0])
+        base = _base_speed_factor(translation, tts_files)
+
+        # Create cache dir for stretched files
+        cache_dir = self.work_dir / "stretched"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+
+        final_audio = np.zeros(0, dtype=np.float32)
+        last_end_ms = 0.0
+
+        for segment, tts_file in zip(translation, tts_files):
+            last_end_ms = final_audio.shape[0] / sample_rate * 1000.0
+            real_start_ms = max(float(segment["start_time"]), last_end_ms)
+
+            if real_start_ms > last_end_ms:
+                final_audio = np.concatenate(
+                    [final_audio, _silence((real_start_ms - last_end_ms) / 1000.0, sample_rate)]
+                )
+
+            current_sec, _ = _audio_duration(tts_file)
+            desired_sec = (segment["end_time"] - real_start_ms) / 1000.0
+            speed = base * _local_factor(current_sec, base, desired_sec)
+            target_sec = current_sec * speed
+            y, _ = _stretch_segment(tts_file, speed, target_sec, cache_dir)
+
+            adjusted_sec = len(y) / sample_rate
+            real_end_ms = max(real_start_ms + adjusted_sec * 1000.0, float(segment["end_time"]))
+            final_audio = np.concatenate([final_audio, y])
+            segment["actual_start_time"] = int(real_start_ms)
+            segment["actual_end_time"] = int(real_end_ms)
+
+        sf.write(output_path, final_audio, sample_rate)
+
+        with open(timings_path, "w", encoding="utf-8") as f:
+            json.dump({"translation": translation}, f, ensure_ascii=False, indent=2)
+
+        log.info("[Dubbing] merged %d TTS segments → %s (base_speed=%.3f)",
+                 len(translation), output_path, base)
 
 
 # ── Public API ────────────────────────────────────────────────────────
