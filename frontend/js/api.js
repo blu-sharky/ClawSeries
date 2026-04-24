@@ -3,6 +3,7 @@
  */
 
 const API_BASE = 'http://localhost:8000/api/v1';
+const MEDIA_BASE = 'http://localhost:8000';
 const USE_MOCK = false; // 切换为 false 连接真实后端
 
 const Api = {

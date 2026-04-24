@@ -777,7 +777,7 @@ const ProjectView = {
             html += `
                 <div class="character-card">
                     ${char.portrait_url
-                        ? `<div class="character-avatar" style="background: ${color}; padding: 0; overflow: hidden;"><img src="${char.portrait_url}" style="width:100%;height:100%;object-fit:cover;"></div>`
+                        ? `<div class="character-avatar" style="background: ${color}; padding: 0; overflow: hidden;"><img src="${MEDIA_BASE}${char.portrait_url}" style="width:100%;height:100%;object-fit:cover;"></div>`
                         : `<div class="character-avatar" style="background: ${color}">${char.name[0]}</div>`
                     }
                     <div class="character-info">
@@ -952,16 +952,16 @@ const ProjectView = {
                         ${episode.shots.map(s => `
                             <div class="shot-row" style="flex-wrap: wrap;">
                                 <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:200px;">
-                                    ${s.first_frame_path ? `<img src="${s.first_frame_path}" class="shot-thumbnail" onclick="ProjectView._playShotVideo(this, '${s.video_url || ''}')">` : '<div class="shot-thumbnail" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;">无图片</div>'}
+                                    ${s.first_frame_path ? `<img src="${MEDIA_BASE}${s.first_frame_path}" class="shot-thumbnail" onclick="ProjectView._playShotVideo(this, '${s.video_url || ''}')">` : '<div class="shot-thumbnail" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;">无图片</div>'}
                                     <div class="shot-info">
                                         <span><strong>镜头 ${s.shot_number}</strong></span>
                                         <span class="episode-status ${s.status}" style="margin-left:8px;">${s.status}</span>
                                     </div>
                                 </div>
                                 <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; width:100%; padding-left:0;">${s.description || ''}</div>
-                                ${s.video_url ? `<a href="${s.video_url}" target="_blank" class="btn-secondary btn-sm" style="flex-shrink:0;">查看视频</a>` : ''}
+                                ${s.video_url ? `<a href="${MEDIA_BASE}${s.video_url}" target="_blank" class="btn-secondary btn-sm" style="flex-shrink:0;">查看视频</a>` : ''}
                             </div>
-                            ${s.video_url ? `<div class="shot-video-container" id="shot-video-${s.shot_id}" style="display:none; margin-top:8px;"><video src="${s.video_url}" controls style="width:100%;max-width:480px;border-radius:6px;"></video></div>` : ''}
+                            ${s.video_url ? `<div class="shot-video-container" id="shot-video-${s.shot_id}" style="display:none; margin-top:8px;"><video src="${MEDIA_BASE}${s.video_url}" controls style="width:100%;max-width:480px;border-radius:6px;"></video></div>` : ''}
                         `).join('')}
                     </div>
                 `;
@@ -972,7 +972,7 @@ const ProjectView = {
                 html += `
                     <div class="section-title" style="margin-top: 16px;">剧集视频</div>
                     <div style="margin-top: 8px;">
-                        <video src="${episode.video_url}" controls style="width:100%; max-width:640px; border-radius:8px; background:#000;"></video>
+                        <video src="${MEDIA_BASE}${episode.video_url}" controls style="width:100%; max-width:640px; border-radius:8px; background:#000;"></video>
                     </div>
                 `;
             }
