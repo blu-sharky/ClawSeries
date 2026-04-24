@@ -31,11 +31,10 @@ from repositories.production_event_repo import (
     get_current_stage,
     create_asset,
     update_asset,
-    get_assets,
 )
 from routers.websocket import (
     send_progress_update, send_agent_update, send_episode_completed,
-    send_project_completed, send_trace_update, send_agent_monitor,
+    send_project_completed, send_agent_monitor,
     send_stage_update,
 
 )
@@ -43,14 +42,13 @@ from integrations.llm import is_llm_configured, stream_llm
 from integrations.video import is_video_configured, generate_video, get_video_config
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
-from config import RENDERS_DIR, OUTPUTS_DIR, ASSETS_DIR, project_assets_dir
+from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir
 
-from prompt_reference import HOT_HOOK_REFERENCE
+from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt
 
 from models import (
     ProductionStage,
     STAGE_AGENT_MAP,
-    STAGE_PRECONDITIONS,
 )
 
 
@@ -472,6 +470,9 @@ async def _execute_project_assets(project_id: str, task: dict):
     agent_id = STAGE_AGENT_MAP[ProductionStage.ASSETS_GENERATING]
     characters = project_repo.get_characters(project_id)
     episodes = project_repo.get_episodes(project_id)
+    project = project_repo.get_project(project_id)
+    config = project.get("config", {}) if project else {}
+    series_type = config.get("series_type", "live-action")
     await _set_agent_status(
         project_id, agent_id, status="working", current_task="生成视觉资产",
         completed_tasks=0, total_tasks=max(1, len(characters))
@@ -488,26 +489,25 @@ async def _execute_project_assets(project_id: str, task: dict):
 
     for i, char in enumerate(characters, start=1):
         asset_id = f"{project_id}_char_{i:03d}"
-        prompt = f"{char['name']}, {char['description']}, portrait, consistent character design"
+        name, role, desc = char["name"], char.get("role", "角色"), char.get("description", "")
+        prompt = build_character_sheet_prompt(name, role, desc, series_type)
         await _emit_agent_prompt(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value, prompt,
-            f"角色资产提示词：{char['name']}", f"开始为角色 {char['name']} 锁定视觉锚点"
+            f"角色设定图提示词：{char['name']}", f"开始为角色 {char['name']} 生成角色设定图"
         )
         create_asset(
             asset_id, project_id, "character", char["name"], char["description"],
-            prompt=prompt, anchor_prompt=f"{char['name']}, {char['role']}, consistent face"
+            prompt=prompt, anchor_prompt=f"{name}, {role}, character design reference sheet, face closeup + full-body front/side/back views, pure white background, {'anime' if series_type == 'animation' else 'photorealistic'}"
         )
 
-        # Generate character portrait image
         if is_image_configured() or is_image_demo_mode():
             try:
-                portrait_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
-                portrait_prompt = f"{char['name']}, {char.get('role', '')}, {char['description']}, portrait, character design, front view, consistent"
-                await generate_image(portrait_prompt, portrait_path, aspect_ratio="3:4")
+                output_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
+                await generate_image(prompt, output_path, aspect_ratio="2:1")
                 update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
             except Exception as e:
                 agent_repo.add_agent_log(project_id, agent_id, "warning",
-                                         f"Portrait generation failed for {char['name']}: {e}")
+                                         f"Character sheet generation failed for {char['name']}: {e}")
 
         await _emit_agent_output(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
@@ -533,7 +533,10 @@ async def _execute_project_assets(project_id: str, task: dict):
 
     for i, scene_name in enumerate(scene_names, start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
-        scene_prompt = f"{scene_name}, establishing shot, cinematic lighting, film still"
+        if series_type == "animation":
+            scene_prompt = f"{scene_name}, anime style establishing shot, vibrant, cel-shaded, wide angle, cinematic composition, illustration"
+        else:
+            scene_prompt = f"{scene_name}, establishing shot, photorealistic, cinematic, natural lighting, high quality, wide angle"
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",
             prompt=scene_prompt
@@ -961,6 +964,7 @@ def _recalc_project_progress(project_id: str) -> int:
         progress = 95
     project_repo.update_project(project_id, progress=progress)
     return progress
+
 
 
 async def _push_progress_update(project_id: str, episode_id: str | None = None):

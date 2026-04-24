@@ -13,7 +13,20 @@ def create_task(task_id: str, project_id: str, task_type: str,
     conn.execute(
         """INSERT INTO tasks (task_id, project_id, episode_id, shot_id, task_type, agent_id, input_json)
            VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON CONFLICT(task_id) DO NOTHING""",
+           ON CONFLICT(task_id) DO UPDATE SET
+               project_id = excluded.project_id,
+               episode_id = excluded.episode_id,
+               shot_id = excluded.shot_id,
+               task_type = excluded.task_type,
+               agent_id = excluded.agent_id,
+               input_json = excluded.input_json,
+               output_json = NULL,
+               error_message = NULL,
+               retry_count = 0,
+               status = 'pending',
+               started_at = NULL,
+               completed_at = NULL
+           WHERE tasks.status = 'failed'""",
         (task_id, project_id, episode_id, shot_id, task_type, agent_id,
          json.dumps(input_data or {}, ensure_ascii=False)),
     )

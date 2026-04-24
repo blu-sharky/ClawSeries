@@ -45,3 +45,53 @@ SHORT_DRAMA_PROMPT_REFERENCE = f"""{HOT_HOOK_REFERENCE}
 公式：灵异直播/末日日常/跨物种共生+因果交易
 参考钩子：
 - 榜一大哥ID突然变红：“感谢您的100亿打赏，已为您父亲延寿10年（注：取自您儿子）。”"""
+
+CHARACTER_SHEET_ANIMATION_TEMPLATE = """best quality, masterpiece, character design reference sheet, pure white background, same character shown in 4 views arranged horizontally left to right, {name}, {role}, {description}.
+
+LAYOUT — 4 views in a single horizontal image:
+View 1 (FAR LEFT): Face close-up portrait — detailed facial features, eyes, hairstyle construction, neutral expression, head and shoulders only
+View 2 (LEFT): Full-body front view — standing straight, arms relaxed at sides, facing camera, neutral expression
+View 3 (CENTER): Full-body left side profile view — standing straight, facing left, showing nose/chin/body profile depth
+View 4 (RIGHT): Full-body back view — showing hair from behind, outfit rear details, same standing pose
+
+ANIME/ILLUSTRATION STYLE:
+- Clean anime/manga art style with crisp outlines and cel-shaded coloring
+- Vibrant but balanced palette
+- Pure solid white background (#FFFFFF) — no gradients, no shadows, no floor reflection
+- Consistent character design across all 4 views: identical proportions, outfit, hairstyle, eye design, accessories
+- Neutral relaxed standing pose in all full-body views
+- Clean even spacing between each view, no overlap
+- Flat even lighting with no dramatic shadows
+- Professional concept art reference sheet quality
+- NO text labels, NO grid lines, NO arrows, NO color swatches — only the character views
+- NO environmental background, NO props, NO scene context"""
+
+CHARACTER_SHEET_LIVE_ACTION_TEMPLATE = """best quality, masterpiece, photorealistic character design reference sheet, pure white background, same person shown in 4 views arranged horizontally left to right, {name}, {role}, {description}.
+
+LAYOUT — 4 views in a single horizontal image:
+View 1 (FAR LEFT): Face close-up portrait — detailed facial features, skin texture, eyes, hairstyle, neutral expression, professional headshot framing
+View 2 (LEFT): Full-body front view — standing straight, arms relaxed at sides, facing camera, natural neutral expression
+View 3 (CENTER): Full-body left side profile view — standing straight, facing left, showing nose/chin/body profile depth and posture
+View 4 (RIGHT): Full-body back view — showing hair from behind, outfit rear details, same standing pose and build
+
+PHOTOREALISTIC STYLE:
+- Hyper-realistic rendering, as if photographed in a professional studio
+- Natural skin texture, realistic proportions, professional actor headshot quality
+- Pure solid white background (#FFFFFF) — no gradients, no shadows, no floor
+- Flat even studio lighting — no dramatic shadows that alter appearance between views
+- Consistent person across all 4 views: identical face, body proportions, clothing, hairstyle, accessories in every view
+- Neutral relaxed standing pose in all full-body views
+- Clean even spacing between each view, no overlap between figures
+- Same outfit, same grooming, same accessories in every view without any variation
+- Professional casting photo reference sheet quality
+- NO text labels, NO grid lines, NO arrows — only the person views
+- NO environmental background, NO props, NO scene context"""
+
+
+def build_character_sheet_prompt(name: str, role: str, description: str, series_type: str) -> str:
+    template = (
+        CHARACTER_SHEET_ANIMATION_TEMPLATE
+        if series_type == "animation"
+        else CHARACTER_SHEET_LIVE_ACTION_TEMPLATE
+    )
+    return template.format(name=name, role=role, description=description)

@@ -674,13 +674,13 @@ const ProjectView = {
                     <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
                 `;
                 if (!episode.has_script) {
-                    html += `<button class="btn-primary btn-sm" onclick="Project.showEpisodeDetail('${episodeId}'); Project.triggerGenerate('${projectId}', 'script')">生成剧本</button>`;
+                    html += `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'script')">生成剧本</button>`;
                 }
                 if (episode.has_script && !episode.has_storyboard) {
-                    html += `<button class="btn-primary btn-sm" onclick="Project.showEpisodeDetail('${episodeId}'); Project.triggerGenerate('${projectId}', 'format')">生成分镜</button>`;
+                    html += `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'format')">生成分镜</button>`;
                 }
                 if (episode.has_storyboard && episode.status === 'rendering') {
-                    html += `<button class="btn-primary btn-sm" onclick="Project.showEpisodeDetail('${episodeId}'); Project.triggerGenerate('${projectId}', 'shots')">生成视频</button>`;
+                    html += `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'shots', '${episodeId}')">生成视频</button>`;
                 }
                 html += `</div>`;
             }
@@ -816,11 +816,12 @@ const ProjectView = {
         }
     },
 
-    async triggerGenerate(projectId, stage) {
+    async triggerGenerate(projectId, stage, episodeId = null) {
         try {
             const baseUrl = 'http://localhost:8000/api/v1';
             const endpoint = stage === 'script' ? `${baseUrl}/projects/${projectId}/generate-script`
                            : stage === 'format' ? `${baseUrl}/projects/${projectId}/format-script`
+                           : episodeId ? `${baseUrl}/projects/${projectId}/episodes/${episodeId}/generate-shots`
                            : `${baseUrl}/projects/${projectId}/generate-shots`;
             const resp = await fetch(endpoint, { method: 'POST' });
             if (!resp.ok) {
