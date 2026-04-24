@@ -14,12 +14,14 @@ def create_project(project_id: str, title: str, conversation_id: str | None = No
         (project_id, title, conversation_id, json.dumps(config or {}, ensure_ascii=False), status),
     )
     conn.commit()
+    conn.close()
 
 
 def get_project(project_id: str) -> dict | None:
     conn = get_connection()
     row = conn.execute("SELECT * FROM projects WHERE project_id = ?", (project_id,)).fetchone()
     if not row:
+        conn.close()
         return None
     p = dict(row)
     p["config"] = json.loads(p["config_json"]) if p["config_json"] else {}
@@ -34,6 +36,7 @@ def get_all_projects() -> list[dict]:
         p = dict(row)
         p["config"] = json.loads(p["config_json"]) if p["config_json"] else {}
         result.append(p)
+    conn.close()
     return result
 
 
@@ -53,6 +56,7 @@ def update_project(project_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()
 
 
 def create_character(character_id: str, project_id: str, name: str, age: int,
@@ -64,6 +68,7 @@ def create_character(character_id: str, project_id: str, name: str, age: int,
          json.dumps(visual_assets or {}, ensure_ascii=False)),
     )
     conn.commit()
+    conn.close()
 
 
 def get_characters(project_id: str) -> list[dict]:
@@ -75,6 +80,7 @@ def get_characters(project_id: str) -> list[dict]:
         c["visual_assets"] = json.loads(c["visual_assets_json"]) if c["visual_assets_json"] else {}
         del c["visual_assets_json"]
         result.append(c)
+    conn.close()
     return result
 
 
@@ -86,6 +92,7 @@ def create_episode(episode_id: str, project_id: str, episode_number: int,
         (episode_id, project_id, episode_number, title, status),
     )
     conn.commit()
+    conn.close()
 
 
 def get_episodes(project_id: str) -> list[dict]:
@@ -94,12 +101,14 @@ def get_episodes(project_id: str) -> list[dict]:
         "SELECT * FROM episodes WHERE project_id = ? ORDER BY episode_number",
         (project_id,),
     ).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
 def get_episode(episode_id: str) -> dict | None:
     conn = get_connection()
     row = conn.execute("SELECT * FROM episodes WHERE episode_id = ?", (episode_id,)).fetchone()
+    conn.close()
     return dict(row) if row else None
 
 
@@ -120,6 +129,7 @@ def update_episode(episode_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()
 
 
 def get_completed_episode_count(project_id: str) -> int:
@@ -128,4 +138,5 @@ def get_completed_episode_count(project_id: str) -> int:
         "SELECT COUNT(*) as cnt FROM episodes WHERE project_id = ? AND status = 'completed'",
         (project_id,),
     ).fetchone()
+    conn.close()
     return row["cnt"] if row else 0

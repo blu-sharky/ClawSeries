@@ -26,6 +26,7 @@ def init_agent_states(project_id: str):
             (defn["agent_id"], project_id, defn["name"], defn["default_total"]),
         )
     conn.commit()
+    conn.close()
 
 
 def get_agent_states(project_id: str) -> list[dict]:
@@ -34,6 +35,7 @@ def get_agent_states(project_id: str) -> list[dict]:
         "SELECT * FROM agent_states WHERE project_id = ? ORDER BY agent_id",
         (project_id,),
     ).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
@@ -50,6 +52,7 @@ def update_agent_state(project_id: str, agent_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()
 
 
 def add_agent_log(project_id: str, agent_id: str, level: str, message: str):
@@ -59,6 +62,7 @@ def add_agent_log(project_id: str, agent_id: str, level: str, message: str):
         (agent_id, project_id, level, message),
     )
     conn.commit()
+    conn.close()
 
 
 def get_agent_logs(project_id: str, agent_id: str, limit: int = 100) -> list[dict]:
@@ -67,4 +71,5 @@ def get_agent_logs(project_id: str, agent_id: str, limit: int = 100) -> list[dic
         "SELECT timestamp, level, message FROM agent_logs WHERE project_id = ? AND agent_id = ? ORDER BY id DESC LIMIT ?",
         (project_id, agent_id, limit),
     ).fetchall()
+    conn.close()
     return list(reversed([dict(row) for row in rows]))

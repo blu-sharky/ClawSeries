@@ -18,6 +18,7 @@ def create_task(task_id: str, project_id: str, task_type: str,
          json.dumps(input_data or {}, ensure_ascii=False)),
     )
     conn.commit()
+    conn.close()
 
 
 def get_tasks_by_project(project_id: str, status: str | None = None) -> list[dict]:
@@ -32,6 +33,7 @@ def get_tasks_by_project(project_id: str, status: str | None = None) -> list[dic
             "SELECT * FROM tasks WHERE project_id = ? ORDER BY created_at",
             (project_id,),
         ).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
@@ -41,6 +43,7 @@ def get_tasks_by_episode(project_id: str, episode_id: str) -> list[dict]:
         "SELECT * FROM tasks WHERE project_id = ? AND episode_id = ? ORDER BY created_at",
         (project_id, episode_id),
     ).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
@@ -59,6 +62,7 @@ def update_task(task_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()
 
 
 def get_pending_tasks(project_id: str) -> list[dict]:
@@ -68,4 +72,5 @@ def get_pending_tasks(project_id: str) -> list[dict]:
 def get_task(task_id: str) -> dict | None:
     conn = get_connection()
     row = conn.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
+    conn.close()
     return dict(row) if row else None

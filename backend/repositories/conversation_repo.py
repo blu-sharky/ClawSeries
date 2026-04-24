@@ -13,6 +13,7 @@ def create_conversation(conv_id: str, initial_idea: str, state: str = "collectin
         (conv_id, initial_idea, state),
     )
     conn.commit()
+    conn.close()
 
 
 def get_conversation(conv_id: str) -> dict | None:
@@ -21,6 +22,7 @@ def get_conversation(conv_id: str) -> dict | None:
         "SELECT * FROM conversations WHERE conversation_id = ?", (conv_id,)
     ).fetchone()
     if not row:
+        conn.close()
         return None
     return dict(row)
 
@@ -40,6 +42,7 @@ def update_conversation(conv_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()
 
 
 def add_message(conv_id: str, role: str, content: str, questions_json: str | list | None = None):
@@ -51,6 +54,7 @@ def add_message(conv_id: str, role: str, content: str, questions_json: str | lis
         (conv_id, role, content, questions_json),
     )
     conn.commit()
+    conn.close()
 
 
 def get_messages(conv_id: str) -> list[dict]:
@@ -65,4 +69,5 @@ def get_messages(conv_id: str) -> list[dict]:
         if row["questions_json"]:
             msg["questions"] = json.loads(row["questions_json"])
         result.append(msg)
+    conn.close()
     return result

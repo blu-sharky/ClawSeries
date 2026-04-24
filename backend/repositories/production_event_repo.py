@@ -36,6 +36,7 @@ def add_production_event(
         ),
     )
     conn.commit()
+    conn.close()
     return cursor.lastrowid
 
 
@@ -71,6 +72,7 @@ def get_production_events(
         e["payload"] = json.loads(e["payload_json"]) if e["payload_json"] else {}
         del e["payload_json"]
         result.append(e)
+    conn.close()
     return list(reversed(result))
 
 
@@ -84,6 +86,7 @@ def get_latest_event_for_stage(project_id: str, stage: str) -> dict | None:
         (project_id, stage),
     ).fetchone()
     if not row:
+        conn.close()
         return None
     e = dict(row)
     e["payload"] = json.loads(e["payload_json"]) if e["payload_json"] else {}
@@ -107,6 +110,7 @@ def init_project_stages(project_id: str):
             (project_id, stage.value),
         )
     conn.commit()
+    conn.close()
 
 
 def update_project_stage(
@@ -140,6 +144,7 @@ def update_project_stage(
         params,
     )
     conn.commit()
+    conn.close()
 
 
 def get_project_stages(project_id: str) -> list[dict]:
@@ -149,6 +154,7 @@ def get_project_stages(project_id: str) -> list[dict]:
         "SELECT * FROM project_stages WHERE project_id = ? ORDER BY stage",
         (project_id,),
     ).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
@@ -163,6 +169,7 @@ def get_current_stage(project_id: str) -> dict | None:
         (project_id,),
     ).fetchone()
     if row:
+        conn.close()
         return dict(row)
     # Then find the first pending (ordered by enum sequence)
     from models import ProductionStage
@@ -189,6 +196,7 @@ def is_stage_completed(project_id: str, stage: str) -> bool:
            WHERE project_id = ? AND stage = ?""",
         (project_id, stage),
     ).fetchone()
+    conn.close()
     return row and row["status"] == "completed"
 
 
@@ -230,6 +238,7 @@ def create_asset(
         ),
     )
     conn.commit()
+    conn.close()
 
 
 def get_assets(
@@ -251,6 +260,7 @@ def get_assets(
 
     query += " ORDER BY created_at"
     rows = conn.execute(query, params).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
@@ -258,6 +268,7 @@ def get_asset(asset_id: str) -> dict | None:
     """Get a single asset by id."""
     conn = get_connection()
     row = conn.execute("SELECT * FROM assets WHERE asset_id = ?", (asset_id,)).fetchone()
+    conn.close()
     return dict(row) if row else None
 
 
@@ -275,3 +286,4 @@ def update_asset(asset_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()

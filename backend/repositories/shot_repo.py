@@ -16,6 +16,7 @@ def create_shot(shot_id: str, episode_id: str, project_id: str,
         (shot_id, episode_id, project_id, shot_number, description, camera_movement, duration),
     )
     conn.commit()
+    conn.close()
 
 
 def get_shots_by_episode(episode_id: str) -> list[dict]:
@@ -24,6 +25,7 @@ def get_shots_by_episode(episode_id: str) -> list[dict]:
         "SELECT * FROM shots WHERE episode_id = ? ORDER BY shot_number",
         (episode_id,),
     ).fetchall()
+    conn.close()
     return [dict(row) for row in rows]
 
 
@@ -40,6 +42,7 @@ def update_shot(shot_id: str, **kwargs):
         vals,
     )
     conn.commit()
+    conn.close()
 
 
 def add_shot_trace(shot_id: str, project_id: str, stage: str,
@@ -69,6 +72,7 @@ def add_shot_trace(shot_id: str, project_id: str, stage: str,
          1 if cache_hit else 0, error_reason, duration_ms, retry_count),
     )
     conn.commit()
+    conn.close()
 
 
 def get_shot_traces(shot_id: str) -> list[dict]:
@@ -86,6 +90,7 @@ def get_shot_traces(shot_id: str) -> list[dict]:
         del t["chroma_hits_json"]
         del t["assets_referenced_json"]
         result.append(t)
+    conn.close()
     return result
 
 
@@ -108,4 +113,5 @@ def get_episode_traces(project_id: str, episode_id: str) -> list[dict]:
         del t["chroma_hits_json"]
         del t["assets_referenced_json"]
         result.append(t)
+    conn.close()
     return result
