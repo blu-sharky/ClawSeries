@@ -88,7 +88,7 @@ async def _call_openai_compatible(config: dict, messages: list[dict],
         "max_tokens": max_tokens,
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
         resp = await client.post(url, headers=headers, json=payload)
         resp.raise_for_status()
         data = resp.json()
@@ -152,7 +152,7 @@ async def stream_llm(messages: list[dict], temperature: float = 0.7,
         "stream": True,
     }
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
         async with client.stream("POST", url, headers=headers, json=payload) as resp:
             resp.raise_for_status()
             async for line in resp.aiter_lines():
@@ -247,7 +247,7 @@ def _test_openai_compatible(api_key: str, base_url: str, model: str) -> dict:
         import httpx
         url = f"{(base_url or 'https://api.openai.com/v1').rstrip('/')}/models"
         headers = {"Authorization": f"Bearer {api_key}"}
-        resp = httpx.get(url, headers=headers, timeout=10.0)
+        resp = httpx.get(url, headers=headers, timeout=10.0, trust_env=False)
         if resp.status_code == 200:
             return {"success": True, "message": f"Connected to {model}"}
         else:

@@ -118,7 +118,7 @@ async def _generate_openai_video(config, prompt, output_path, reference_image, d
         'Content-Type': 'application/json',
     }
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
+    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
         # Submit
         resp = await client.post(f'{base}/videos', headers=headers, json=payload)
         resp.raise_for_status()
@@ -191,7 +191,7 @@ async def generate_video(prompt: str, output_path: str,
     if reference_image:
         payload["reference_image"] = reference_image
 
-    async with httpx.AsyncClient(timeout=300.0) as client:
+    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
         # Submit generation request
         resp = await client.post(url, headers=headers, json=payload)
         resp.raise_for_status()
@@ -231,7 +231,7 @@ def test_video_connection(api_key: str, base_url: str, model: str) -> dict:
         import httpx
         url = f"{(base_url or 'https://api.seedance.com/v1').rstrip('/')}/models"
         headers = {"Authorization": f"Bearer {api_key}"}
-        resp = httpx.get(url, headers=headers, timeout=10.0)
+        resp = httpx.get(url, headers=headers, timeout=10.0, trust_env=False)
         if resp.status_code == 200:
             return {"success": True, "message": f"Connected to {model}"}
         elif resp.status_code == 401:
