@@ -757,6 +757,8 @@ JSON 结构：
             "episode_duration": episode_duration,
             "genre": collected.get("genre", "都市爱情"),
             "style": collected.get("style_tone", "轻松幽默"),
+            "synopsis": outline.synopsis,
+            "episodes_detail": outline.episodes_detail,
         }
 
         project_repo.create_project(

@@ -94,6 +94,10 @@ async def script_node(state: ProductionState) -> dict:
         f"- {c['name']}({c['role']}): {c['description']}" for c in characters
     )
 
+    # Build per-episode detail lookup from outline
+    episodes_detail = config.get("episodes_detail", [])
+    detail_by_ep = {d.get("episode"): d for d in episodes_detail if isinstance(d, dict)}
+
     # Update agent status
     agent_repo.update_agent_state(
         project_id, agent_id,
@@ -119,14 +123,28 @@ async def script_node(state: ProductionState) -> dict:
         # Build context from previous episodes
         previous_context = ""
         if previous_scripts_summary:
-            previous_context = f"""前情提要（第1-{idx-1}集剧情摘要）：
+            previous_context = f"""前情提要（第1-{idx-1}集概要）：
 {chr(10).join(previous_scripts_summary)}
+
+"""
+
+        # Get current episode outline detail (hook, escalation, cliffhanger, scenes)
+        ep_detail = detail_by_ep.get(ep['episode_number'], {})
+        outline_section = ""
+        if ep_detail:
+            outline_section = f"""
+本集大纲概要：
+- 开场钩子：{ep_detail.get('hook', '')}
+- 中段升级：{ep_detail.get('escalation', '')}
+- 结尾悬念：{ep_detail.get('cliffhanger', '')}
+- 关键场景：{ep_detail.get('scenes', '')}
 
 """
 
         prompt = f"""{previous_context}请为以下 AI 短剧编写第{ep['episode_number']}集的完整剧本。
 
 剧名: {project['title']}
+故事梗概: {config.get('synopsis', '')}
 类型: {config.get('genre', '都市爱情')}
 风格: {config.get('style', '轻松幽默')}
 总集数: {config.get('episode_count', '?')}集
@@ -136,7 +154,7 @@ async def script_node(state: ProductionState) -> dict:
 {char_desc}
 
 集数标题: {ep['title']}
-
+{outline_section}
 {HOT_HOOK_REFERENCE}
 
 写作补充：

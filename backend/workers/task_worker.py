@@ -185,14 +185,43 @@ async def _execute_project_script(project_id: str, task: dict):
         f"- {c['name']}({c['role']}): {c['description']}" for c in characters
     )
 
+    # Build per-episode detail lookup from outline
+    episodes_detail = config.get("episodes_detail", [])
+    detail_by_ep = {d.get("episode"): d for d in episodes_detail if isinstance(d, dict)}
+
+    # Accumulate previous episode summaries
+    previous_summaries: list[str] = []
+
     for idx, ep in enumerate(episodes, start=1):
         episode_id = ep["episode_id"]
         project_repo.update_episode(episode_id, status="scripting", progress=10)
         await _push_progress_update(project_id, episode_id)
 
-        prompt = f"""请为以下 AI 短剧编写第{ep['episode_number']}集的完整剧本。
+        # Build previous episodes context
+        prev_context = ""
+        if previous_summaries:
+            prev_context = f"""前情提要（第1-{idx-1}集概要）：
+{chr(10).join(previous_summaries)}
+
+"""
+
+        # Get current episode outline detail (hook, escalation, cliffhanger, scenes)
+        ep_detail = detail_by_ep.get(ep['episode_number'], {})
+        outline_section = ""
+        if ep_detail:
+            outline_section = f"""
+本集大纲概要：
+- 开场钩子：{ep_detail.get('hook', '')}
+- 中段升级：{ep_detail.get('escalation', '')}
+- 结尾悬念：{ep_detail.get('cliffhanger', '')}
+- 关键场景：{ep_detail.get('scenes', '')}
+
+"""
+
+        prompt = f"""{prev_context}请为以下 AI 短剧编写第{ep['episode_number']}集的完整剧本。
 
 剧名: {project['title']}
+故事梗概: {config.get('synopsis', '')}
 类型: {config.get('genre', '都市爱情')}
 风格: {config.get('style', '轻松幽默')}
 总集数: {config.get('episode_count', '?')}集
@@ -202,7 +231,7 @@ async def _execute_project_script(project_id: str, task: dict):
 {char_desc}
 
 集数标题: {ep['title']}
-
+{outline_section}
 {HOT_HOOK_REFERENCE}
 
 写作补充：
@@ -278,6 +307,13 @@ JSON 包含 scenes 数组，每个 scene 包含:
             episode_id=episode_id,
             payload={"scene_count": len(script.get("scenes", []))}
         )
+
+        # Build summary of this episode for context of subsequent episodes
+        scenes_desc = "; ".join(
+            f"场景{s.get('scene_number', '?')}({s.get('location', '')}): {s.get('description', '')[:60]}"
+            for s in script.get("scenes", [])
+        )
+        previous_summaries.append(f"第{ep['episode_number']}集《{ep['title']}》: {scenes_desc}")
 
     update_project_stage(project_id, ProductionStage.SCRIPT_GENERATING.value, "completed")
     update_project_stage(project_id, ProductionStage.SCRIPT_COMPLETED.value, "completed")
