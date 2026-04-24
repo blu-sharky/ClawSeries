@@ -642,7 +642,7 @@ function sendQuickStart(text) { Chat.sendQuickStart(text); }
 function sendMessage() { Chat.sendMessage(); }
 
 function handleInputKeydown(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         sendMessage();
     }

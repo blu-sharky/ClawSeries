@@ -93,8 +93,11 @@ const ProjectView = {
         }
 
         document.getElementById('view-new-project').classList.add('hidden');
+        document.getElementById('view-settings').classList.add('hidden');
+        document.getElementById('view-dubbing').classList.add('hidden');
         document.getElementById('view-project-detail').classList.remove('hidden');
 
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.project-nav-item').forEach(el => el.classList.remove('active'));
         const navItem = document.querySelector(`.project-nav-item[data-pid="${projectId}"]`);
         if (navItem) navItem.classList.add('active');
@@ -422,7 +425,7 @@ const ProjectView = {
                                 </div>
                                 <div class="monitor-stream-meta" id="monitor-output-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.output, '等待输出'))}</div>
                             </summary>
-                            <pre class="agent-monitor-text output" id="monitor-output-${agent.agent_id}">${this._escapeHtml(monitor.output || '等待输出')}</pre>
+                            <div class="agent-monitor-text output" id="monitor-output-${agent.agent_id}">${this._formatMarkdown(monitor.output || '等待输出')}</div>
                         </details>
                     </div>
                 </section>
@@ -484,6 +487,17 @@ const ProjectView = {
             .replace(/"/g, '&quot;');
     },
 
+    _formatMarkdown(value) {
+        return this._escapeHtml(value)
+            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^- (.+)$/gm, '<li>$1</li>')
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+            .replace(/\n/g, '<br>');
+    },
+
     _playShotVideo(thumbnail, videoUrl) {
         if (!videoUrl) return;
         const row = thumbnail.closest('.shot-row');
@@ -535,7 +549,11 @@ const ProjectView = {
         const updateText = (id, text, fallback) => {
             const el = document.getElementById(id);
             if (!el) return;
-            el.textContent = text || fallback;
+            if (id.includes('output-') && el.classList.contains('agent-monitor-text')) {
+                el.innerHTML = this._formatMarkdown(text || fallback);
+            } else {
+                el.textContent = text || fallback;
+            }
             if (id.includes('output-')) el.scrollTop = el.scrollHeight;
         };
 

@@ -115,7 +115,6 @@ function navigateTo(view) {
 
     if (view === 'new-project') {
         document.getElementById('view-new-project').classList.remove('hidden');
-        Chat.reset();
     } else if (view === 'settings') {
         document.getElementById('view-settings').classList.remove('hidden');
         Settings.init();
