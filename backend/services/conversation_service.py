@@ -649,6 +649,15 @@ class ConversationService:
         init_project_stages(project_id)
         update_project_stage(project_id, ProductionStage.REQUIREMENTS_CONFIRMED.value, "completed")
 
+        # Mark agent_director (项目总监) as completed — it handled the conversation
+        from repositories import agent_repo
+        agent_repo.init_agent_states(project_id)
+        agent_repo.update_agent_state(
+            project_id, "agent_director",
+            status="idle", current_task=None,
+            completed_tasks=1, total_tasks=1,
+        )
+
         # Emit production start event
         add_production_event(
             project_id, "agent_director", ProductionStage.REQUIREMENTS_CONFIRMED.value,

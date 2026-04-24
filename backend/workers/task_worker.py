@@ -210,7 +210,8 @@ async def _execute_project_script(project_id: str, task: dict):
 要求：
 1. 这是 AI 短剧，场景集中、节奏快、每场都要有推进。
 2. 角色行动与对白要清晰，便于后续转分镜和视频生成。
-3. 直接返回 JSON。
+3. **开场必须使用倒叙手法**：第一个场景必须是全剧最炸裂、最有悬念、最抓人的高潮片段（如：对峙、揭秘、崩塌瞬间），然后再通过倒叙回到事件起点，逐步揭示因果。绝对不能从平淡的日常生活开场。
+4. 直接返回 JSON。
 
 JSON 包含 scenes 数组，每个 scene 包含:
 - scene_number: 场景编号
@@ -901,13 +902,23 @@ def _fallback_script(episode: dict) -> dict:
         "scenes": [
             {
                 "scene_number": 1,
-                "location": "上海陆家嘴 - 写字楼大厅",
-                "time_of_day": "清晨",
-                "description": f"清晨的陆家嘴，阳光洒在玻璃幕墙上。{episode['title']}的故事从这里开始...",
+                "location": "办公室 - 深夜",
+                "time_of_day": "深夜",
+                "description": f"【倒叙开场】屏幕上闪烁着红色倒计时，主角猛地推开办公室的门，看到真相的那一刻——{episode['title']}",
                 "dialogues": [
-                    {"character": "主角", "line": "新的一天开始了！", "emotion": "期待"},
+                    {"character": "主角", "line": "这一切……从一开始就是假的？", "emotion": "震惊"},
                 ],
-                "actions": ["主角深吸一口气，推开旋转门"],
+                "actions": ["主角颤抖着后退一步，撞翻了椅子"],
+            },
+            {
+                "scene_number": 2,
+                "location": "办公室 - 白天（三天前）",
+                "time_of_day": "白天",
+                "description": "【闪回】三天前，一切看起来还很正常……",
+                "dialogues": [
+                    {"character": "主角", "line": "今天的工作开始了。", "emotion": "平静"},
+                ],
+                "actions": ["主角走进办公室，打开电脑"],
             },
         ]
     }
