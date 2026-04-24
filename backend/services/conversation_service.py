@@ -421,7 +421,7 @@ class ConversationService:
 1. 剧名（吸引人的标题）
 2. 故事梗概（100-200字）
 3. 主要角色（3-5个角色，每个包含姓名、年龄、角色定位、性格描述）
-4. 分集概要（按集数分组，每组5集左右，说明每组的主题）
+4. 逐集标题（为每一集生成一个有悬念、有吸引力的标题，不能重复）
 
 请以JSON格式返回，格式如下：
 {{
@@ -429,6 +429,9 @@ class ConversationService:
     \"synopsis\": \"故事梗概\",
     \"characters\": [
         {{\"name\": \"姓名\", \"age\": 年龄, \"role\": \"角色定位\", \"description\": \"性格描述\"}}
+    ],
+    \"episode_titles\": [
+        \"第1集标题\", \"第2集标题\", \"第3集标题\", ...
     ],
     \"episodes_summary\": [
         {{\"range\": \"1-5\", \"theme\": \"主题\"}}
@@ -503,11 +506,10 @@ class ConversationService:
                     {"name": "陆景琛", "age": 28, "role": "男主角", "description": "集团继承人，外冷内热"},
                     {"name": "苏婉清", "age": 26, "role": "女配角", "description": "名门千金，心机深沉"},
                 ],
+                "episode_titles": ["意外的相遇", "电梯风波", "不打不相识", "暗生情愫", "心动的瞬间"],
                 "episodes_summary": [
                     {"range": "1-5", "theme": "相遇与误会"},
                     {"range": "6-10", "theme": "相知与心动"},
-                    {"range": "11-15", "theme": "波折与考验"},
-                    {"range": "16-20", "theme": "重逢与圆满"},
                 ],
             },
             "悬疑推理": {
@@ -518,11 +520,10 @@ class ConversationService:
                     {"name": "沈薇", "age": 28, "role": "女主角", "description": "刑侦记者，胆大心细"},
                     {"name": "韩墨", "age": 35, "role": "反派", "description": "神秘企业家，心思难测"},
                 ],
+                "episode_titles": ["午夜来电", "消失的证物", "第二个嫌疑人", "不完美的不在场", "镜中人"],
                 "episodes_summary": [
                     {"range": "1-5", "theme": "案件初现"},
                     {"range": "6-10", "theme": "层层迷雾"},
-                    {"range": "11-15", "theme": "真相浮现"},
-                    {"range": "16-20", "theme": "终局对决"},
                 ],
             },
             "古风仙侠": {
@@ -533,11 +534,10 @@ class ConversationService:
                     {"name": "凤九渊", "age": 500, "role": "男主角", "description": "仙界至尊，冷面寡言"},
                     {"name": "墨尘", "age": 200, "role": "男配角", "description": "魔族王子，亦正亦邪"},
                 ],
+                "episode_titles": ["血脉初醒", "仙门试炼", "暗中窥视", "正邪一线间", "宿命之约"],
                 "episodes_summary": [
                     {"range": "1-5", "theme": "血脉觉醒"},
                     {"range": "6-10", "theme": "仙门试炼"},
-                    {"range": "11-15", "theme": "正邪之战"},
-                    {"range": "16-20", "theme": "宿命终章"},
                 ],
             },
             "职场商战": {
@@ -548,11 +548,10 @@ class ConversationService:
                     {"name": "方晓薇", "age": 28, "role": "女主角", "description": "创业公司CEO，雷厉风行"},
                     {"name": "赵鹏飞", "age": 35, "role": "反派", "description": "投行合伙人，阴险狡诈"},
                 ],
+                "episode_titles": ["跌入谷底", "暗中蛰伏", "绝地反击", "背水一战", "王者归来"],
                 "episodes_summary": [
                     {"range": "1-5", "theme": "跌入谷底"},
                     {"range": "6-10", "theme": "暗中布局"},
-                    {"range": "11-15", "theme": "正面交锋"},
-                    {"range": "16-20", "theme": "王者归来"},
                 ],
             },
         }
@@ -701,11 +700,17 @@ class ConversationService:
                 },
             )
 
-        # Create episodes with pending status (cap at 5 for testing)
+        # Create episodes with titles from LLM outline
         actual_count = min(episode_count, 5)
+        llm_titles = outline.episode_titles or []
         for i in range(actual_count):
             ep_id = f"{project_id}_ep_{i + 1:03d}"
-            title = EPISODE_TITLES[i] if i < len(EPISODE_TITLES) else f"第{i + 1}集"
+            if i < len(llm_titles):
+                title = llm_titles[i]
+            elif i < len(EPISODE_TITLES):
+                title = EPISODE_TITLES[i]
+            else:
+                title = f"第{i + 1}集"
             project_repo.create_episode(ep_id, project_id, i + 1, title, status="pending")
 
         # Init agent states

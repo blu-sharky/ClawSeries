@@ -212,6 +212,7 @@ class ScriptOutline(BaseModel):
     title: str
     synopsis: str
     characters: List[Dict[str, Any]]
+    episode_titles: List[str] = []
     episodes_summary: List[Dict[str, Any]]
 
 
