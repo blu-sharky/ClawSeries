@@ -62,8 +62,8 @@ backend/data/
 *.sqlite3
 
 
-# Storage
-backend/storage/
+# Storage runtime data (keep source code)
+backend/storage/data/
 
 # Logs
 logs/
