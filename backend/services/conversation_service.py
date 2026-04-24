@@ -196,7 +196,7 @@ class ConversationService:
             missing_fields.append("目标观众")
 
         if not is_llm_configured():
-            return self._fallback_questions(collected, phase)
+            raise RuntimeError("LLM 未配置，无法生成问题")
 
         if phase == 1:
             context = f"用户想制作一部{genre}AI短剧，初始想法是：{initial_idea}"
@@ -278,7 +278,7 @@ JSON 结构：
                         data = None
 
             if not data:
-                return self._fallback_questions(collected, phase)
+                raise RuntimeError("LLM 连续3次未返回有效JSON，请重试")
 
             questions = []
             for q in data.get("问题", []):
@@ -298,14 +298,13 @@ JSON 结构：
                 )
 
             if not questions:
-                return self._fallback_questions(collected, phase)
+                raise RuntimeError("LLM 返回的问题列表为空，请重试")
 
             content = data.get("开场白", "让我继续了解您的需求。")
             return questions, content
 
         except Exception as e:
-            print(f"LLM question generation failed: {e}")
-            return self._fallback_questions(collected, phase)
+            raise RuntimeError(f"问题生成失败: {e}")
 
     def _missing_production_questions(self, collected: dict) -> list[QuestionOption]:
         questions: list[QuestionOption] = []
@@ -346,61 +345,6 @@ JSON 结构：
                 )
             )
         return questions
-
-    def _fallback_questions(self, collected: dict, phase: int) -> tuple[list[QuestionOption], str]:
-        """Fallback questions when LLM is unavailable or malformed."""
-        missing_questions = self._missing_production_questions(collected)
-
-        if phase == 1:
-            questions = [
-                QuestionOption(
-                    id="story_world",
-                    question="您更想把故事放在什么样的舞台里？",
-                    type="select",
-                    options=["现代都市", "校园/青春", "古风世界", "架空悬疑场景"],
-                )
-            ]
-            questions.extend(missing_questions[:2])
-            if len(questions) < 3:
-                questions.append(
-                    QuestionOption(
-                        id="core_hook",
-                        question="最想突出的核心钩子是什么？",
-                        type="text",
-                        placeholder="例如：身份反转、时间循环、禁忌之恋、复仇翻盘……",
-                    )
-                )
-            content = f"明白了，我们先把这部《{collected.get('genre', '短剧')}》AI短剧的故事骨架搭起来。"
-            return questions[:3], content
-
-        if phase == 2:
-            questions = missing_questions[:2]
-            questions.extend(
-                [
-                    QuestionOption(
-                        id="relationship_dynamic",
-                        question="您更想强化哪种人物关系张力？",
-                        type="select",
-                        options=["互相试探", "宿敌对决", "暧昧拉扯", "师徒/搭档信任危机"],
-                    ),
-                    QuestionOption(
-                        id="tone_direction",
-                        question="整体气质更偏向哪种感觉？",
-                        type="select",
-                        options=["冷峻克制", "高能反转", "情绪浓烈", "轻松但有钩子"],
-                    ),
-                    QuestionOption(
-                        id="must_have_element",
-                        question="有没有一定想保留的名场面或设定？",
-                        type="text",
-                        placeholder="例如：雨夜追凶、婚礼翻车、天台对峙、记忆错位……",
-                    ),
-                ]
-            )
-            content = "很好，再把这部 AI 短剧的人物关系和戏剧张力钉得更牢一点。"
-            return questions[:3], content
-
-        return [], ""
 
     def _parse_llm_json(self, response: str) -> dict:
         response = response.strip()
@@ -530,12 +474,13 @@ JSON 结构：
         """Generate script outline using LLM based on collected requirements."""
         genre = collected.get("genre", "都市爱情")
         if not is_llm_configured():
-            return self._fallback_outline(genre)
+            raise RuntimeError("LLM 未配置，无法生成大纲")
 
         prompt = self._build_outline_prompt(collected)
         system_msg = {"role": "system", "content": "你是一个专业的 AI 短剧编剧。\n\n【输出规则 - 绝对遵守】\n1. 直接输出纯 JSON 对象，不要包裹在 markdown 代码块中。\n2. 禁止输出任何 JSON 以外的内容：不要解释、不要注释、不要前后缀文字。\n3. 禁止使用 ```json ``` 包裹。"}
 
         max_retries = 3
+        last_error = None
         for attempt in range(1, max_retries + 1):
             try:
                 response = await call_llm(
@@ -545,85 +490,19 @@ JSON 结构：
                 data = self._parse_llm_json(response)
                 return ScriptOutline(**data)
             except json.JSONDecodeError as e:
-                print(f"LLM outline generation JSON parse error (attempt {attempt}/{max_retries}): {e}")
+                last_error = e
                 if attempt < max_retries:
                     prompt = prompt + "\n\n注意：上一次返回的内容不是有效的JSON，请只返回纯JSON，不要包含任何其他文字或代码块。"
             except TypeError as e:
-                print(f"LLM outline generation type error (attempt {attempt}/{max_retries}): {e}")
+                last_error = e
                 if attempt < max_retries:
                     prompt = prompt + "\n\n注意：请确保返回的JSON结构正确，字段类型匹配。"
             except Exception as e:
-                print(f"LLM outline generation failed (attempt {attempt}/{max_retries}): {e}")
+                last_error = e
                 if attempt >= max_retries:
                     break
 
-        print(f"LLM outline generation failed after {max_retries} attempts, using fallback")
-        return self._fallback_outline(genre)
-
-    def _fallback_outline(self, genre: str) -> ScriptOutline:
-        """Fallback outline when LLM is not available."""
-        # Simplified fallback templates
-        templates = {
-            "都市爱情": {
-                "title": "心动时刻",
-                "synopsis": "职场新人意外邂逅集团继承人，从欢喜冤家到相知相爱，经历重重考验最终携手走向幸福。",
-                "characters": [
-                    {"name": "林小夏", "age": 24, "role": "女主角", "description": "市场部新人，活泼开朗"},
-                    {"name": "陆景琛", "age": 28, "role": "男主角", "description": "集团继承人，外冷内热"},
-                    {"name": "苏婉清", "age": 26, "role": "女配角", "description": "名门千金，心机深沉"},
-                ],
-                "episode_titles": ["意外的相遇", "电梯风波", "不打不相识", "暗生情愫", "心动的瞬间"],
-                "episodes_summary": [
-                    {"range": "1-5", "theme": "相遇与误会"},
-                    {"range": "6-10", "theme": "相知与心动"},
-                ],
-            },
-            "悬疑推理": {
-                "title": "暗夜追踪",
-                "synopsis": "天才犯罪心理学教授被卷入连环失踪案，随着调查深入，发现所有线索都指向十年前的旧案...",
-                "characters": [
-                    {"name": "顾言", "age": 32, "role": "男主角", "description": "犯罪心理学教授，冷静理性"},
-                    {"name": "沈薇", "age": 28, "role": "女主角", "description": "刑侦记者，胆大心细"},
-                    {"name": "韩墨", "age": 35, "role": "反派", "description": "神秘企业家，心思难测"},
-                ],
-                "episode_titles": ["午夜来电", "消失的证物", "第二个嫌疑人", "不完美的不在场", "镜中人"],
-                "episodes_summary": [
-                    {"range": "1-5", "theme": "案件初现"},
-                    {"range": "6-10", "theme": "层层迷雾"},
-                ],
-            },
-            "古风仙侠": {
-                "title": "苍穹诀",
-                "synopsis": "废柴少女意外觉醒上古血脉，踏上修仙之路，与冷面仙尊之间的宿命纠葛跨越千年...",
-                "characters": [
-                    {"name": "叶灵溪", "age": 18, "role": "女主角", "description": "活泼少女，血脉觉醒者"},
-                    {"name": "凤九渊", "age": 500, "role": "男主角", "description": "仙界至尊，冷面寡言"},
-                    {"name": "墨尘", "age": 200, "role": "男配角", "description": "魔族王子，亦正亦邪"},
-                ],
-                "episode_titles": ["血脉初醒", "仙门试炼", "暗中窥视", "正邪一线间", "宿命之约"],
-                "episodes_summary": [
-                    {"range": "1-5", "theme": "血脉觉醒"},
-                    {"range": "6-10", "theme": "仙门试炼"},
-                ],
-            },
-            "职场商战": {
-                "title": "逆风翻盘",
-                "synopsis": "前投行精英被合伙人背叛，失去一切后从底层重新开始，用智慧夺回属于自己的帝国。",
-                "characters": [
-                    {"name": "陈默", "age": 30, "role": "男主角", "description": "前投行精英，沉稳果决"},
-                    {"name": "方晓薇", "age": 28, "role": "女主角", "description": "创业公司CEO，雷厉风行"},
-                    {"name": "赵鹏飞", "age": 35, "role": "反派", "description": "投行合伙人，阴险狡诈"},
-                ],
-                "episode_titles": ["跌入谷底", "暗中蛰伏", "绝地反击", "背水一战", "王者归来"],
-                "episodes_summary": [
-                    {"range": "1-5", "theme": "跌入谷底"},
-                    {"range": "6-10", "theme": "暗中布局"},
-                ],
-            },
-        }
-        
-        template = templates.get(genre, templates["都市爱情"])
-        return ScriptOutline(**template)
+        raise RuntimeError(f"大纲生成失败（{max_retries}次重试后）: {last_error}")
 
     def get_conversation(self, conversation_id: str) -> ConversationDetail | None:
         conv = conversation_repo.get_conversation(conversation_id)
@@ -921,9 +800,9 @@ JSON 结构：
             missing_fields.append("目标观众")
 
         if not is_llm_configured():
-            questions, content = self._fallback_questions(collected, round_num)
-            yield "text", content
-            yield "questions", questions
+            raise RuntimeError("LLM 未配置，无法生成问题")
+            yield "text", ""
+            yield "questions", []
             yield "ready_for_outline", round_num >= 2
             yield "done", None
             return
@@ -1016,11 +895,10 @@ JSON 结构：
             yield "done", None
 
         except Exception as e:
-            print(f"Stream question generation failed: {e}")
-            questions, content = self._fallback_questions(collected, round_num)
+            raise RuntimeError(f"问题生成失败: {e}")
             if not full_response:
-                yield "text", content
-            yield "questions", questions
+                yield "text", ""
+            yield "questions", []
             yield "ready_for_outline", round_num >= 2
             yield "done", None
 

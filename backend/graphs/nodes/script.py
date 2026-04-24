@@ -50,24 +50,6 @@ def _extract_script_summary(script: dict, episode_number: int, title: str) -> st
     return "\n".join(summary_parts)
 
 
-def _fallback_script(episode: dict) -> dict:
-    """Generate a fallback script when LLM is not available."""
-    return {
-        "scenes": [
-            {
-                "scene_number": 1,
-                "location": "上海陆家嘴 - 写字楼大厅",
-                "time_of_day": "清晨",
-                "description": f"清晨的陆家嘴，阳光洒在玻璃幕墙上。{episode['title']}的故事从这里开始...",
-                "dialogues": [
-                    {"character": "主角", "line": "新的一天开始了！", "emotion": "期待"},
-                ],
-                "actions": ["主角深吸一口气，推开旋转门"],
-            },
-        ]
-    }
-
-
 async def script_node(state: ProductionState) -> dict:
     """Generate complete scripts for all episodes.
 
@@ -185,7 +167,7 @@ JSON 结构：
   - dialogues: 对话数组 [{{character, line, emotion}}]
   - actions: 动作描述数组"""
 
-        script = _fallback_script(ep)
+        script = {}
         if is_llm_configured():
             max_retries = 3
             for attempt in range(1, max_retries + 1):
@@ -255,6 +237,9 @@ JSON 结构：
                 except Exception as e:
                     agent_repo.add_agent_log(project_id, agent_id, "error", f"LLM调用失败: {e}")
                     break  # Non-JSON error, don't retry
+
+        if not script or "scenes" not in script:
+            raise RuntimeError(f"第{ep['episode_number']}集《{ep['title']}》剧本生成失败：LLM未返回有效JSON，请重试")
 
         project_repo.update_episode(episode_id, script=script, status="scripting", progress=25)
 

@@ -252,45 +252,57 @@ JSON 包含 scenes 数组，每个 scene 包含:
 - dialogues: 对话数组 [{{character, line, emotion}}]
 - actions: 动作描述数组"""
 
-        script = _fallback_script(ep)
+        script = {}
         if is_llm_configured():
-            try:
-                await _emit_agent_prompt(
-                    project_id, agent_id, ProductionStage.SCRIPT_GENERATING.value,
-                    prompt, f"第{ep['episode_number']}集剧本提示词",
-                    f"开始为《{ep['title']}》生成剧本", episode_id=episode_id
-                )
-
-                chunks = []
-                async for chunk in stream_llm(
-                    [
-                        {"role": "system", "content": "你是一个专业的 AI 短剧编剧。你擅长高钩子、强反转、强情绪推进的短剧写法。只返回 JSON 格式剧本。"},
-                        {"role": "user", "content": prompt},
-                    ],
-                    temperature=0.8,
-                    max_tokens=4096,
-                ):
-                    chunks.append(chunk)
-                    await send_agent_monitor(
-                        project_id, agent_id,
-                        stage=ProductionStage.SCRIPT_GENERATING.value,
-                        output_chunk=chunk,
-                        episode_id=episode_id,
-                        event_type="output_chunk",
+            max_retries = 3
+            for attempt in range(1, max_retries + 1):
+                try:
+                    await _emit_agent_prompt(
+                        project_id, agent_id, ProductionStage.SCRIPT_GENERATING.value,
+                        prompt, f"第{ep['episode_number']}集剧本提示词" + (f" (重试{attempt})" if attempt > 1 else ""),
+                        f"开始为《{ep['title']}》生成剧本", episode_id=episode_id
                     )
 
-                response = "".join(chunks)
-                await _emit_agent_output(
-                    project_id, agent_id, ProductionStage.SCRIPT_GENERATING.value,
-                    response, f"第{ep['episode_number']}集剧本输出",
-                    f"已获取《{ep['title']}》剧本输出", episode_id=episode_id
-                )
+                    chunks = []
+                    async for chunk in stream_llm(
+                        [
+                            {"role": "system", "content": "你是一个专业的 AI 短剧编剧。你擅长高钩子、强反转、强情绪推进的短剧写法。只返回 JSON 格式剧本。"},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.8,
+                        max_tokens=4096,
+                    ):
+                        chunks.append(chunk)
+                        await send_agent_monitor(
+                            project_id, agent_id,
+                            stage=ProductionStage.SCRIPT_GENERATING.value,
+                            output_chunk=chunk,
+                            episode_id=episode_id,
+                            event_type="output_chunk",
+                        )
 
-                json_match = re.search(r'\{[\s\S]*\}', response)
-                if json_match:
-                    script = json.loads(json_match.group())
-            except Exception as e:
-                agent_repo.add_agent_log(project_id, agent_id, "error", f"LLM调用失败: {e}")
+                    response = "".join(chunks)
+                    await _emit_agent_output(
+                        project_id, agent_id, ProductionStage.SCRIPT_GENERATING.value,
+                        response, f"第{ep['episode_number']}集剧本输出",
+                        f"已获取《{ep['title']}》剧本输出", episode_id=episode_id
+                    )
+
+                    json_match = re.search(r'\{[\s\S]*\}', response)
+                    if json_match:
+                        parsed = json.loads(json_match.group())
+                        if isinstance(parsed, dict) and "scenes" in parsed:
+                            script = parsed
+                            break
+                    if attempt < max_retries:
+                        prompt = prompt + "\n\n注意：上一次返回的内容不是有效的JSON，请只返回纯JSON，不要包含任何其他文字。"
+                except Exception as e:
+                    agent_repo.add_agent_log(project_id, agent_id, "error", f"LLM调用失败: {e}")
+                    if attempt < max_retries:
+                        prompt = prompt + "\n\n注意：上一次返回的内容不是有效的JSON，请只返回纯JSON，不要包含任何其他文字。"
+
+        if not script or "scenes" not in script:
+            raise RuntimeError(f"第{ep['episode_number']}集《{ep['title']}》剧本生成失败：LLM未返回有效JSON，请重试")
 
         project_repo.update_episode(episode_id, script=script, status="scripting", progress=25)
         await _push_progress_update(project_id, episode_id)
@@ -392,7 +404,7 @@ async def _execute_project_format(project_id: str, task: dict):
             })
 
         if not storyboard:
-            storyboard = _fallback_storyboard()
+            raise RuntimeError(f"第{ep['episode_number']}集分镜生成失败：剧本中无有效场景数据")
 
         project_repo.update_episode(episode_id, storyboard=storyboard, status="storyboarding", progress=45)
         await _push_progress_update(project_id, episode_id)
@@ -934,40 +946,6 @@ async def _execute_shot_video_legacy(project_id: str, task: dict):
 
 
 # === Helpers ===
-
-def _fallback_script(episode: dict) -> dict:
-    return {
-        "scenes": [
-            {
-                "scene_number": 1,
-                "location": "办公室 - 深夜",
-                "time_of_day": "深夜",
-                "description": f"【倒叙开场】屏幕上闪烁着红色倒计时，主角猛地推开办公室的门，看到真相的那一刻——{episode['title']}",
-                "dialogues": [
-                    {"character": "主角", "line": "这一切……从一开始就是假的？", "emotion": "震惊"},
-                ],
-                "actions": ["主角颤抖着后退一步，撞翻了椅子"],
-            },
-            {
-                "scene_number": 2,
-                "location": "办公室 - 白天（三天前）",
-                "time_of_day": "白天",
-                "description": "【闪回】三天前，一切看起来还很正常……",
-                "dialogues": [
-                    {"character": "主角", "line": "今天的工作开始了。", "emotion": "平静"},
-                ],
-                "actions": ["主角走进办公室，打开电脑"],
-            },
-        ]
-    }
-
-
-def _fallback_storyboard() -> list:
-    return [
-        {"shot_number": 1, "description": "全景 - 城市天际线", "camera_movement": "缓慢推进", "duration": "3s"},
-        {"shot_number": 2, "description": "中景 - 主角出场", "camera_movement": "跟随镜头", "duration": "4s"},
-        {"shot_number": 3, "description": "特写 - 表情", "camera_movement": "固定机位", "duration": "2s"},
-    ]
 
 
 def _recalc_project_progress(project_id: str) -> int:

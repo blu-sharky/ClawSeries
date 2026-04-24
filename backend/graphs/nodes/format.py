@@ -13,15 +13,6 @@ from repositories.production_event_repo import (
 from models import ProductionStage, STAGE_AGENT_MAP
 
 
-def _fallback_storyboard() -> list:
-    """Generate a fallback storyboard when no script is available."""
-    return [
-        {"shot_number": 1, "description": "全景 - 城市天际线", "camera_movement": "缓慢推进", "duration": "3s"},
-        {"shot_number": 2, "description": "中景 - 主角出场", "camera_movement": "跟随镜头", "duration": "4s"},
-        {"shot_number": 3, "description": "特写 - 表情", "camera_movement": "固定机位", "duration": "2s"},
-    ]
-
-
 async def format_node(state: ProductionState) -> dict:
     """Format scripts into structured storyboards with shot lists.
 
@@ -77,7 +68,7 @@ async def format_node(state: ProductionState) -> dict:
             })
 
         if not storyboard:
-            storyboard = _fallback_storyboard()
+            raise RuntimeError(f"第{ep['episode_number']}集分镜生成失败：剧本中无有效场景数据")
 
         project_repo.update_episode(episode_id, storyboard=storyboard, status="storyboarding", progress=45)
 
