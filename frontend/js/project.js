@@ -79,10 +79,13 @@ const ProjectView = {
     agentsData: null,
     agentMonitorState: {},
     ws: null,
+    _userScrolling: false,
+    _scrollTimeout: null,
     async show(projectId) {
         this.currentProjectId = projectId;
         this.currentTab = 'overview';
         this.agentMonitorState = {};
+        this._userScrolling = false;
 
         if (this.ws) {
             this.ws.close();
@@ -95,6 +98,9 @@ const ProjectView = {
         document.querySelectorAll('.project-nav-item').forEach(el => el.classList.remove('active'));
         const navItem = document.querySelector(`.project-nav-item[data-pid="${projectId}"]`);
         if (navItem) navItem.classList.add('active');
+
+        // Set up scroll listener to detect user scrolling
+        this._setupScrollListener();
 
         const project = await Api.getProject(projectId);
         if (!project) return;
@@ -130,9 +136,8 @@ const ProjectView = {
         content.innerHTML = `
             <div class="tabs">
                 <button class="tab-btn active" onclick="ProjectView.switchTab('overview')">概览</button>
-                <button class="tab-btn" onclick="ProjectView.switchTab('pipeline')">制片流水线</button>
                 <button class="tab-btn" onclick="ProjectView.switchTab('monitor')">总控台</button>
-                <button class="tab-btn" onclick="ProjectView.switchTab('agents')">五大智能体</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('pipeline')">日志</button>
                 <button class="tab-btn" onclick="ProjectView.switchTab('characters')">角色</button>
                 <button class="tab-btn" onclick="ProjectView.switchTab('episodes')">剧集</button>
             </div>
@@ -155,9 +160,8 @@ const ProjectView = {
     _tabLabel(tab) {
         return {
             overview: '概览',
-            pipeline: '制片流水线',
             monitor: '总控台',
-            agents: '五大智能体',
+            pipeline: '日志',
             characters: '角色',
             episodes: '剧集'
         }[tab] || tab;
@@ -167,9 +171,8 @@ const ProjectView = {
         const container = document.getElementById('tab-content');
         switch (tab) {
             case 'overview': this._renderOverview(container, project); break;
-            case 'pipeline': this._renderPipeline(container, project); break;
             case 'monitor': this._renderMonitor(container, project); break;
-            case 'agents': this._renderAgents(container, project); break;
+            case 'pipeline': this._renderPipeline(container, project); break;
             case 'characters': this._renderCharacters(container, project); break;
             case 'episodes': this._renderEpisodes(container, project); break;
         }
@@ -182,43 +185,13 @@ const ProjectView = {
     },
 
     _renderPipeline(container, project) {
-        const stages = project.stages || [];
-        const stageMap = {};
-        for (const s of stages) {
-            stageMap[s.stage] = s;
-        }
-
-        let html = '<div class="pipeline-container">';
-        html += '<div class="section-title">制片流水线</div>';
-
-
-        html += '<div class="pipeline-steps">';
-        for (const ps of PIPELINE_STAGES) {
-            const stageInfo = stageMap[ps.stage];
-            const status = stageInfo?.status || 'pending';
-            const agent = AGENT_META[ps.agent] || { icon: 'smart_toy', color: '#6b7280', description: '' };
-            const statusLabel = { pending: '等待中', in_progress: '进行中', completed: '已完成', failed: '失败' }[status] || status;
-
-            html += `
-                <div class="pipeline-step ${status}">
-                    <div class="pipeline-step-icon" style="background: ${agent.color}"><span class="material-symbols-outlined">${agent.icon}</span></div>
-                    <div class="pipeline-step-content">
-                        <div class="pipeline-step-title">${ps.label}</div>
-                        <div class="pipeline-step-status ${status}">${statusLabel}</div>
-                    </div>
-                </div>
-            `;
-        }
-        html += '</div>';
-
-        // Timeline from production events
-        html += '<div class="section-title" style="margin-top: 24px;">生产事件时间线</div>';
-        html += '<div id="pipeline-timeline"><div style="color: var(--text-tertiary); text-align: center; padding: 24px;">加载中...</div></div>';
-        html += '</div>';
-
-        container.innerHTML = html;
-
-        // Load timeline
+        // Simple log view - just the timeline
+        container.innerHTML = `
+            <div class="pipeline-container">
+                <div class="section-title">生产事件日志</div>
+                <div id="pipeline-timeline"><div style="color: var(--text-tertiary); text-align: center; padding: 24px;">加载中...</div></div>
+            </div>
+        `;
         this._loadTimeline();
     },
 
@@ -339,21 +312,13 @@ const ProjectView = {
     async _renderMonitor(container, project) {
         const agentsData = await Api.getAgents(project.project_id);
         const orderedAgents = this._orderedAgents(agentsData.agents || []);
-        const stageMap = {};
-        for (const stage of project.stages || []) {
-            stageMap[stage.stage] = stage;
-        }
 
         const agentDetails = await Promise.all(
             orderedAgents.map(async (agent) => {
-                const [logsData, eventsData] = await Promise.all([
-                    Api.getAgentLogs(project.project_id, agent.agent_id),
-                    Api.getAgentEvents(project.project_id, agent.agent_id)
-                ]);
+                const eventsData = await Api.getAgentEvents(project.project_id, agent.agent_id);
                 const events = eventsData.events || [];
                 return {
                     agent,
-                    logs: logsData.logs || [],
                     events,
                     monitor: this._deriveMonitorState(agent.agent_id, events)
                 };
@@ -361,29 +326,10 @@ const ProjectView = {
         );
 
         const active = agentDetails.find(({ agent }) => agent.status === 'working') || agentDetails[0] || null;
-        const completedStages = PIPELINE_STAGES.filter(ps => stageMap[ps.stage]?.status === 'completed').length;
-        const pipelineCompletion = PIPELINE_STAGES.length > 0
-            ? Math.round((completedStages / PIPELINE_STAGES.length) * 100)
-            : 0;
         const workingAgents = agentDetails.filter(({ agent }) => agent.status === 'working').length;
-        const totalEvents = agentDetails.reduce((sum, detail) => sum + detail.events.length, 0);
-        const totalLogs = agentDetails.reduce((sum, detail) => sum + detail.logs.length, 0);
-        const lastSignalAt = agentDetails
-            .flatMap(({ events, logs }) => [
-                ...events.map(event => event.created_at).filter(Boolean),
-                ...logs.map(log => log.timestamp).filter(Boolean)
-            ])
-            .sort()
-            .at(-1);
-        const recentSignals = agentDetails
-            .flatMap(({ agent, events }) => {
-                const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', color: '#6b7280' };
-                return events.slice(-3).map(event => ({ agent, meta, event }));
-            })
-            .sort((a, b) => new Date(b.event.created_at) - new Date(a.event.created_at))
-            .slice(0, 8);
         const currentStageLabel = this._stageTitle(project.current_stage) || '待启动';
 
+        // Simplified monitor: status header + agent cards with prompt/output only
         let html = `
             <section class="monitor-hero">
                 <div class="monitor-hero-main">
@@ -396,7 +342,7 @@ const ProjectView = {
                     <div class="monitor-hero-task">${active ? this._escapeHtml(active.agent.current_task || active.monitor.currentTask || '等待任务') : '当前没有活跃任务'}</div>
                     <div class="monitor-stage-strip">
                         ${PIPELINE_STAGES.map(ps => {
-                            const stageInfo = stageMap[ps.stage];
+                            const stageInfo = (project.stages || []).find(s => s.stage === ps.stage);
                             const status = stageInfo?.status || (project.current_stage === ps.stage && project.status !== 'pending' ? 'in_progress' : 'pending');
                             const meta = AGENT_META[ps.agent] || { icon: 'smart_toy', color: '#6b7280' };
                             const stageAgent = orderedAgents.find(agent => agent.agent_id === ps.agent);
@@ -414,9 +360,9 @@ const ProjectView = {
                 </div>
                 <div class="monitor-kpi-grid">
                     <div class="monitor-kpi-card primary">
-                        <div class="monitor-kpi-label">流水线进度</div>
-                        <div class="monitor-kpi-value">${pipelineCompletion}%</div>
-                        <div class="monitor-kpi-sub">${completedStages} / ${PIPELINE_STAGES.length} 个关键阶段完成</div>
+                        <div class="monitor-kpi-label">当前阶段</div>
+                        <div class="monitor-kpi-value small">${this._escapeHtml(currentStageLabel)}</div>
+                        <div class="monitor-kpi-sub">项目状态：${this._escapeHtml(project.status)}</div>
                     </div>
                     <div class="monitor-kpi-card">
                         <div class="monitor-kpi-label">活跃智能体</div>
@@ -424,116 +370,19 @@ const ProjectView = {
                         <div class="monitor-kpi-sub">${orderedAgents.length} 个席位在线</div>
                     </div>
                     <div class="monitor-kpi-card">
-                        <div class="monitor-kpi-label">链路事件</div>
-                        <div class="monitor-kpi-value">${totalEvents}</div>
-                        <div class="monitor-kpi-sub">累计日志 ${totalLogs} 条</div>
-                    </div>
-                    <div class="monitor-kpi-card">
-                        <div class="monitor-kpi-label">最近刷新</div>
-                        <div class="monitor-kpi-value small">${lastSignalAt ? new Date(lastSignalAt).toLocaleTimeString() : '暂无'}</div>
-                        <div class="monitor-kpi-sub">项目状态：${this._escapeHtml(project.status)}</div>
+                        <div class="monitor-kpi-label">总体进度</div>
+                        <div class="monitor-kpi-value">${project.progress}%</div>
+                        <div class="monitor-kpi-sub">${project.episodes?.length || 0} 集</div>
                     </div>
                 </div>
             </section>
         `;
 
-        if (active) {
-            const activeMeta = AGENT_META[active.agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
-            const activeSummary = active.events.length > 0
-                ? [active.events.at(-1).title, active.events.at(-1).message].filter(Boolean).map(text => this._escapeHtml(text)).join(' · ')
-                : this._escapeHtml(active.monitor.metaText || '最近暂无反馈');
-            const activeProgress = active.agent.total_tasks > 0
-                ? Math.round((active.agent.completed_tasks / active.agent.total_tasks) * 100)
-                : 0;
-            html += `
-                <section class="monitor-focus monitor-focus-rich">
-                    <div class="monitor-focus-header">
-                        <div>
-                            <div class="section-title" style="margin: 0;">当前执行智能体</div>
-                        </div>
-                        <div class="monitor-focus-agent" style="color: ${activeMeta.color};display:inline-flex;align-items:center;gap:6px;"><span class="material-symbols-outlined" style="font-size:20px;">${activeMeta.icon}</span> ${active.agent.name}</div>
-                    </div>
-                    <div class="monitor-focus-grid">
-                        <div class="monitor-focus-card emphasis">
-                            <div class="monitor-focus-label">当前任务</div>
-                            <div class="monitor-focus-value">${this._escapeHtml(active.agent.current_task || active.monitor.currentTask || '等待任务')}</div>
-                        </div>
-                        <div class="monitor-focus-card">
-                            <div class="monitor-focus-label">最近反馈</div>
-                            <div class="monitor-focus-value">${activeSummary}</div>
-                        </div>
-                        <div class="monitor-focus-card">
-                            <div class="monitor-focus-label">任务完成度</div>
-                            <div class="monitor-focus-value">${active.agent.completed_tasks} / ${active.agent.total_tasks}</div>
-                            <div class="monitor-focus-sub">约 ${activeProgress}%</div>
-                        </div>
-                    </div>
-                </section>
-            `;
-        }
-
-        if (recentSignals.length > 0) {
-            html += `
-                <section class="monitor-pulse">
-                    <div class="monitor-pulse-header">
-                        <div>
-                            <div class="section-title" style="margin: 0;">全局信号流</div>
-                        </div>
-                    </div>
-                    <div class="monitor-pulse-grid">
-                        ${recentSignals.map(({ meta, event, agent }) => `
-                            <div class="monitor-pulse-item">
-                                <div class="monitor-pulse-item-header">
-                                    <span class="monitor-pulse-agent" style="color: ${meta.color};display:inline-flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:16px;">${meta.icon}</span> ${this._escapeHtml(agent.name)}</span>
-                                    <span class="monitor-pulse-time">${new Date(event.created_at).toLocaleTimeString()}</span>
-                                </div>
-                                <div class="monitor-pulse-title">${this._escapeHtml(event.title)}</div>
-                                <div class="monitor-pulse-message">${this._escapeHtml(event.message)}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </section>
-            `;
-        }
-
-        html += `
-            <div class="monitor-console-layout">
-                <aside class="monitor-sidebar">
-                    <div class="monitor-sidebar-header">
-                        <div class="section-title" style="margin: 0;">执行席位</div>
-                    </div>
-                    <div class="monitor-sidebar-stack">
-                        ${agentDetails.map(({ agent, events, monitor }) => {
-                            const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
-                            const progress = agent.total_tasks > 0 ? Math.round((agent.completed_tasks / agent.total_tasks) * 100) : 0;
-                            const lastEvent = events.at(-1);
-                            return `
-                                <div class="monitor-sidebar-card ${agent.status} ${active?.agent.agent_id === agent.agent_id ? 'active' : ''}">
-                                    <div class="monitor-sidebar-card-header">
-                                        <div class="monitor-sidebar-agent" style="color: ${meta.color};display:flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:18px;">${meta.icon}</span> ${agent.name}</div>
-                                        <div class="agent-status">
-                                            <span class="agent-status-dot ${agent.status}"></span>
-                                            ${this._agentStatusText(agent.status)}
-                                        </div>
-                                    </div>
-                                    <div class="monitor-sidebar-task" id="monitor-sidebar-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || monitor.currentTask || '等待任务')}</div>
-                                    <div class="monitor-sidebar-meta">
-                                        <span>${agent.completed_tasks} / ${agent.total_tasks || 0}</span>
-                                        <span>${progress}%</span>
-                                        <span>${this._escapeHtml(this._stageTitle(monitor.stage) || '未进入阶段')}</span>
-                                        <span>${lastEvent ? new Date(lastEvent.created_at).toLocaleTimeString() : '暂无事件'}</span>
-                                    </div>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                </aside>
-                <div class="monitor-stack">
-        `;
-
-        for (const { agent, logs, events, monitor } of agentDetails) {
+        // Agent panels - only show prompt/output (events/logs moved to 日志 tab)
+        for (const { agent, events, monitor } of agentDetails) {
             const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
             const stageLabel = this._stageTitle(monitor.stage) || '未进入阶段';
+            const progress = agent.total_tasks > 0 ? Math.round((agent.completed_tasks / agent.total_tasks) * 100) : 0;
             html += `
                 <section class="monitor-panel ${agent.status}">
                     <div class="monitor-panel-header">
@@ -550,12 +399,8 @@ const ProjectView = {
                             <strong>${agent.completed_tasks} / ${agent.total_tasks}</strong>
                         </div>
                         <div class="monitor-mini-stat">
-                            <span>最近事件</span>
-                            <strong>${events.length > 0 ? new Date(events.at(-1).created_at).toLocaleTimeString() : '暂无'}</strong>
-                        </div>
-                        <div class="monitor-mini-stat">
-                            <span>日志数</span>
-                            <strong>${logs.length}</strong>
+                            <span>进度</span>
+                            <strong>${progress}%</strong>
                         </div>
                     </div>
                     <div class="monitor-stream-grid">
@@ -580,98 +425,39 @@ const ProjectView = {
                             <pre class="agent-monitor-text output" id="monitor-output-${agent.agent_id}">${this._escapeHtml(monitor.output || '等待输出')}</pre>
                         </details>
                     </div>
-                    <div class="agent-monitor-meta" id="monitor-meta-${agent.agent_id}">${this._escapeHtml(monitor.metaText || '暂无执行反馈')}</div>
-                    <div class="monitor-detail-grid">
-                        <div class="monitor-detail-card">
-                            <div class="monitor-detail-title">最近事件</div>
-                            <div class="agent-events">
-                                ${(events.slice(-4).map(event => `
-                                    <div class="agent-event-entry">
-                                        <span class="agent-event-time">${new Date(event.created_at).toLocaleTimeString()}</span>
-                                        <span class="agent-event-title">${this._escapeHtml(event.title)}</span>
-                                        <div class="agent-event-msg">${this._escapeHtml(event.message)}</div>
-                                    </div>
-                                `).join('')) || '<div class="agent-event-entry muted">暂无事件</div>'}
-                            </div>
-                        </div>
-                        <div class="monitor-detail-card">
-                            <div class="monitor-detail-title">执行日志</div>
-                            <div class="log-panel monitor-log-panel">
-                                ${logs.slice(-6).map(log => `
-                                    <div class="log-entry">
-                                        <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
-                                        <span class="log-level ${log.level}">[${log.level}]</span>
-                                        <span class="log-msg">${this._escapeHtml(log.message)}</span>
-                                    </div>
-                                `).join('')}
-                                ${logs.length === 0 ? '<div class="log-entry" style="color: var(--text-tertiary);">暂无日志</div>' : ''}
-                            </div>
-                        </div>
-                    </div>
                 </section>
             `;
         }
 
-        html += `
-                </div>
-            </div>
-        `;
         container.innerHTML = html;
+
+        // Auto-scroll to the currently working agent
+        this._scrollToActiveAgent(active);
     },
 
-    async _renderAgents(container, project) {
-        const agentsData = await Api.getAgents(project.project_id);
-        this.agentsData = agentsData;
-        const orderedAgents = this._orderedAgents(agentsData.agents || []);
-        const agentLogs = await Promise.all(
-            orderedAgents.map(agent => Api.getAgentLogs(project.project_id, agent.agent_id))
-        );
+    _scrollToActiveAgent(active) {
+        // Don't auto-scroll if user is manually scrolling
+        if (this._userScrolling) return;
 
-        let html = `
-            <div class=”agents-grid”>
-        `;
+        if (active) {
+            const panel = document.querySelector(`.monitor-panel.${active.agent.status}`);
+            if (panel) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    },
 
-        orderedAgents.forEach((agent, index) => {
-            const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
-            const logs = agentLogs[index].logs || [];
-            const progress = agent.total_tasks > 0 ? Math.round(agent.completed_tasks / agent.total_tasks * 100) : 0;
-            html += `
-                <div class="agent-card">
-                    <div class="agent-card-header">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <span class="agent-icon"><span class="material-symbols-outlined">${meta.icon}</span></span>
-                            <span class="agent-name">${agent.name}</span>
-                        </div>
-                        <span class="agent-status">
-                            <span class="agent-status-dot ${agent.status}"></span>
-                            ${this._agentStatusText(agent.status)}
-                        </span>
-                    </div>
-                    <div class="agent-id">${agent.agent_id}</div>
-                    <div class="agent-task" id="agent-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || '等待任务')}</div>
-                    <div class="agent-progress">
-                        <span id="agent-progress-text-${agent.agent_id}">${agent.completed_tasks} / ${agent.total_tasks}</span>
-                        <span id="agent-progress-pct-${agent.agent_id}">${progress}%</span>
-                    </div>
-                    <div class="progress-bar-track">
-                        <div class="progress-bar-fill" id="agent-progress-bar-${agent.agent_id}" style="width: ${progress}%; background: ${meta.color}"></div>
-                    </div>
-                    <div class="log-panel" style="margin-top: 12px; max-height: 180px;">
-                        ${logs.slice(-6).map(log => `
-                            <div class="log-entry">
-                                <span class="log-time">${new Date(log.timestamp).toLocaleTimeString()}</span>
-                                <span class="log-level ${log.level}">[${log.level}]</span>
-                                <span class="log-msg">${this._escapeHtml(log.message)}</span>
-                            </div>
-                        `).join('')}
-                        ${logs.length === 0 ? '<div class="log-entry" style="color: var(--text-tertiary);">暂无日志</div>' : ''}
-                    </div>
-                </div>
-            `;
-        });
+    _setupScrollListener() {
+        const container = document.getElementById('tab-content');
+        if (!container) return;
 
-        html += '</div>';
-        container.innerHTML = html;
+        container.addEventListener('scroll', () => {
+            this._userScrolling = true;
+            if (this._scrollTimeout) clearTimeout(this._scrollTimeout);
+            this._scrollTimeout = setTimeout(() => {
+                this._userScrolling = false;
+            }, 3000); // Resume auto-scroll after 3s of no user scrolling
+        }, { passive: true });
     },
 
     _deriveMonitorState(agentId, events = []) {
