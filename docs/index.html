@@ -777,9 +777,13 @@
 
       // Initialize
       document.addEventListener('DOMContentLoaded', () => {
-        // Restore language preference
-        const savedLang = localStorage.getItem('clawseries-lang') || 'zh';
-        setLanguage(savedLang);
+        // Auto-detect language: check localStorage, then browser language
+        const savedLang = localStorage.getItem('clawseries-lang');
+        let initLang = savedLang;
+        if (!initLang) {
+          initLang = navigator.language.startsWith('zh') ? 'zh' : 'en';
+        }
+        setLanguage(initLang);
 
         // Language toggle handlers
         document.querySelectorAll('.lang-btn').forEach(btn => {

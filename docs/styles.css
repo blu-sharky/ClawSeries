@@ -519,6 +519,7 @@ body::after {
 /* Sections */
 .section {
   padding: 72px 0;
+  scroll-margin-top: 62px;
 }
 
 .section-contrast {
@@ -1126,6 +1127,8 @@ body::after {
     row-gap: 12px;
     align-items: center;
     flex-direction: row;
+    margin: 0 -20px;
+    padding: 10px 20px;
   }
 
   .topbar .brand {
