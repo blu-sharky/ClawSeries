@@ -213,6 +213,29 @@ async def _execute_project_script(project_id: str, task: dict):
 
     for idx, ep in enumerate(episodes, start=1):
         episode_id = ep["episode_id"]
+
+        # Skip episodes that already have a valid script (e.g., from a previous run)
+        existing_script = ep.get("script_json")
+        if existing_script:
+            try:
+                parsed = json.loads(existing_script) if isinstance(existing_script, str) else existing_script
+                if isinstance(parsed, dict) and "scenes" in parsed:
+                    scenes_desc = "; ".join(
+                        f"场景{s.get('scene_number', '?')}({s.get('location', '')}): {s.get('description', '')[:60]}"
+                        for s in parsed.get("scenes", [])
+                    )
+                    previous_summaries.append(f"第{ep['episode_number']}集《{ep['title']}》: {scenes_desc}")
+                    project_repo.update_episode(episode_id, status="scripting", progress=25)
+                    await _push_progress_update(project_id, episode_id)
+                    await _set_agent_status(
+                        project_id, agent_id, status="working",
+                        current_task=f"跳过已有剧本：第{ep['episode_number']}集",
+                        completed_tasks=idx, total_tasks=len(episodes), progress=int(idx / len(episodes) * 100)
+                    )
+                    continue
+            except (json.JSONDecodeError, TypeError):
+                pass  # Invalid script, regenerate
+
         project_repo.update_episode(episode_id, status="scripting", progress=10)
         await _push_progress_update(project_id, episode_id)
 
@@ -792,7 +815,10 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             appearing_characters=appearing_chars, series_type=series_type,
         )
         try:
-            response = await call_llm(messages, temperature=0.4, max_tokens=1024)
+            response = await asyncio.wait_for(
+                call_llm(messages, temperature=0.4, max_tokens=1024),
+                timeout=60.0,
+            )
             json_match = re.search(r'\{[\s\S]*\}', response)
             if json_match:
                 parsed = json.loads(json_match.group())
@@ -801,6 +827,13 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 print(f"[ShotGen] LLM prompts OK | img={len(image_prompt)} chars | vid={len(video_prompt)} chars")
             else:
                 print(f"[ShotGen] LLM response no JSON match, using defaults")
+        except (asyncio.TimeoutError, asyncio.CancelledError):
+            print(f"[ShotGen] LLM timed out for dual prompts, using defaults")
+            agent_repo.add_agent_log(project_id, agent_id, "warning",
+                                     f"Shot {shot_id} prompt generation timed out (60s)")
+            defaults = build_default_dual_prompts(shot, sb_entry)
+            image_prompt = defaults["image_prompt"]
+            video_prompt = defaults["video_prompt"]
         except Exception as e:
             print(f"[ShotGen] LLM failed: {e}")
             agent_repo.add_agent_log(project_id, agent_id, "warning",
