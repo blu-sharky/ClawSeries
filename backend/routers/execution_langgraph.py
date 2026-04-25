@@ -215,6 +215,17 @@ async def continue_production(project_id: str):
     }
 
 
+@router.post("/projects/{project_id}/generate-assets")
+async def generate_project_assets(project_id: str):
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    task_repo.create_task(f"task_{project_id}_assets", project_id, "project_assets")
+    project_repo.update_project(project_id, status="in_progress")
+    return {"status": "started", "message": "资产生成任务已加入队列"}
+
+
 @router.post("/projects/{project_id}/episodes/{episode_id}/generate-shots")
 async def generate_episode_shots(project_id: str, episode_id: str):
     project = project_repo.get_project(project_id)
