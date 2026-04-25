@@ -40,7 +40,7 @@ from routers.websocket import (
 
 )
 from integrations.llm import is_llm_configured, stream_llm
-from integrations.video import is_video_configured, generate_video, get_video_config
+from integrations.video import is_video_configured, generate_video, get_video_config, parse_duration_seconds
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
 from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir
@@ -727,7 +727,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
 
             ref_image = str(RENDERS_DIR / f"{shot_id}_frame.png") if first_frame_path else None
             await generate_video(description, output_path, reference_image=ref_image,
-                                 duration_seconds=3, aspect_ratio=video_config.get("aspect_ratio", "16:9"))
+                                 duration_seconds=parse_duration_seconds(shot.get("duration")), aspect_ratio=video_config.get("aspect_ratio", "16:9"))
 
             update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
             add_shot_trace(

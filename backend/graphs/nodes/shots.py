@@ -20,7 +20,7 @@ from repositories.production_event_repo import (
 )
 from repositories.settings_repo import get_setting
 from routers.websocket import send_agent_monitor
-from integrations.video import is_video_configured, generate_video, get_video_config
+from integrations.video import is_video_configured, generate_video, get_video_config, parse_duration_seconds
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from config import RENDERS_DIR, ASSETS_DIR, project_renders_dir, project_assets_dir
 from models import ProductionStage, STAGE_AGENT_MAP
@@ -322,7 +322,7 @@ async def shots_node(state: ProductionState) -> dict:
                 await generate_video(
                     video_prompt, video_output,
                     reference_image=real_frame_path,
-                    duration_seconds=3, aspect_ratio=video_config.get("aspect_ratio", "16:9")
+                    duration_seconds=parse_duration_seconds(shot.get("duration")), aspect_ratio=video_config.get("aspect_ratio", "16:9")
                 )
 
                 update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")

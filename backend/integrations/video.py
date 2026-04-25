@@ -6,9 +6,23 @@ import asyncio
 import base64
 import json
 import struct
+import re
 from pathlib import Path
 from repositories.settings_repo import get_setting
 
+
+
+def parse_duration_seconds(value, fallback: int = 10) -> int:
+    if isinstance(value, (int, float)) and value > 0:
+        return int(value)
+    match = re.search(r"\d+(?:\.\d+)?", str(value or ""))
+    if match:
+        seconds = float(match.group())
+        if "分" in str(value):
+            seconds *= 60
+        if seconds > 0:
+            return int(seconds)
+    return fallback
 
 def is_video_configured() -> bool:
     if get_setting("video_demo_mode") == "true":
