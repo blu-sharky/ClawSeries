@@ -495,6 +495,8 @@ async def _execute_project_assets(project_id: str, task: dict):
 
     assets_by_name = {a["name"]: a for a in get_assets(project_id, type="character")}
 
+    print(f"[Assets] project={project_id} characters={len(characters)} existing_assets={len(assets_by_name)} image_configured={is_image_configured()} demo={is_image_demo_mode()}")
+
     for i, char in enumerate(characters, start=1):
         asset_id = f"{project_id}_char_{i:03d}"
         name, role, desc = char["name"], char.get("role", "角色"), char.get("description", "")
@@ -502,7 +504,9 @@ async def _execute_project_assets(project_id: str, task: dict):
         prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get("age"), gender)
         existing = assets_by_name.get(char["name"])
         if existing and existing.get("image_path"):
+            print(f"[Assets] SKIP {name} (already has image)")
             continue
+        print(f"[Assets] generating character {i}/{len(characters)}: {name} (asset_id={asset_id})")
         await _emit_agent_prompt(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value, prompt,
             f"角色设定图提示词：{char['name']}", f"开始为角色 {char['name']} 生成角色设定图"
@@ -515,11 +519,16 @@ async def _execute_project_assets(project_id: str, task: dict):
         if is_image_configured() or is_image_demo_mode():
             try:
                 output_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
+                print(f"[Assets] calling generate_image for {name} -> {output_path}")
                 await generate_image(prompt, output_path, aspect_ratio="2:1")
                 update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
+                print(f"[Assets] SUCCESS {name} saved to /assets/{project_id}/{asset_id}.png")
             except Exception as e:
+                print(f"[Assets] FAILED {name}: {e}")
                 agent_repo.add_agent_log(project_id, agent_id, "warning",
                                          f"Character sheet generation failed for {char['name']}: {e}")
+        else:
+            print(f"[Assets] SKIP {name} (image not configured, not demo mode)")
 
         await _emit_agent_output(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
@@ -543,6 +552,7 @@ async def _execute_project_assets(project_id: str, task: dict):
             if loc:
                 scene_names.add(loc)
 
+    print(f"[Assets] generating {len(scene_names)} scene images...")
     for i, scene_name in enumerate(scene_names, start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
         if series_type == "animation":
@@ -558,9 +568,12 @@ async def _execute_project_assets(project_id: str, task: dict):
         if is_image_configured() or is_image_demo_mode():
             try:
                 scene_output = str(project_assets_dir(project_id) / f"{asset_id}.png")
+                print(f"[Assets] generating scene {i}/{len(scene_names)}: {scene_name}")
                 await generate_image(scene_prompt, scene_output, aspect_ratio=get_setting("video_aspect_ratio", "16:9"))
                 update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
+                print(f"[Assets] scene OK: {scene_name}")
             except Exception as e:
+                print(f"[Assets] scene FAILED {scene_name}: {e}")
                 agent_repo.add_agent_log(project_id, agent_id, "warning",
                                          f"Scene image generation failed for {scene_name}: {e}")
 
@@ -570,6 +583,8 @@ async def _execute_project_assets(project_id: str, task: dict):
 
     update_project_stage(project_id, ProductionStage.ASSETS_GENERATING.value, "completed")
     update_project_stage(project_id, ProductionStage.ASSETS_COMPLETED.value, "completed")
+    print(f"[Assets] DONE project={project_id} characters={len(characters)} scenes={len(scene_names)}")
+
     await _emit_stage_status(
         project_id, ProductionStage.ASSETS_COMPLETED.value, "completed", "视觉资产生成完成"
     )
