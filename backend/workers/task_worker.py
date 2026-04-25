@@ -44,7 +44,8 @@ from routers.websocket import (
 from integrations.llm import is_llm_configured, stream_llm, call_llm
 from integrations.video import is_video_configured, generate_video, get_video_config, parse_duration_seconds
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
-from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
+from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos, add_subtitles
+from integrations.subtitle import segments_to_srt
 from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir, project_renders_dir
 from repositories.settings_repo import get_setting
 from storage.db import get_connection
@@ -984,6 +985,68 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
         )
     return False
 
+
+# === WhisperX subtitle helper ===
+
+async def _add_subtitles_to_video_task_worker(
+    video_path: str, project_id: str, episode_id: str | None,
+    agent_id: str, stage: ProductionStage,
+) -> bool:
+    """Transcribe audio with WhisperX and burn subtitles into video.
+
+    Non-fatal: if WhisperX is unavailable or fails, returns False.
+    """
+    try:
+        from integrations.whisperx_stt import transcribe
+    except ImportError:
+        add_production_event(
+            project_id, agent_id, stage.value,
+            "subtitle_skipped", "字幕跳过", "WhisperX 未安装，跳过字幕生成",
+            episode_id=episode_id,
+        )
+        return False
+
+    try:
+        add_production_event(
+            project_id, agent_id, stage.value,
+            "subtitle_transcribing", "字幕识别中", "正在使用 WhisperX 识别语音...",
+            episode_id=episode_id,
+        )
+        segments = await asyncio.to_thread(transcribe, video_path, language="zh")
+        if not segments:
+            add_production_event(
+                project_id, agent_id, stage.value,
+                "subtitle_skipped", "字幕跳过", "未检测到语音，跳过字幕",
+                episode_id=episode_id,
+            )
+            return False
+
+        srt_path = str(Path(video_path).with_suffix(".srt"))
+        await asyncio.to_thread(segments_to_srt, segments, srt_path)
+
+        subtitled_path = str(Path(video_path).with_suffix(".sub.mp4"))
+        await asyncio.to_thread(add_subtitles, video_path, srt_path, subtitled_path)
+
+        import shutil
+        shutil.move(subtitled_path, video_path)
+        Path(srt_path).unlink(missing_ok=True)
+
+        add_production_event(
+            project_id, agent_id, stage.value,
+            "subtitle_completed", "字幕已添加",
+            f"已识别 {len(segments)} 段语音并添加字幕",
+            episode_id=episode_id,
+        )
+        return True
+    except Exception as e:
+        add_production_event(
+            project_id, agent_id, stage.value,
+            "subtitle_failed", "字幕生成失败", str(e)[:200],
+            episode_id=episode_id,
+        )
+        return False
+
+
 # === Stage 5: Episode Compose ===
 
 async def _execute_episode_compose(project_id: str, task: dict):
@@ -1024,6 +1087,12 @@ async def _execute_episode_compose(project_id: str, task: dict):
             output_path = str(OUTPUTS_DIR / f"{episode_id}.mp4")
             actual_paths = [str(RENDERS_DIR.parent / p.lstrip("/")) for p in video_paths]
             concatenate_videos(actual_paths, output_path)
+
+            # Add subtitles with WhisperX
+            await _add_subtitles_to_video_task_worker(
+                output_path, project_id, episode_id, agent_id, ProductionStage.EPISODE_COMPOSING
+            )
+
             project_repo.update_episode(
                 episode_id, video_url=f"/videos/{episode_id}.mp4", status="completed", progress=100
             )
@@ -1107,6 +1176,11 @@ async def _execute_project_compose(project_id: str, task: dict):
             if video_paths:
                 actual_paths = [str(OUTPUTS_DIR.parent / p.lstrip("/")) for p in video_paths]
                 concatenate_videos(actual_paths, output_path)
+
+                # Add subtitles with WhisperX
+                await _add_subtitles_to_video_task_worker(
+                    output_path, project_id, None, agent_id, ProductionStage.PROJECT_COMPOSING
+                )
 
                 add_production_event(
                     project_id, agent_id, ProductionStage.PROJECT_COMPOSING.value,

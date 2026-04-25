@@ -42,6 +42,19 @@ def concatenate_videos(video_paths: list[str], output_path: str) -> str:
     return output_path
 
 
+def _escape_subtitle_path(path: str) -> str:
+    """Escape a file path for use in FFmpeg subtitles filter.
+
+    FFmpeg subtitles filter requires escaping special characters:
+    backslashes, colons, and single quotes.
+    """
+    p = str(path)
+    p = p.replace("\\", "\\\\\\\\")
+    p = p.replace(":", "\\\\:")
+    p = p.replace("'", "\\\\'")
+    return p
+
+
 def add_subtitles(video_path: str, subtitle_path: str, output_path: str) -> str:
     """
     Burn subtitles into video using FFmpeg.
@@ -50,10 +63,11 @@ def add_subtitles(video_path: str, subtitle_path: str, output_path: str) -> str:
     if not is_ffmpeg_available():
         raise RuntimeError("FFmpeg is not installed or not in PATH")
 
+    escaped = _escape_subtitle_path(str(Path(subtitle_path).resolve()))
     cmd = [
         "ffmpeg", "-y",
         "-i", str(video_path),
-        "-vf", f"subtitles={subtitle_path}",
+        "-vf", f"subtitles='{escaped}'",
         "-c:a", "copy",
         str(output_path),
     ]
