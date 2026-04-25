@@ -17,6 +17,7 @@ import json
 import hashlib
 import re
 from datetime import datetime
+from pathlib import Path
 
 from repositories import task_repo, project_repo, agent_repo
 from repositories.shot_repo import (
@@ -39,14 +40,14 @@ from routers.websocket import (
     send_stage_update,
 
 )
-from integrations.llm import is_llm_configured, stream_llm
+from integrations.llm import is_llm_configured, stream_llm, call_llm
 from integrations.video import is_video_configured, generate_video, get_video_config, parse_duration_seconds
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
 from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir, project_renders_dir
 from repositories.settings_repo import get_setting
 
-from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt
+from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt, build_shot_dual_prompt_request, build_default_dual_prompts
 
 from models import (
     ProductionStage,
@@ -628,6 +629,11 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
     from repositories.settings_repo import get_setting
     video_mode = get_setting("video_generation_mode") or "manual"
 
+    # Determine series type
+    proj = project_repo.get_project(project_id)
+    proj_config = json.loads(proj.get("config_json", "{}")) if proj and isinstance(proj.get("config_json"), str) else (proj.get("config", {}) if proj else {})
+    series_type = proj_config.get("series_type", "live-action")
+
     if video_mode == "manual":
         add_production_event(
             project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
@@ -644,7 +650,7 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
         return
 
     for idx, shot in enumerate(shots, start=1):
-        completed = await _generate_one_shot_video(project_id, episode, shot, agent_id)
+        completed = await _generate_one_shot_video(project_id, episode, shot, agent_id, series_type)
         if completed:
             shots_completed += 1
 
@@ -683,37 +689,102 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
 
 
 
-async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, agent_id: str) -> bool:
+async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, agent_id: str, series_type: str = "live-action") -> bool:
     episode_id = episode["episode_id"]
     shot_id = shot["shot_id"]
     description = shot.get("description", "")
 
     update_shot(shot_id, status="running")
+
+    # Step 0: Generate dual prompts with full script/character context
+    storyboard_json = episode.get("storyboard_json")
+    storyboard = json.loads(storyboard_json) if isinstance(storyboard_json, str) else (storyboard_json or [])
+    sb_entry = next((s for s in storyboard if s.get("shot_number") == shot["shot_number"]), None)
+
+    script_json = episode.get("script_json")
+    script = json.loads(script_json) if isinstance(script_json, str) else (script_json or {})
+    scene_number = sb_entry.get("scene_number") if sb_entry else None
+    scene = next((s for s in script.get("scenes", []) if s.get("scene_number") == scene_number), None) if scene_number else None
+
+    # Identify appearing characters
+    dialogues = sb_entry.get("dialogues", []) if sb_entry else []
+    if not dialogues and scene:
+        dialogues = scene.get("dialogues", [])
+    mentioned_names = {d.get("character") for d in dialogues if d.get("character")}
+    character_assets = get_assets(project_id, type="character")
+    appearing_chars = []
+    for ca in character_assets:
+        name = ca.get("name", "")
+        if name in mentioned_names or name in description:
+            appearing_chars.append(ca)
+
+    # Resolve character sheet paths
+    char_sheet_paths = []
+    for ca in appearing_chars:
+        if ca.get("image_path"):
+            real_path = str(project_assets_dir(project_id).parent / ca["image_path"].replace("/assets/", ""))
+            if Path(real_path).exists():
+                char_sheet_paths.append(real_path)
+
+    # Generate dual prompts via LLM
+    image_prompt = description
+    video_prompt = description
+    if is_llm_configured():
+        messages, ctx = build_shot_dual_prompt_request(
+            shot=shot, storyboard_entry=sb_entry, scene=scene,
+            appearing_characters=appearing_chars, series_type=series_type,
+        )
+        try:
+            response = await call_llm(messages, temperature=0.4, max_tokens=1024)
+            json_match = re.search(r'\{[\s\S]*\}', response)
+            if json_match:
+                parsed = json.loads(json_match.group())
+                image_prompt = parsed.get("image_prompt", description)
+                video_prompt = parsed.get("video_prompt", description)
+        except Exception as e:
+            agent_repo.add_agent_log(project_id, agent_id, "warning",
+                                     f"Shot {shot_id} prompt generation failed: {e}")
+            defaults = build_default_dual_prompts(shot, sb_entry)
+            image_prompt = defaults["image_prompt"]
+            video_prompt = defaults["video_prompt"]
+    else:
+        defaults = build_default_dual_prompts(shot, sb_entry)
+        image_prompt = defaults["image_prompt"]
+        video_prompt = defaults["video_prompt"]
+
+    # Save prompts to DB
+    update_shot(shot_id, image_prompt=image_prompt, video_prompt=video_prompt)
+
     await _emit_agent_prompt(
-        project_id, agent_id, ProductionStage.SHOTS_GENERATING.value, description,
-        f"镜头 {shot['shot_number']} 视频提示词",
-        f"开始生成第{episode['episode_number']}集镜头 {shot['shot_number']} 视频",
+        project_id, agent_id, ProductionStage.SHOTS_GENERATING.value, image_prompt,
+        f"镜头 {shot['shot_number']} 提示词",
+        f"第{episode['episode_number']}集镜头 {shot['shot_number']} 提示词已生成",
         episode_id=episode_id, shot_id=shot_id
     )
 
+    # Step 1: Generate first-frame image using image_prompt + character references
     first_frame_path = None
     if is_image_configured() or is_image_demo_mode():
         try:
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
             frame_output = str(project_renders_dir(project_id) / f"{shot_id}_frame.png")
-            frame_prompt = f"{description}, cinematic frame, film still"
-            await generate_image(frame_prompt, frame_output, aspect_ratio=get_setting("video_aspect_ratio", "16:9"))
+            await generate_image(
+                image_prompt, frame_output,
+                reference_images=char_sheet_paths if char_sheet_paths else None,
+                aspect_ratio=get_setting("video_aspect_ratio", "16:9"),
+            )
             first_frame_path = f"/renders/{project_id}/{shot_id}_frame.png"
             update_shot(shot_id, first_frame_path=first_frame_path)
             add_production_event(
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                 "first_frame_created", f"镜头 {shot['shot_number']} 首帧完成", "首帧图片已生成",
-                episode_id=episode_id, shot_id=shot_id, payload={"first_frame_path": first_frame_path, "prompt": frame_prompt}
+                episode_id=episode_id, shot_id=shot_id, payload={"first_frame_path": first_frame_path, "prompt": image_prompt[:100]}
             )
         except Exception as e:
             agent_repo.add_agent_log(project_id, agent_id, "warning",
                                      f"First-frame generation failed for shot {shot_id}: {e}")
 
+    # Step 2: Generate video using video_prompt + first-frame (or character sheets)
     try:
         if is_video_configured():
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
@@ -721,14 +792,24 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             video_config = get_video_config()
             add_shot_trace(
                 shot_id, project_id, "video_generation", agent_id=agent_id,
-                prompt_summary=description[:100],
-                prompt_hash=hashlib.md5(description.encode()).hexdigest(),
+                prompt_summary=video_prompt[:100],
+                prompt_hash=hashlib.md5(video_prompt.encode()).hexdigest(),
                 provider_name=video_config["provider"], model_name=video_config["model"],
             )
 
-            ref_image = str(RENDERS_DIR.parent / first_frame_path.lstrip("/")) if first_frame_path else None
-            await generate_video(description, output_path, reference_image=ref_image,
-                                 duration_seconds=parse_duration_seconds(shot.get("duration")), aspect_ratio=video_config.get("aspect_ratio", "16:9"))
+            # Video reference images: first-frame primary, character sheets fallback
+            video_refs = []
+            if first_frame_path:
+                video_refs.append(str(RENDERS_DIR.parent / first_frame_path.lstrip("/")))
+            if char_sheet_paths and len(video_refs) < 3:
+                video_refs.extend(char_sheet_paths[:3 - len(video_refs)])
+
+            await generate_video(
+                video_prompt, output_path,
+                reference_images=video_refs if video_refs else None,
+                duration_seconds=parse_duration_seconds(shot.get("duration")),
+                aspect_ratio=video_config.get("aspect_ratio", "16:9"),
+            )
 
             update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")
             add_shot_trace(
@@ -745,7 +826,12 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                 "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
                 episode_id=episode_id, shot_id=shot_id,
-                payload={"first_frame_path": first_frame_path, "video_url": f"/renders/{project_id}/{shot_id}.mp4", "prompt": description}
+                payload={
+                    "image_prompt": image_prompt[:100],
+                    "video_prompt": video_prompt[:100],
+                    "first_frame_path": first_frame_path,
+                    "video_url": f"/renders/{project_id}/{shot_id}.mp4",
+                }
             )
             return True
 

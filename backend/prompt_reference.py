@@ -104,3 +104,151 @@ def build_character_sheet_prompt(
         details.append(f"Gender: {gender}")
     details.append(f"Detailed character background: {description}")
     return template.format(name=name, role=role, description=". ".join(details))
+
+
+def build_shot_dual_prompt_request(
+    shot: dict,
+    storyboard_entry: dict | None,
+    scene: dict | None,
+    appearing_characters: list[dict],
+    series_type: str = "live-action",
+) -> tuple[list[dict], dict]:
+    """Build LLM messages for generating per-shot image_prompt and video_prompt.
+
+    Returns (messages, context_info) where messages is the LLM chat messages.
+    """
+    import json as _json
+
+    shot_number = shot.get("shot_number", "?")
+    description = shot.get("description", "")
+    camera_movement = shot.get("camera_movement", "")
+    duration = shot.get("duration", "")
+
+    # Build dialogue text
+    dialogues = []
+    if storyboard_entry:
+        dialogues = storyboard_entry.get("dialogues", [])
+    elif scene:
+        dialogues = scene.get("dialogues", [])
+
+    dialogue_lines = []
+    for d in dialogues:
+        char = d.get("character", "")
+        line = d.get("line", "")
+        emotion = d.get("emotion", "")
+        if line:
+            dialogue_lines.append(f"{char}（{emotion}）：{line}" if emotion else f"{char}：{line}")
+    dialogue_text = "\n".join(dialogue_lines)
+
+    # Build scene info
+    scene_info = ""
+    if scene:
+        parts = []
+        if scene.get("location"):
+            parts.append(f"地点：{scene['location']}")
+        if scene.get("time_of_day"):
+            parts.append(f"时间：{scene['time_of_day']}")
+        if scene.get("description"):
+            parts.append(f"场景描述：{scene['description']}")
+        if scene.get("actions"):
+            parts.append(f"动作：{_json.dumps(scene['actions'], ensure_ascii=False)}")
+        scene_info = "\n".join(parts)
+    elif description:
+        scene_info = f"镜头描述：{description}"
+
+    # Build character details
+    char_details = []
+    for c in appearing_characters:
+        detail = {"name": c.get("name", "")}
+        if c.get("description"):
+            detail["description"] = c["description"]
+        if c.get("age"):
+            detail["age"] = c["age"]
+        if c.get("role"):
+            detail["role"] = c["role"]
+        if c.get("anchor_prompt"):
+            detail["visual_anchor"] = c["anchor_prompt"]
+        char_details.append(detail)
+
+    style_note = ""
+    if series_type == "animation":
+        style_note = "（动画漫剧风格：anime style, cel-shaded, vibrant colors）"
+    else:
+        style_note = "（真人短剧风格：photorealistic, cinematic lighting, natural）"
+
+    system_msg = {
+        "role": "system",
+        "content": (
+            "你是一个专业的AI短剧画面提示词工程师。你生成的提示词会直接影响视频画面质量。\n\n"
+            "【核心原则】\n"
+            "- 提示词必须用英文输出（给AI模型用）\n"
+            "- 只描述能直接看到/听到的内容，不要使用文学化的修辞、比喻、意境描述\n"
+            "- 不需要描述背景环境设定（已由参考图片提供）\n"
+            "- 台词/对话内容必须体现在提示词中\n\n"
+            "【image_prompt 规则（给图片生成模型 Nano Banana Pro）】\n"
+            "- 描述画面中人物的具体外观：位置、表情、服装细节、动作姿态\n"
+            "- 如果有台词，描述人物说话时的表情和口型\n"
+            "- 如有文字出现在画面中，描述文字内容和位置\n"
+            "- 不要描述摄影机运动，这是静态图片\n"
+            f"- 风格标注：{style_note}\n\n"
+            "【video_prompt 规则（给视频生成模型 VEO）】\n"
+            "- 必须使用镜头语言：camera angle（俯拍/仰拍/平视）、camera movement（dolly in/out、pan left/right、tilt、tracking shot、static）、transition（cut、dissolve）\n"
+            "- 描述画面中人物的具体动作和表情变化过程\n"
+            "- 台词内容用 spoken dialogue 标注\n"
+            "- 描述画面节奏：slow motion、normal speed、quick cut 等\n"
+            f"- 风格标注：{style_note}\n\n"
+            "【输出格式 - 绝对遵守】\n"
+            "直接输出纯JSON，禁止使用markdown代码块。\n"
+            '{"image_prompt": "英文图片提示词...", "video_prompt": "英文视频提示词..."}'
+        ),
+    }
+
+    user_content = f"""请为以下镜头生成 image_prompt 和 video_prompt：
+
+【镜头信息】
+- 镜头编号：{shot_number}
+- 原始描述：{description}
+- 摄影机运动：{camera_movement}
+- 时长：{duration}
+
+【场景详情】
+{scene_info}
+
+【台词/对话】
+{dialogue_text if dialogue_text else "（无台词）"}
+
+【出场角色】
+{_json.dumps(char_details, ensure_ascii=False, indent=2) if char_details else "（无特定角色）"}
+
+请输出JSON："""
+
+    messages = [system_msg, {"role": "user", "content": user_content}]
+
+    context_info = {
+        "shot_number": shot_number,
+        "dialogue_count": len(dialogue_lines),
+        "character_count": len(appearing_characters),
+        "has_scene": scene is not None,
+    }
+
+    return messages, context_info
+
+
+def build_default_dual_prompts(shot: dict, storyboard_entry: dict | None = None) -> dict:
+    """Fallback dual prompts when LLM is unavailable."""
+    desc = shot.get("description", "")
+    camera = shot.get("camera_movement", "") or (storyboard_entry or {}).get("camera_movement", "")
+    dialogues = (storyboard_entry or {}).get("dialogues", [])
+    dialogue_text = " ".join(d.get("line", "") for d in dialogues if d.get("line"))
+
+    image_prompt = f"{desc}, cinematic frame, film still"
+    if dialogue_text:
+        image_prompt += f", dialogue: {dialogue_text[:150]}"
+
+    video_prompt = desc
+    if camera:
+        video_prompt += f", {camera} camera movement"
+    if dialogue_text:
+        video_prompt += f", spoken dialogue: {dialogue_text[:150]}"
+
+    return {"image_prompt": image_prompt, "video_prompt": video_prompt}

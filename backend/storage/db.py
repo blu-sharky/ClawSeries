@@ -156,6 +156,8 @@ def init_db():
             status TEXT DEFAULT 'pending',
             video_url TEXT,
             first_frame_path TEXT,
+            image_prompt TEXT,
+            video_prompt TEXT,
             FOREIGN KEY (episode_id) REFERENCES episodes(episode_id),
             FOREIGN KEY (project_id) REFERENCES projects(project_id)
         )
@@ -286,6 +288,8 @@ def init_db():
     # Migrations: add columns that may not exist in older databases
     migrations = [
         ("ALTER TABLE tasks ADD COLUMN retry_count INTEGER DEFAULT 0", "retry_count"),
+        ("ALTER TABLE shots ADD COLUMN image_prompt TEXT", "image_prompt"),
+        ("ALTER TABLE shots ADD COLUMN video_prompt TEXT", "video_prompt"),
     ]
     for sql, col in migrations:
         try:

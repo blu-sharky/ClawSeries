@@ -99,7 +99,7 @@ def get_video_config() -> dict:
     }
 
 
-async def _generate_openai_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio):
+async def _generate_openai_video(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio):
     """Generate video via OpenAI Sora API (POST /videos, poll, download)."""
     import httpx
     base = config['base_url'].rstrip('/')
@@ -117,9 +117,9 @@ async def _generate_openai_video(config, prompt, output_path, reference_image, d
         'seconds': str(duration_seconds),
     }
 
-    # If reference_image provided, encode as base64 data URL
-    if reference_image:
-        img_path = Path(reference_image)
+    # If reference images provided, encode first one as base64 data URL
+    if ref_list:
+        img_path = Path(ref_list[0])
         if img_path.exists():
             img_data = base64.b64encode(img_path.read_bytes()).decode()
             ext = img_path.suffix.lstrip('.')
@@ -184,7 +184,7 @@ async def _upload_vectorengine_image(client, image_path: str) -> str:
         raise RuntimeError(f'VectorEngine image upload returned no url: {data}')
     return url
 
-async def _generate_vectorengine_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio):
+async def _generate_vectorengine_video(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio):
     """Generate video via VectorEngine API (POST /v1/video/create, poll GET /v1/video/query)."""
     import httpx
     base = config['base_url'].rstrip() or 'https://api.vectorengine.ai'
@@ -204,8 +204,16 @@ async def _generate_vectorengine_video(config, prompt, output_path, reference_im
     }
 
     async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
-        if reference_image:
-            payload['images'] = [await _upload_vectorengine_image(client, reference_image)]
+        if ref_list:
+            uploaded = []
+            for img_path in ref_list:
+                try:
+                    url = await _upload_vectorengine_image(client, img_path)
+                    uploaded.append(url)
+                except Exception as e:
+                    print(f"[Video] Failed to upload reference image {img_path}: {e}")
+            if uploaded:
+                payload['images'] = uploaded
 
         # Submit
         resp = await client.post(f'{base}/v1/video/create', headers=headers, json=payload)
@@ -242,13 +250,24 @@ async def _generate_vectorengine_video(config, prompt, output_path, reference_im
 
 async def generate_video(prompt: str, output_path: str,
                           reference_image: str | None = None,
+                          reference_images: list[str] | None = None,
                           duration_seconds: int = 5,
                           aspect_ratio: str = "16:9") -> str:
     """
     Generate a video using the configured video provider.
     Returns the output path.
     Raises RuntimeError if not configured.
+
+    reference_image: single image path (backward compat)
+    reference_images: list of image paths (preferred, supports multiple)
     """
+    # Normalize to list
+    ref_list = []
+    if reference_images:
+        ref_list = [p for p in reference_images if p]
+    elif reference_image:
+        ref_list = [reference_image]
+
     # Demo mode: return a blank black video
     if is_demo_mode():
         import asyncio
@@ -266,9 +285,9 @@ async def generate_video(prompt: str, output_path: str,
     # Route to provider-specific implementation
     provider = config.get('provider', 'seedance').lower()
     if provider in ('openai', 'sora'):
-        return await _generate_openai_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio)
+        return await _generate_openai_video(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio)
     if provider == 'vectorengine':
-        return await _generate_vectorengine_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio)
+        return await _generate_vectorengine_video(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio)
 
 
     import httpx
@@ -283,8 +302,8 @@ async def generate_video(prompt: str, output_path: str,
         "duration": duration_seconds,
         "aspect_ratio": aspect_ratio,
     }
-    if reference_image:
-        payload["reference_image"] = reference_image
+    if ref_list:
+        payload["reference_image"] = ref_list[0]
 
     async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
         # Submit generation request
