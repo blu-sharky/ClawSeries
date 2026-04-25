@@ -24,6 +24,7 @@ from integrations.video import is_video_configured, generate_video, get_video_co
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from config import RENDERS_DIR, ASSETS_DIR, project_renders_dir, project_assets_dir
 from models import ProductionStage, STAGE_AGENT_MAP
+from repositories.settings_repo import get_setting
 
 
 
@@ -239,6 +240,7 @@ async def shots_node(state: ProductionState) -> dict:
     shots_completed = 0
     image_configured = is_image_configured() or is_image_demo_mode()
     video_ok = is_video_configured()
+    image_aspect_ratio = get_setting("video_aspect_ratio", "16:9")
 
     for idx, shot in enumerate(shots, start=1):
         shot_id = shot["shot_id"]
@@ -275,7 +277,7 @@ async def shots_node(state: ProductionState) -> dict:
             try:
                 frame_output = str(project_renders_dir(project_id) / f"{shot_id}_frame.png")
 
-                await generate_image(frame_prompt, frame_output, reference_images=char_sheet_paths if char_sheet_paths else None, aspect_ratio="16:9")
+                await generate_image(frame_prompt, frame_output, reference_images=char_sheet_paths if char_sheet_paths else None, aspect_ratio=image_aspect_ratio)
 
                 first_frame_path = f"/renders/{project_id}/{shot_id}_frame.png"
                 update_shot(shot_id, first_frame_path=first_frame_path)
