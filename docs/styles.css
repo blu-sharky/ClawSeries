@@ -1857,23 +1857,24 @@ body::after {
 .github-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--fg);
+  gap: 10px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 0;
+  background: #fff;
+  color: #1f2228;
   text-decoration: none;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 15px;
+  font-weight: 500;
   letter-spacing: 0.5px;
   transition: all 0.3s ease;
 }
 
 .github-btn:hover {
-  border-color: rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateY(-1px);
+  background: #f0f0f0;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .hero-ctas .button {
