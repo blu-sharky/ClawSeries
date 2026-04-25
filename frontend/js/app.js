@@ -21,7 +21,7 @@ const App = {
 
             list.innerHTML = data.projects.map(p => {
                 const statusClass = p.status === 'in_progress' ? 'in-progress' : p.status;
-                const showContinue = p.status === 'paused' || p.status === 'pending' || (p.status === 'in_progress' && p.current_stage);
+                const showContinue = p.status !== 'completed';
                 return `
                     <div class="project-nav-item-wrapper">
                         <button class="project-nav-item" data-pid="${p.project_id}" onclick="ProjectView.show('${p.project_id}')">

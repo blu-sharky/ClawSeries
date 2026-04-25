@@ -150,7 +150,7 @@
 .project-nav-actions {
     display: flex;
     gap: 4px;
-    opacity: 0;
+    opacity: 1;
     transition: opacity var(--transition-fast);
     margin-left: auto;
 }
