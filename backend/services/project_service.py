@@ -78,6 +78,7 @@ class ProjectService:
                 "character_id": c["character_id"],
                 "name": c["name"],
                 "age": c["age"],
+                "gender": c.get("visual_assets", {}).get("gender"),
                 "role": c["role"],
                 "description": c["description"],
                 "visual_assets": c.get("visual_assets", {}),

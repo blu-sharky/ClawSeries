@@ -90,7 +90,8 @@ async def assets_node(state: ProductionState) -> dict:
         asset_id = f"{project_id}_char_{i:03d}"
 
         name, role, desc = char['name'], char['role'], char['description']
-        prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get('age'))
+        gender = char.get("visual_assets", {}).get("gender")
+        prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get('age'), gender)
 
         add_production_event(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
@@ -190,7 +191,13 @@ async def assets_node(state: ProductionState) -> dict:
     return {
         "current_stage": ProductionStage.ASSETS_COMPLETED.value,
         "characters": [
-            {"name": c["name"], "role": c["role"], "description": c["description"]}
+            {
+                "name": c["name"],
+                "age": c.get("age"),
+                "gender": c.get("visual_assets", {}).get("gender"),
+                "role": c["role"],
+                "description": c["description"],
+            }
             for c in characters
         ],
     }

@@ -88,11 +88,19 @@ PHOTOREALISTIC STYLE:
 - NO environmental background, NO props, NO scene context"""
 
 
-def build_character_sheet_prompt(name: str, role: str, description: str, series_type: str, age: int | str | None = None) -> str:
+def build_character_sheet_prompt(
+    name: str, role: str, description: str, series_type: str,
+    age: int | str | None = None, gender: str | None = None,
+) -> str:
     template = (
         CHARACTER_SHEET_ANIMATION_TEMPLATE
         if series_type == "animation"
         else CHARACTER_SHEET_LIVE_ACTION_TEMPLATE
     )
-    background = f"Age: {age}. Detailed character background: {description}" if age else f"Detailed character background: {description}"
-    return template.format(name=name, role=role, description=background)
+    details = []
+    if age:
+        details.append(f"Age: {age}")
+    if gender:
+        details.append(f"Gender: {gender}")
+    details.append(f"Detailed character background: {description}")
+    return template.format(name=name, role=role, description=". ".join(details))

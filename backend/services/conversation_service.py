@@ -407,7 +407,7 @@ AI视频生成适配要求：
 请生成一个完整的剧本大纲，包括：
 1. 剧名（吸引人的标题）
 2. 故事梗概（100-200字）
-3. 主要角色（3-5个角色，每个包含姓名、年龄、角色定位、性格描述）
+3. 主要角色（3-5个角色，每个包含姓名、年龄、性别、角色定位、性格描述）
 4. 逐集标题和结构（每集包含开场钩子、中段升级点、结尾悬念）
 5. 逐集详情（包含每集的钩子、升级点、悬念、关键场景描述）
 
@@ -415,7 +415,7 @@ AI视频生成适配要求：
 直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
 
 正确示例：
-{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}], "episodes_detail": [{{"episode": 1, "title": "第1集标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}], "episode_count": 6, "episode_duration": "3-5分钟"}}
+{{"title": "剧名", "synopsis": "故事梗概", "characters": [{{"name": "姓名", "age": 25, "gender": "女", "role": "角色定位", "description": "性格描述"}}], "episode_titles": ["第1集标题", "第2集标题"], "episodes_summary": [{{"range": "1-5", "theme": "主题"}}], "episodes_detail": [{{"episode": 1, "title": "第1集标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}], "episode_count": 6, "episode_duration": "3-5分钟"}}
 
 错误示例（禁止）：
 ```json
@@ -425,7 +425,7 @@ AI视频生成适配要求：
 JSON 结构：
 - title: 剧名
 - synopsis: 故事梗概
-- characters: 角色数组 [{{name, age, role, description}}]
+- characters: 角色数组 [{{name, age, gender, role, description}}]
 - episode_titles: 逐集标题数组
 - episodes_summary: 分集概要数组 [{{range, theme}}]
 - episodes_detail: 逐集详情数组 [{{"episode": 集号, "title": "标题", "hook": "开场钩子描述", "escalation": "中段升级点", "cliffhanger": "结尾悬念/反转", "scenes": "2-3句话描述本集关键场景"}}]
@@ -653,6 +653,7 @@ JSON 结构：
                 {
                     "face_reference": f"assets/{char_id}_face.png",
                     "costume_references": [f"assets/{char_id}_costume1.png"],
+                    "gender": c.get("gender") or c.get("性别", ""),
                 },
             )
 
