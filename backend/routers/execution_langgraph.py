@@ -6,9 +6,10 @@ The graph runs as a background task, with progress updates pushed via WebSocket.
 
 import json
 import asyncio
+import time
 from fastapi import APIRouter, HTTPException
 
-from repositories import project_repo, agent_repo
+from repositories import project_repo, agent_repo, task_repo
 from repositories.production_event_repo import init_project_stages, update_project_stage
 from graphs.production_graph import compile_production_graph
 from graphs.state import ProductionState
@@ -182,6 +183,42 @@ async def continue_production(project_id: str):
         "message": "制片流程已继续",
         "current_stage": current_stage,
     }
+
+
+@router.post("/projects/{project_id}/episodes/{episode_id}/generate-shots")
+async def generate_episode_shots(project_id: str, episode_id: str):
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    episode = project_repo.get_episode(episode_id)
+    if not episode or episode["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="剧集不存在")
+
+    task_repo.create_task(
+        f"task_{episode_id}_shots_{int(time.time())}", project_id, "episode_shot_video", episode_id=episode_id
+    )
+    project_repo.update_episode(episode_id, status="rendering", progress=max(episode.get("progress") or 0, 70))
+    project_repo.update_project(project_id, status="in_progress")
+    return {"status": "started", "message": f"第{episode['episode_number']}集镜头生成任务已加入队列"}
+
+
+@router.post("/projects/{project_id}/episodes/{episode_id}/compose")
+async def compose_episode(project_id: str, episode_id: str):
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    episode = project_repo.get_episode(episode_id)
+    if not episode or episode["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="剧集不存在")
+
+    task_repo.create_task(
+        f"task_{episode_id}_compose_{int(time.time())}", project_id, "episode_compose", episode_id=episode_id
+    )
+    project_repo.update_episode(episode_id, status="editing", progress=max(episode.get("progress") or 0, 85))
+    project_repo.update_project(project_id, status="in_progress")
+    return {"status": "started", "message": f"第{episode['episode_number']}集合成任务已加入队列"}
 
 
 @router.get("/projects/{project_id}/state")
