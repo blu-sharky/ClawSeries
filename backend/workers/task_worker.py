@@ -643,76 +643,9 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
         return
 
     for idx, shot in enumerate(shots, start=1):
-        shot_id = shot["shot_id"]
-        description = shot.get("description", "")
-
-        await _emit_agent_prompt(
-            project_id, agent_id, ProductionStage.SHOTS_GENERATING.value, description,
-            f"镜头 {shot['shot_number']} 视频提示词",
-            f"开始生成第{episode['episode_number']}集镜头 {shot['shot_number']} 视频",
-            episode_id=episode_id, shot_id=shot_id
-        )
-
-        # Generate first-frame image
-        first_frame_path = None
-        if is_image_configured() or is_image_demo_mode():
-            try:
-                RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-                frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
-                frame_prompt = f"{description}, cinematic frame, film still"
-                await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
-                first_frame_path = f"/renders/{shot_id}_frame.png"
-                update_shot(shot_id, first_frame_path=first_frame_path)
-            except Exception as e:
-                agent_repo.add_agent_log(project_id, agent_id, "warning",
-                                         f"First-frame generation failed for shot {shot_id}: {e}")
-
-        try:
-            if is_video_configured():
-                RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-                output_path = str(RENDERS_DIR / f"{shot_id}.mp4")
-                video_config = get_video_config()
-                add_shot_trace(
-                    shot_id, project_id, "video_generation", agent_id=agent_id,
-                    prompt_summary=description[:100],
-                    prompt_hash=hashlib.md5(description.encode()).hexdigest(),
-                    provider_name=video_config["provider"], model_name=video_config["model"],
-                )
-
-                # Pass first frame as reference image if available
-                ref_image = str(RENDERS_DIR / f"{shot_id}_frame.png") if first_frame_path else None
-                await generate_video(description, output_path, reference_image=ref_image,
-                                     duration_seconds=3, aspect_ratio=video_config.get("aspect_ratio", "16:9"))
-
-                update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
-                add_shot_trace(
-                    shot_id, project_id, "video_completed", agent_id=agent_id,
-                    output_path=output_path, provider_name=video_config["provider"], model_name=video_config["model"],
-                )
-                shots_completed += 1
-
-                await _emit_agent_output(
-                    project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-                    f"镜头 {shot['shot_number']} 视频生成完成：/renders/{shot_id}.mp4",
-                    f"镜头 {shot['shot_number']} 输出", "视频已生成",
-                    episode_id=episode_id, shot_id=shot_id
-                )
-                add_production_event(
-                    project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-                    "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
-                    episode_id=episode_id, shot_id=shot_id
-                )
-            else:
-                update_shot(shot_id, status="failed")
-                add_shot_trace(
-                    shot_id, project_id, "video_failed", agent_id=agent_id,
-                    error_reason="Video provider not configured"
-                )
-        except Exception as e:
-            update_shot(shot_id, status="failed")
-            add_shot_trace(
-                shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
-            )
+        completed = await _generate_one_shot_video(project_id, episode, shot, agent_id)
+        if completed:
+            shots_completed += 1
 
         episode_progress = 72 + int((shots_completed / max(1, len(shots))) * 13)
         project_repo.update_episode(episode_id, status="rendering", progress=episode_progress)
@@ -723,6 +656,7 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
             completed_tasks=shots_completed, total_tasks=max(1, len(shots)),
             progress=int(idx / max(1, len(shots)) * 100)
         )
+
 
     if shots_completed == len(shots):
         update_project_stage(project_id, ProductionStage.SHOTS_GENERATING.value, "completed")
@@ -746,6 +680,85 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
         output_json={"shots_completed": shots_completed}, completed_at=datetime.utcnow().isoformat()
     )
 
+
+
+async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, agent_id: str) -> bool:
+    episode_id = episode["episode_id"]
+    shot_id = shot["shot_id"]
+    description = shot.get("description", "")
+
+    update_shot(shot_id, status="running")
+    await _emit_agent_prompt(
+        project_id, agent_id, ProductionStage.SHOTS_GENERATING.value, description,
+        f"镜头 {shot['shot_number']} 视频提示词",
+        f"开始生成第{episode['episode_number']}集镜头 {shot['shot_number']} 视频",
+        episode_id=episode_id, shot_id=shot_id
+    )
+
+    first_frame_path = None
+    if is_image_configured() or is_image_demo_mode():
+        try:
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
+            frame_prompt = f"{description}, cinematic frame, film still"
+            await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
+            first_frame_path = f"/renders/{shot_id}_frame.png"
+            update_shot(shot_id, first_frame_path=first_frame_path)
+            add_production_event(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                "first_frame_created", f"镜头 {shot['shot_number']} 首帧完成", "首帧图片已生成",
+                episode_id=episode_id, shot_id=shot_id, payload={"first_frame_path": first_frame_path, "prompt": frame_prompt}
+            )
+        except Exception as e:
+            agent_repo.add_agent_log(project_id, agent_id, "warning",
+                                     f"First-frame generation failed for shot {shot_id}: {e}")
+
+    try:
+        if is_video_configured():
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            output_path = str(RENDERS_DIR / f"{shot_id}.mp4")
+            video_config = get_video_config()
+            add_shot_trace(
+                shot_id, project_id, "video_generation", agent_id=agent_id,
+                prompt_summary=description[:100],
+                prompt_hash=hashlib.md5(description.encode()).hexdigest(),
+                provider_name=video_config["provider"], model_name=video_config["model"],
+            )
+
+            ref_image = str(RENDERS_DIR / f"{shot_id}_frame.png") if first_frame_path else None
+            await generate_video(description, output_path, reference_image=ref_image,
+                                 duration_seconds=3, aspect_ratio=video_config.get("aspect_ratio", "16:9"))
+
+            update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
+            add_shot_trace(
+                shot_id, project_id, "video_completed", agent_id=agent_id,
+                output_path=output_path, provider_name=video_config["provider"], model_name=video_config["model"],
+            )
+            await _emit_agent_output(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                f"镜头 {shot['shot_number']} 视频生成完成：/renders/{shot_id}.mp4",
+                f"镜头 {shot['shot_number']} 输出", "视频已生成",
+                episode_id=episode_id, shot_id=shot_id
+            )
+            add_production_event(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
+                episode_id=episode_id, shot_id=shot_id,
+                payload={"first_frame_path": first_frame_path, "video_url": f"/renders/{shot_id}.mp4", "prompt": description}
+            )
+            return True
+
+        update_shot(shot_id, status="failed")
+        add_shot_trace(
+            shot_id, project_id, "video_failed", agent_id=agent_id,
+            error_reason="Video provider not configured"
+        )
+    except Exception as e:
+        update_shot(shot_id, status="failed")
+        add_shot_trace(
+            shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
+        )
+    return False
 
 # === Stage 5: Episode Compose ===
 
@@ -944,16 +957,32 @@ async def _migrate_episode_run_to_linear(project_id: str, task: dict):
 
 
 async def _execute_shot_video_legacy(project_id: str, task: dict):
-    """Legacy single shot video task."""
     shot_id = task["shot_id"]
     episode_id = task["episode_id"]
+    episode = project_repo.get_episode(episode_id)
+    if not episode:
+        raise RuntimeError(f"Episode {episode_id} not found")
 
-    # Redirect to episode_shot_video
-    task_repo.create_task(f"task_{episode_id}_shots", project_id, "episode_shot_video",
-                          episode_id=episode_id)
-    task_repo.update_task(task["task_id"], status="completed",
-                          output_json={"redirected": "episode_shot_video"},
-                          completed_at=datetime.utcnow().isoformat())
+    shot = next((s for s in get_shots_by_episode(episode_id) if s["shot_id"] == shot_id), None)
+    if not shot:
+        raise RuntimeError(f"Shot {shot_id} not found")
+
+    agent_id = STAGE_AGENT_MAP[ProductionStage.SHOTS_GENERATING]
+    update_project_stage(project_id, ProductionStage.SHOTS_GENERATING.value, "in_progress")
+    project_repo.update_episode(episode_id, status="rendering", progress=max(episode.get("progress") or 0, 70))
+    await _set_agent_status(
+        project_id, agent_id, status="working",
+        current_task=f"镜头视频：第{episode['episode_number']}集 / 镜头 {shot['shot_number']}",
+        completed_tasks=0, total_tasks=1
+    )
+    completed = await _generate_one_shot_video(project_id, episode, shot, agent_id)
+    await _push_progress_update(project_id, episode_id)
+    await _set_agent_status(project_id, agent_id, status="idle", current_task=None, completed_tasks=1 if completed else 0, total_tasks=1)
+    task_repo.update_task(
+        task["task_id"], status="completed",
+        output_json={"shot_id": shot_id, "completed": completed},
+        completed_at=datetime.utcnow().isoformat()
+    )
 
 
 # === Helpers ===

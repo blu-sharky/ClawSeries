@@ -814,7 +814,10 @@ const ProjectView = {
                                     </div>
                                 </div>
                                 <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; width:100%; padding-left:0;">${s.description || ''}</div>
-                                ${s.video_url ? `<a href="${MEDIA_BASE}${s.video_url}" target="_blank" class="btn-secondary btn-sm" style="flex-shrink:0;">查看视频</a>` : ''}
+                                <div style="display:flex; gap:8px; flex-shrink:0;">
+                                    <button class="btn-primary btn-sm" onclick="ProjectView.generateShot('${projectId}', '${episodeId}', '${s.shot_id}')">生成</button>
+                                    ${s.video_url ? `<a href="${MEDIA_BASE}${s.video_url}" target="_blank" class="btn-secondary btn-sm">查看视频</a>` : ''}
+                                </div>
                             </div>
                             ${s.video_url ? `<div class="shot-video-container" id="shot-video-${s.shot_id}" style="display:none; margin-top:8px;"><video src="${MEDIA_BASE}${s.video_url}" controls style="width:100%;max-width:480px;border-radius:6px;"></video></div>` : ''}
                         `).join('')}
@@ -881,6 +884,19 @@ const ProjectView = {
         }
     },
 
+
+    async generateShot(projectId, episodeId, shotId) {
+        try {
+            const res = await Api.generateShot(projectId, episodeId, shotId);
+            if (res.detail) {
+                alert(res.detail);
+                return;
+            }
+            setTimeout(() => this.showEpisodeDetail(episodeId), 1000);
+        } catch (err) {
+            console.error('Generate shot failed:', err);
+        }
+    },
     async _handleWsMessage(msg) {
         if (!this.currentProjectId) return;
 

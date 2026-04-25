@@ -10,6 +10,7 @@ import time
 from fastapi import APIRouter, HTTPException
 
 from repositories import project_repo, agent_repo, task_repo
+from repositories.shot_repo import get_shots_by_episode
 from repositories.production_event_repo import init_project_stages, update_project_stage, get_current_stage
 from graphs.production_graph import compile_production_graph
 from graphs.state import ProductionState
@@ -215,6 +216,32 @@ async def continue_production(project_id: str):
     }
 
 
+
+@router.get("/video/tasks")
+async def list_video_tasks():
+    projects = {p["project_id"]: p for p in project_repo.get_all_projects()}
+    items = []
+    for project_id, project in projects.items():
+        for task in task_repo.get_tasks_by_project(project_id):
+            if task["task_type"] not in ("episode_shot_video", "shot_video"):
+                continue
+            episode = project_repo.get_episode(task["episode_id"]) if task.get("episode_id") else None
+            shot = None
+            if task.get("shot_id") and episode:
+                shot = next((s for s in get_shots_by_episode(episode["episode_id"]) if s["shot_id"] == task["shot_id"]), None)
+            items.append({
+                **task,
+                "project_title": project["title"],
+                "episode_number": episode.get("episode_number") if episode else None,
+                "episode_title": episode.get("title") if episode else None,
+                "shot_number": shot.get("shot_number") if shot else None,
+                "shot_description": shot.get("description") if shot else None,
+                "shot_status": shot.get("status") if shot else None,
+                "first_frame_path": shot.get("first_frame_path") if shot else None,
+                "video_url": shot.get("video_url") if shot else None,
+            })
+    return {"tasks": sorted(items, key=lambda t: t.get("created_at") or "", reverse=True)}
+
 @router.post("/projects/{project_id}/generate-assets")
 async def generate_project_assets(project_id: str):
     project = project_repo.get_project(project_id)
@@ -242,6 +269,29 @@ async def generate_episode_shots(project_id: str, episode_id: str):
     project_repo.update_episode(episode_id, status="rendering", progress=max(episode.get("progress") or 0, 70))
     project_repo.update_project(project_id, status="in_progress")
     return {"status": "started", "message": f"第{episode['episode_number']}集镜头生成任务已加入队列"}
+
+@router.post("/projects/{project_id}/episodes/{episode_id}/shots/{shot_id}/generate")
+async def generate_shot_video(project_id: str, episode_id: str, shot_id: str):
+    project = project_repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    episode = project_repo.get_episode(episode_id)
+    if not episode or episode["project_id"] != project_id:
+        raise HTTPException(status_code=404, detail="剧集不存在")
+
+    shot = next((s for s in get_shots_by_episode(episode_id) if s["shot_id"] == shot_id), None)
+    if not shot:
+        raise HTTPException(status_code=404, detail="镜头不存在")
+
+    task_repo.create_task(
+        f"task_{shot_id}_video_{int(time.time())}", project_id, "shot_video",
+        episode_id=episode_id, shot_id=shot_id
+    )
+    project_repo.update_episode(episode_id, status="rendering", progress=max(episode.get("progress") or 0, 70))
+    project_repo.update_project(project_id, status="in_progress")
+    return {"status": "started", "message": f"镜头 {shot['shot_number']} 视频生成任务已加入队列"}
+
 
 
 @router.post("/projects/{project_id}/episodes/{episode_id}/compose")

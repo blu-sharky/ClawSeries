@@ -283,6 +283,19 @@ const Api = {
         return res.json();
     },
 
+    async generateShot(projectId, episodeId, shotId) {
+        const res = await fetch(`${API_BASE}/projects/${projectId}/episodes/${episodeId}/shots/${shotId}/generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return res.json();
+    },
+
+    async getVideoTasks() {
+        const res = await fetch(`${API_BASE}/video/tasks`);
+        return res.json();
+    },
+
     async getEpisodeTraces(projectId, episodeId) {
         const res = await fetch(`${API_BASE}/projects/${projectId}/episodes/${episodeId}/traces`);
         return res.json();

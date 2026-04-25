@@ -106,10 +106,15 @@ function navigateTo(view) {
         clearInterval(ProjectView._refreshTimer);
         ProjectView._refreshTimer = null;
     }
+    if (window.VideoView && VideoView._timer) {
+        clearInterval(VideoView._timer);
+        VideoView._timer = null;
+    }
     // Hide all views
     document.getElementById('view-new-project').classList.add('hidden');
     document.getElementById('view-project-detail').classList.add('hidden');
     document.getElementById('view-settings').classList.add('hidden');
+    document.getElementById('view-video').classList.add('hidden');
     document.getElementById('view-dubbing').classList.add('hidden');
 
     // Update nav state
@@ -122,6 +127,9 @@ function navigateTo(view) {
     } else if (view === 'settings') {
         document.getElementById('view-settings').classList.remove('hidden');
         Settings.init();
+    } else if (view === 'video') {
+        document.getElementById('view-video').classList.remove('hidden');
+        VideoView.init();
     } else if (view === 'dubbing') {
         document.getElementById('view-dubbing').classList.remove('hidden');
         DubbingView.init();

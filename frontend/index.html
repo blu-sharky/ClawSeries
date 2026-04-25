@@ -36,6 +36,10 @@
                     <span class="nav-icon material-symbols-outlined">settings</span>
                     <span class="nav-label">设置</span>
                 </button>
+                <button class="nav-item" data-view="video" onclick="navigateTo('video')">
+                    <span class="nav-icon material-symbols-outlined">movie</span>
+                    <span class="nav-label">视频</span>
+                </button>
                 <button class="nav-item" data-view="dubbing" onclick="navigateTo('dubbing')">
                     <span class="nav-icon material-symbols-outlined">translate</span>
                     <span class="nav-label">配音</span>
@@ -99,6 +103,15 @@
                 <div id="settings-content" class="settings-content"></div>
             </div>
 
+
+            <!-- 视频视图 -->
+            <div class="view hidden" id="view-video">
+                <div class="view-header">
+                    <h1>视频生成</h1>
+                    <p>查看镜头视频生成任务和日志</p>
+                </div>
+                <div id="video-content" class="project-detail-content"></div>
+            </div>
             <!-- 配音视图 -->
             <div class="view hidden" id="view-dubbing">
                 <div class="view-header">
@@ -116,6 +129,7 @@
     <script src="js/project.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/dubbing.js"></script>
+    <script src="js/video.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
