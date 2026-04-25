@@ -102,6 +102,10 @@ const App = {
 };
 
 function navigateTo(view) {
+    if (ProjectView._refreshTimer) {
+        clearInterval(ProjectView._refreshTimer);
+        ProjectView._refreshTimer = null;
+    }
     // Hide all views
     document.getElementById('view-new-project').classList.add('hidden');
     document.getElementById('view-project-detail').classList.add('hidden');

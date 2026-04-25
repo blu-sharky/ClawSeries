@@ -811,7 +811,7 @@
     margin: 0;
     border: none;
     border-radius: 0;
-    background: var(--bg-primary);
+    background: rgba(255, 255, 255, 0.02);
     color: var(--text-primary);
     max-height: 320px;
     font-family: inherit;

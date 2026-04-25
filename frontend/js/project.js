@@ -81,11 +81,17 @@ const ProjectView = {
     ws: null,
     _userScrolling: false,
     _scrollTimeout: null,
+    _refreshTimer: null,
     async show(projectId) {
         this.currentProjectId = projectId;
         this.currentTab = 'overview';
         this.agentMonitorState = {};
         this._userScrolling = false;
+
+        if (this._refreshTimer) {
+            clearInterval(this._refreshTimer);
+            this._refreshTimer = null;
+        }
 
         if (this.ws) {
             this.ws.close();
@@ -112,6 +118,16 @@ const ProjectView = {
         this._renderContent(project);
 
         this.ws = Api.connectWebSocket(projectId, (msg) => this._handleWsMessage(msg));
+        this._refreshTimer = setInterval(() => this.refresh(), 5000);
+    },
+
+    async refresh() {
+        if (!this.currentProjectId || document.getElementById('view-project-detail').classList.contains('hidden')) return;
+        const project = await Api.getProject(this.currentProjectId);
+        if (!project) return;
+        this._renderHeader(project);
+        this._renderTab(this.currentTab, project);
+        App.refreshProjectList();
     },
 
     _renderHeader(project) {

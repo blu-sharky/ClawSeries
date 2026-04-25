@@ -53,7 +53,7 @@ const Api = {
                     .split(/\r?\n/)
                     .filter(line => line.startsWith('data:'))
                     .map(line => line.slice(5).trimStart());
-                if (!dataLines.length) return;
+                if (!dataLines.length) return false;
 
                 try {
                     const data = JSON.parse(dataLines.join('\n'));
@@ -64,8 +64,9 @@ const Api = {
                     } else {
                         onChunk?.(data);
                     }
+                    return true;
                 } catch (error) {
-                    console.error('Parse SSE error:', error, rawEvent);
+                    return false;
                 }
             };
 
@@ -84,7 +85,16 @@ const Api = {
                 }
 
                 if (done) {
-                    if (buffer.trim()) emitEvent(buffer);
+                    const trimmed = buffer.trim();
+                    if (trimmed) {
+                        if (!emitEvent(trimmed)) {
+                            try {
+                                onDone?.(JSON.parse(trimmed));
+                            } catch (error) {
+                                throw new Error(trimmed.slice(0, 120));
+                            }
+                        }
+                    }
                     break;
                 }
             }
