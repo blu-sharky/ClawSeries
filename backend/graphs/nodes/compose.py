@@ -57,7 +57,7 @@ async def episode_compose_node(state: ProductionState) -> dict:
     if video_paths and is_ffmpeg_available():
         try:
             output_path = str(project_outputs_dir(project_id) / f"{episode_id}.mp4")
-            actual_paths = [str(RENDERS_DIR / p.replace("/renders/", "")) for p in video_paths]
+            actual_paths = [str(RENDERS_DIR.parent / p.lstrip("/")) for p in video_paths]
             concatenate_videos(actual_paths, output_path)
             project_repo.update_episode(
                 episode_id, video_url=f"/videos/{project_id}/{episode_id}.mp4", status="completed", progress=100
@@ -129,7 +129,7 @@ async def project_compose_node(state: ProductionState) -> dict:
             output_path = str(project_outputs_dir(project_id) / f"{project_id}_final.mp4")
             video_paths = [ep["video_url"] for ep in completed_eps if ep.get("video_url")]
             if video_paths:
-                actual_paths = [str(OUTPUTS_DIR / p.replace("/videos/", "")) for p in video_paths]
+                actual_paths = [str(OUTPUTS_DIR.parent / p.lstrip("/")) for p in video_paths]
                 concatenate_videos(actual_paths, output_path)
                 add_production_event(
                     project_id, agent_id, ProductionStage.PROJECT_COMPOSING.value,

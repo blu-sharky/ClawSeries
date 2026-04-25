@@ -226,20 +226,35 @@ async def list_video_tasks():
             if task["task_type"] not in ("episode_shot_video", "shot_video"):
                 continue
             episode = project_repo.get_episode(task["episode_id"]) if task.get("episode_id") else None
-            shot = None
-            if task.get("shot_id") and episode:
-                shot = next((s for s in get_shots_by_episode(episode["episode_id"]) if s["shot_id"] == task["shot_id"]), None)
-            items.append({
-                **task,
-                "project_title": project["title"],
-                "episode_number": episode.get("episode_number") if episode else None,
-                "episode_title": episode.get("title") if episode else None,
-                "shot_number": shot.get("shot_number") if shot else None,
-                "shot_description": shot.get("description") if shot else None,
-                "shot_status": shot.get("status") if shot else None,
-                "first_frame_path": shot.get("first_frame_path") if shot else None,
-                "video_url": shot.get("video_url") if shot else None,
-            })
+            shots = get_shots_by_episode(episode["episode_id"]) if episode else []
+            if task["task_type"] == "shot_video" and task.get("shot_id"):
+                shots = [s for s in shots if s["shot_id"] == task["shot_id"]]
+
+            if not shots:
+                items.append({
+                    **task,
+                    "project_title": project["title"],
+                    "episode_number": episode.get("episode_number") if episode else None,
+                    "episode_title": episode.get("title") if episode else None,
+                })
+                continue
+
+            for shot in shots:
+                items.append({
+                    **task,
+                    "task_id": f"{task['task_id']}:{shot['shot_id']}",
+                    "parent_task_id": task["task_id"],
+                    "project_title": project["title"],
+                    "episode_number": episode.get("episode_number") if episode else None,
+                    "episode_title": episode.get("title") if episode else None,
+                    "shot_id": shot.get("shot_id"),
+                    "shot_number": shot.get("shot_number"),
+                    "shot_description": shot.get("description"),
+                    "shot_status": shot.get("status"),
+                    "shot_duration": shot.get("duration"),
+                    "first_frame_path": shot.get("first_frame_path"),
+                    "video_url": shot.get("video_url"),
+                })
     return {"tasks": sorted(items, key=lambda t: t.get("created_at") or "", reverse=True)}
 
 @router.post("/projects/{project_id}/generate-assets")

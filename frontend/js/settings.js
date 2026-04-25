@@ -226,7 +226,7 @@ const Settings = {
                         <label>Provider</label>
                         <select id="video-provider">
                             <option value="seedance" ${video.provider === 'seedance' ? 'selected' : ''}>Seedance</option>
-                            <option value="vectorengine" ${video.provider === 'vectorengine' ? 'selected' : ''}>VectorEngine</option>
+                            <option value="vectorengine" ${video.provider === 'vectorengine' ? 'selected' : ''}>向量矩阵 / VectorEngine</option>
                             <option value="runway" ${video.provider === 'runway' ? 'selected' : ''}>Runway</option>
                             <option value="pika" ${video.provider === 'pika' ? 'selected' : ''}>Pika</option>
                             <option value="custom" ${video.provider === 'custom' ? 'selected' : ''}>自定义</option>
@@ -236,7 +236,7 @@ const Settings = {
                     <div class="form-group">
                         <label>Base URL</label>
                         <input type="text" id="video-base-url" value="${video.base_url || ''}"
-                               placeholder="https://api.seedance.com/v1">
+                               placeholder="https://api.vectorengine.ai">
                     </div>
 
                     <div class="form-group">
@@ -250,8 +250,8 @@ const Settings = {
 
                     <div class="form-group">
                         <label>Model</label>
-                        <input type="text" id="video-model" value="${video.model || 'seedance-2.0'}"
-                               placeholder="seedance-2.0">
+                        <input type="text" id="video-model" value="${video.model || 'veo3.1-fast'}"
+                               placeholder="veo3.1-fast">
                     </div>
 
                     <div class="form-group">
@@ -477,10 +477,10 @@ const Settings = {
                 guidance_scale: parseFloat(document.getElementById('image-guidance-scale')?.value || '7.5'),
             },
             video: {
-                provider: document.getElementById('video-provider')?.value || 'seedance',
+                provider: document.getElementById('video-provider')?.value || 'vectorengine',
                 base_url: document.getElementById('video-base-url')?.value || '',
                 api_key: document.getElementById('video-api-key')?.value || '',
-                model: document.getElementById('video-model')?.value || 'seedance-2.0',
+                model: document.getElementById('video-model')?.value || 'veo3.1-fast',
                 aspect_ratio: document.getElementById('video-aspect-ratio')?.value || '16:9',
             },
             google: {

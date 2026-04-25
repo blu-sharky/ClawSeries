@@ -251,10 +251,10 @@ class LLMProviderConfig(BaseModel):
 
 
 class VideoProviderConfig(BaseModel):
-    provider: str = "seedance"
-    base_url: str = ""
+    provider: str = "vectorengine"
+    base_url: str = "https://api.vectorengine.ai"
     api_key: str = ""
-    model: str = "seedance-2.0"
+    model: str = "veo3.1-fast"
     aspect_ratio: str = "16:9"
 
 

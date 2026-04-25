@@ -43,7 +43,7 @@ from integrations.llm import is_llm_configured, stream_llm
 from integrations.video import is_video_configured, generate_video, get_video_config, parse_duration_seconds
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
-from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir
+from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir, project_renders_dir
 
 from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt
 
@@ -699,10 +699,10 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
     if is_image_configured() or is_image_demo_mode():
         try:
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-            frame_output = str(RENDERS_DIR / f"{shot_id}_frame.png")
+            frame_output = str(project_renders_dir(project_id) / f"{shot_id}_frame.png")
             frame_prompt = f"{description}, cinematic frame, film still"
             await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
-            first_frame_path = f"/renders/{shot_id}_frame.png"
+            first_frame_path = f"/renders/{project_id}/{shot_id}_frame.png"
             update_shot(shot_id, first_frame_path=first_frame_path)
             add_production_event(
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
@@ -716,7 +716,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
     try:
         if is_video_configured():
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
-            output_path = str(RENDERS_DIR / f"{shot_id}.mp4")
+            output_path = str(project_renders_dir(project_id) / f"{shot_id}.mp4")
             video_config = get_video_config()
             add_shot_trace(
                 shot_id, project_id, "video_generation", agent_id=agent_id,
@@ -725,18 +725,18 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 provider_name=video_config["provider"], model_name=video_config["model"],
             )
 
-            ref_image = str(RENDERS_DIR / f"{shot_id}_frame.png") if first_frame_path else None
+            ref_image = str(RENDERS_DIR.parent / first_frame_path.lstrip("/")) if first_frame_path else None
             await generate_video(description, output_path, reference_image=ref_image,
                                  duration_seconds=parse_duration_seconds(shot.get("duration")), aspect_ratio=video_config.get("aspect_ratio", "16:9"))
 
-            update_shot(shot_id, status="completed", video_url=f"/renders/{shot_id}.mp4")
+            update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")
             add_shot_trace(
                 shot_id, project_id, "video_completed", agent_id=agent_id,
                 output_path=output_path, provider_name=video_config["provider"], model_name=video_config["model"],
             )
             await _emit_agent_output(
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-                f"镜头 {shot['shot_number']} 视频生成完成：/renders/{shot_id}.mp4",
+                f"镜头 {shot['shot_number']} 视频生成完成：/renders/{project_id}/{shot_id}.mp4",
                 f"镜头 {shot['shot_number']} 输出", "视频已生成",
                 episode_id=episode_id, shot_id=shot_id
             )
@@ -744,7 +744,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                 "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
                 episode_id=episode_id, shot_id=shot_id,
-                payload={"first_frame_path": first_frame_path, "video_url": f"/renders/{shot_id}.mp4", "prompt": description}
+                payload={"first_frame_path": first_frame_path, "video_url": f"/renders/{project_id}/{shot_id}.mp4", "prompt": description}
             )
             return True
 
@@ -798,7 +798,7 @@ async def _execute_episode_compose(project_id: str, task: dict):
         try:
             OUTPUTS_DIR.mkdir(parents=True, exist_ok=True)
             output_path = str(OUTPUTS_DIR / f"{episode_id}.mp4")
-            actual_paths = [str(RENDERS_DIR / p.replace("/renders/", "")) for p in video_paths]
+            actual_paths = [str(RENDERS_DIR.parent / p.lstrip("/")) for p in video_paths]
             concatenate_videos(actual_paths, output_path)
             project_repo.update_episode(
                 episode_id, video_url=f"/videos/{episode_id}.mp4", status="completed", progress=100
@@ -881,7 +881,7 @@ async def _execute_project_compose(project_id: str, task: dict):
             output_path = str(OUTPUTS_DIR / f"{project_id}_final.mp4")
             video_paths = [ep["video_url"] for ep in completed_eps if ep.get("video_url")]
             if video_paths:
-                actual_paths = [str(OUTPUTS_DIR / p.replace("/videos/", "")) for p in video_paths]
+                actual_paths = [str(OUTPUTS_DIR.parent / p.lstrip("/")) for p in video_paths]
                 concatenate_videos(actual_paths, output_path)
 
                 add_production_event(

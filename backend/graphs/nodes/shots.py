@@ -269,7 +269,7 @@ async def shots_node(state: ProductionState) -> dict:
                 "prompt_issued", f"镜头 {shot['shot_number']} 首帧图片",
                 f"开始生成第{ep['episode_number']}集镜头 {shot['shot_number']} 首帧",
                 episode_id=episode_id, shot_id=shot_id,
-                payload={"prompt": frame_prompt[:100]}
+                payload={"prompt": frame_prompt}
             )
 
             try:
@@ -293,6 +293,8 @@ async def shots_node(state: ProductionState) -> dict:
                     episode_id=episode_id, shot_id=shot_id,
                 )
 
+        video_prompt = f"{frame_prompt}, {camera_dir}" if camera_dir else frame_prompt
+
         # Step 2: Generate video using first frame as reference
         if video_ok:
             add_production_event(
@@ -300,7 +302,7 @@ async def shots_node(state: ProductionState) -> dict:
                 "prompt_issued", f"镜头 {shot['shot_number']} 视频生成",
                 f"开始用首帧生成第{ep['episode_number']}集镜头 {shot['shot_number']} 视频",
                 episode_id=episode_id, shot_id=shot_id,
-                payload={"prompt": description[:100], "has_first_frame": first_frame_path is not None}
+                payload={"prompt": video_prompt, "has_first_frame": first_frame_path is not None}
             )
 
             try:
@@ -316,9 +318,8 @@ async def shots_node(state: ProductionState) -> dict:
                 # Pass first frame image path as reference
                 real_frame_path = None
                 if first_frame_path:
-                    real_frame_path = str(RENDERS_DIR / first_frame_path.replace("/renders/", ""))
+                    real_frame_path = str(RENDERS_DIR.parent / first_frame_path.lstrip("/"))
 
-                video_prompt = f"{frame_prompt}, {camera_dir}" if camera_dir else frame_prompt
                 await generate_video(
                     video_prompt, video_output,
                     reference_image=real_frame_path,
@@ -342,7 +343,8 @@ async def shots_node(state: ProductionState) -> dict:
                 add_production_event(
                     project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                     "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
-                    episode_id=episode_id, shot_id=shot_id
+                    episode_id=episode_id, shot_id=shot_id,
+                    payload={"first_frame_path": first_frame_path, "video_url": f"/renders/{project_id}/{shot_id}.mp4", "prompt": video_prompt}
                 )
             except Exception as e:
                 update_shot(shot_id, status="failed")

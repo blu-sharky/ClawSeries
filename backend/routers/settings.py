@@ -41,9 +41,9 @@ async def get_models_settings():
     }
 
     video_config = {
-        "provider": all_settings.get("video_provider", "seedance"),
-        "base_url": all_settings.get("video_base_url", ""),
-        "model": all_settings.get("video_model", "seedance-2.0"),
+        "provider": all_settings.get("video_provider", "vectorengine"),
+        "base_url": all_settings.get("video_base_url", "https://api.vectorengine.ai"),
+        "model": all_settings.get("video_model", "veo3.1-fast"),
         "has_api_key": bool(all_settings.get("video_api_key")),
         "masked_api_key": _mask_key(all_settings.get("video_api_key", "")),
         "aspect_ratio": all_settings.get("video_aspect_ratio", "16:9"),
@@ -174,10 +174,10 @@ async def test_connection(request: TestConnectionRequest):
         from integrations.video import test_video_connection
         api_key = all_settings.get("video_api_key", "")
         base_url = all_settings.get("video_base_url", "")
-        model = all_settings.get("video_model", "seedance-2.0")
+        model = all_settings.get("video_model", "veo3.1-fast")
         if not api_key:
             return {"success": False, "message": "Video API key not configured"}
         return test_video_connection(api_key, base_url, model,
-                                     provider=all_settings.get("video_provider", "seedance"))
+                                     provider=all_settings.get("video_provider", "vectorengine"))
 
     return {"success": False, "message": f"Unknown provider type: {request.provider_type}"}

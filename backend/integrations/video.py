@@ -6,6 +6,7 @@ import asyncio
 import base64
 import json
 import struct
+import mimetypes
 import re
 from pathlib import Path
 from repositories.settings_repo import get_setting
@@ -90,10 +91,10 @@ def _write_minimal_mp4(output_path: str) -> None:
 
 def get_video_config() -> dict:
     return {
-        "provider": get_setting("video_provider", "seedance"),
+        "provider": get_setting("video_provider", "vectorengine"),
         "api_key": get_setting("video_api_key", ""),
-        "base_url": get_setting("video_base_url", "https://api.seedance.com/v1"),
-        "model": get_setting("video_model", "seedance-2.0"),
+        "base_url": get_setting("video_base_url", "https://api.vectorengine.ai"),
+        "model": get_setting("video_model", "veo3.1-fast"),
         "aspect_ratio": get_setting("video_aspect_ratio", "16:9"),
     }
 
@@ -165,19 +166,36 @@ async def _generate_openai_video(config, prompt, output_path, reference_image, d
 
         raise RuntimeError('Video generation timed out')
 
+
+async def _upload_vectorengine_image(client, image_path: str) -> str:
+    path = Path(image_path)
+    if not path.exists():
+        raise RuntimeError(f'VectorEngine reference image not found: {image_path}')
+    mime = mimetypes.guess_type(path.name)[0] or 'image/png'
+    with path.open('rb') as f:
+        resp = await client.post(
+            'https://imageproxy.zhongzhuan.chat/api/upload',
+            files={'file': (path.name, f, mime)},
+        )
+    resp.raise_for_status()
+    data = resp.json()
+    url = data.get('url')
+    if not url:
+        raise RuntimeError(f'VectorEngine image upload returned no url: {data}')
+    return url
+
 async def _generate_vectorengine_video(config, prompt, output_path, reference_image, duration_seconds, aspect_ratio):
     """Generate video via VectorEngine API (POST /v1/video/create, poll GET /v1/video/query)."""
     import httpx
-    base = config['base_url'].rstrip('/')
+    base = config['base_url'].rstrip() or 'https://api.vectorengine.ai'
 
     payload = {
         'model': config['model'],
         'prompt': prompt,
         'aspect_ratio': aspect_ratio,
         'enhance_prompt': True,
+        'enable_upsample': True,
     }
-    if reference_image:
-        payload['images'] = [reference_image]
 
     headers = {
         'Authorization': f"Bearer {config['api_key']}",
@@ -186,6 +204,9 @@ async def _generate_vectorengine_video(config, prompt, output_path, reference_im
     }
 
     async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
+        if reference_image:
+            payload['images'] = [await _upload_vectorengine_image(client, reference_image)]
+
         # Submit
         resp = await client.post(f'{base}/v1/video/create', headers=headers, json=payload)
         resp.raise_for_status()
@@ -198,13 +219,13 @@ async def _generate_vectorengine_video(config, prompt, output_path, reference_im
         for _ in range(120):
             await asyncio.sleep(5)
             status_resp = await client.get(
-                f'{base}/v1/video/query?id={task_id}', headers=headers,
+                f'{base}/v1/video/query', headers=headers, params={'id': task_id},
             )
             status_resp.raise_for_status()
             status_data = status_resp.json()
 
             if status_data.get('status') == 'completed':
-                video_url = status_data.get('video_url')
+                video_url = status_data.get('video_url') or status_data.get('detail', {}).get('video_url')
                 if video_url:
                     vid_resp = await client.get(video_url, follow_redirects=True)
                     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
