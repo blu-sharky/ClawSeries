@@ -13,6 +13,22 @@
   --sans: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --accent: #6366f1;
   --accent-glow: rgba(99, 102, 241, 0.4);
+  --icon-lilac: #a78bfa;
+  --icon-lilac-glow: rgba(167, 139, 250, 0.35);
+  --icon-sky: #60a5fa;
+  --icon-sky-glow: rgba(96, 165, 250, 0.32);
+  --icon-cyan: #22d3ee;
+  --icon-cyan-glow: rgba(34, 211, 238, 0.30);
+  --icon-teal: #2dd4bf;
+  --icon-teal-glow: rgba(45, 212, 191, 0.30);
+  --icon-emerald: #34d399;
+  --icon-emerald-glow: rgba(52, 211, 153, 0.30);
+  --icon-amber: #fbbf24;
+  --icon-amber-glow: rgba(251, 191, 36, 0.30);
+  --icon-orange: #fb923c;
+  --icon-orange-glow: rgba(251, 146, 60, 0.30);
+  --icon-rose: #fb7185;
+  --icon-rose-glow: rgba(251, 113, 133, 0.32);
 }
 
 * {
@@ -602,6 +618,32 @@ body::after {
   display: inline-block;
   animation: iconFloat 3s ease-in-out infinite;
 }
+.card-icon,
+.philosophy-icon,
+.paradigm-highlight-icon,
+.flow-icon,
+.chat-ai-final .material-symbols-outlined {
+  color: var(--icon-tone, var(--accent));
+  text-shadow: 0 0 18px var(--icon-glow, var(--accent-glow));
+}
+
+.content-card:nth-child(6n+1) { --icon-tone: var(--icon-lilac); --icon-glow: var(--icon-lilac-glow); }
+.content-card:nth-child(6n+2) { --icon-tone: var(--icon-sky); --icon-glow: var(--icon-sky-glow); }
+.content-card:nth-child(6n+3) { --icon-tone: var(--icon-rose); --icon-glow: var(--icon-rose-glow); }
+.content-card:nth-child(6n+4) { --icon-tone: var(--icon-teal); --icon-glow: var(--icon-teal-glow); }
+.content-card:nth-child(6n+5) { --icon-tone: var(--icon-amber); --icon-glow: var(--icon-amber-glow); }
+.content-card:nth-child(6n) { --icon-tone: var(--icon-orange); --icon-glow: var(--icon-orange-glow); }
+.paradigm-bad { --icon-tone: var(--icon-rose); --icon-glow: var(--icon-rose-glow); }
+.paradigm-good { --icon-tone: var(--icon-emerald); --icon-glow: var(--icon-emerald-glow); }
+.paradigm-highlight { --icon-tone: var(--icon-cyan); --icon-glow: var(--icon-cyan-glow); }
+.philosophy-card:nth-child(3n+1) { --icon-tone: var(--icon-cyan); --icon-glow: var(--icon-cyan-glow); }
+.philosophy-card:nth-child(3n+2) { --icon-tone: var(--icon-amber); --icon-glow: var(--icon-amber-glow); }
+.philosophy-card:nth-child(3n) { --icon-tone: var(--icon-emerald); --icon-glow: var(--icon-emerald-glow); }
+.flow-step.step-input { --icon-tone: var(--icon-sky); --icon-glow: var(--icon-sky-glow); }
+.flow-step.step-engine { --icon-tone: var(--icon-teal); --icon-glow: var(--icon-teal-glow); }
+.flow-step.step-output { --icon-tone: var(--icon-amber); --icon-glow: var(--icon-amber-glow); }
+.chat-ai-final { --icon-tone: var(--icon-emerald); --icon-glow: var(--icon-emerald-glow); }
+
 
 @keyframes iconFloat {
   0%, 100% { transform: translateY(0); }
@@ -765,12 +807,19 @@ body::after {
   font-family: var(--mono);
   font-size: 24px;
   font-weight: 300;
-  color: var(--accent);
+  color: var(--agent-tone, var(--accent));
+  text-shadow: 0 0 14px var(--agent-glow, var(--accent-glow));
   min-width: 60px;
   display: flex;
   align-items: center;
   gap: 4px;
 }
+.agent-detail:nth-child(5n+1) { --agent-tone: var(--icon-lilac); --agent-glow: var(--icon-lilac-glow); }
+.agent-detail:nth-child(5n+2) { --agent-tone: var(--icon-sky); --agent-glow: var(--icon-sky-glow); }
+.agent-detail:nth-child(5n+3) { --agent-tone: var(--icon-teal); --agent-glow: var(--icon-teal-glow); }
+.agent-detail:nth-child(5n+4) { --agent-tone: var(--icon-amber); --agent-glow: var(--icon-amber-glow); }
+.agent-detail:nth-child(5n) { --agent-tone: var(--icon-rose); --agent-glow: var(--icon-rose-glow); }
+
 
 .agent-content h3 {
   margin: 0 0 8px;
@@ -1748,6 +1797,12 @@ body::after {
   transition: all 0.3s ease;
   animation: langFloat 3s ease-in-out infinite;
 }
+.lang-flag {
+  font-size: 16px;
+  line-height: 1;
+  filter: saturate(0.9);
+}
+
 
 .lang-orb:nth-child(odd) { animation-delay: 0.5s; }
 .lang-orb:nth-child(even) { animation-delay: 1s; }
