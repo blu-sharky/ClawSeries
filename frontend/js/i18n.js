@@ -177,6 +177,11 @@ const I18n = (() => {
 
             'project.characters.ageUnit': '{age}\u5C81',
             'project.characters.sheetAlt': '{name} \u8BBE\u5B9A\u56FE',
+            'project.assets.title': '其他资产生成',
+            'project.assets.scene': '场景',
+            'project.assets.prop': '道具',
+            'project.assets.location': '地点',
+            'project.assets.style': '风格',
 
             'project.episodes.header.ep': '\u96C6\u6570',
             'project.episodes.header.title': '\u6807\u9898',
@@ -511,6 +516,11 @@ const I18n = (() => {
 
             'project.characters.ageUnit': 'Age {age}',
             'project.characters.sheetAlt': '{name} character sheet',
+            'project.assets.title': 'Generated Assets',
+            'project.assets.scene': 'Scene',
+            'project.assets.prop': 'Prop',
+            'project.assets.location': 'Location',
+            'project.assets.style': 'Style',
 
             'project.episodes.header.ep': 'Ep',
             'project.episodes.header.title': 'Title',

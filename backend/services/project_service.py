@@ -70,8 +70,10 @@ class ProjectService:
 
         characters = project_repo.get_characters(project_id)
 
-        # Load character turnaround sheet assets
-        char_assets = {a["name"]: a for a in get_assets(project_id, type="character")}
+        # Load all assets (characters, scenes, props, etc.)
+        all_assets = get_assets(project_id)
+        char_assets = {a["name"]: a for a in all_assets if a.get("type") == "character"}
+        non_char_assets = [a for a in all_assets if a.get("type") != "character"]
 
         char_models = [
             {
@@ -125,6 +127,18 @@ class ProjectService:
             "created_at": p["created_at"],
             "config": p.get("config", {}),
             "characters": char_models,
+            "assets": [
+                {
+                    "asset_id": a["asset_id"],
+                    "type": a["type"],
+                    "name": a["name"],
+                    "description": a.get("description"),
+                    "prompt": a.get("prompt"),
+                    "image_path": a.get("image_path"),
+                    "created_at": a.get("created_at"),
+                }
+                for a in non_char_assets
+            ],
             "episodes": ep_models,
             "current_stage": current["stage"] if current else None,
             "current_agent": STAGE_AGENT_MAP.get(current["stage"]) if current else None,

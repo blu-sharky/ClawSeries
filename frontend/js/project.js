@@ -94,6 +94,11 @@ const ProjectView = {
             this._refreshTimer = null;
         }
 
+        if (window.VideoView && VideoView._timer) {
+            clearInterval(VideoView._timer);
+            VideoView._timer = null;
+        }
+
         if (this.ws) {
             this.ws.close();
             this.ws = null;
@@ -101,6 +106,7 @@ const ProjectView = {
 
         document.getElementById('view-new-project').classList.add('hidden');
         document.getElementById('view-settings').classList.add('hidden');
+        document.getElementById('view-video').classList.add('hidden');
         document.getElementById('view-dubbing').classList.add('hidden');
         document.getElementById('view-project-detail').classList.remove('hidden');
 
@@ -604,7 +610,11 @@ const ProjectView = {
     },
 
     _renderCharacters(container, project) {
-        let html = '<div class="characters-grid">';
+        let html = '';
+
+        // Characters section
+        html += `<h3 class="section-title" style="margin-bottom: 12px;">${I18n.t('project.tab.characters')}</h3>`;
+        html += '<div class="characters-grid">';
         for (const char of project.characters) {
             const roleColors = { '\u5973\u4E3B\u89D2': '#e94560', '\u7537\u4E3B\u89D2': '#3b82f6', '\u5973\u914D\u89D2': '#8b5cf6', '\u7537\u914D\u89D2': '#10b981', '\u53CD\u6D3E': '#ef4444' };
             const color = roleColors[char.role] || '#6b7280';
@@ -623,6 +633,38 @@ const ProjectView = {
             `;
         }
         html += '</div>';
+
+        // Other assets section (scenes, props, etc.)
+        const assets = project.assets || [];
+        if (assets.length > 0) {
+            const assetTypeLabels = {
+                scene: I18n.t('project.assets.scene'),
+                prop: I18n.t('project.assets.prop'),
+                location: I18n.t('project.assets.location'),
+                style: I18n.t('project.assets.style'),
+            };
+            html += `<h3 class="section-title" style="margin: 24px 0 12px;">${I18n.t('project.assets.title')}</h3>`;
+            html += '<div class="characters-grid">';
+            for (const asset of assets) {
+                const typeLabel = assetTypeLabels[asset.type] || asset.type;
+                html += `
+                    <div class="character-card">
+                        ${asset.image_path
+                            ? `<div class="character-sheet"><img src="${MEDIA_BASE}${this._escapeAttr(asset.image_path)}" alt="${this._escape(asset.name || typeLabel)}"></div>`
+                            : ''
+                        }
+                        <div class="character-info">
+                            <h3>${this._escape(asset.name || typeLabel)}</h3>
+                            <div class="character-meta">${typeLabel}</div>
+                            ${asset.description ? `<div class="character-desc">${this._escape(asset.description)}</div>` : ''}
+                            ${asset.prompt ? `<details style="margin-top:8px;"><summary style="font-size:12px;color:var(--text-secondary);cursor:pointer;">Prompt</summary><pre style="font-size:11px;white-space:pre-wrap;color:var(--text-secondary);margin-top:4px;">${this._escape(asset.prompt)}</pre></details>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+        }
+
         container.innerHTML = html;
     },
 
