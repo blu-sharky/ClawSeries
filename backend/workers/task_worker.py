@@ -90,6 +90,7 @@ async def _process_one_task():
             continue
 
         task = pending[0]
+        print(f"[Worker] PICKED task={task['task_id']} type={task['task_type']} project={p['project_id']} (pending={len(pending)})")
         await _execute_task(task)
         return  # Process one task per cycle
 
@@ -113,7 +114,9 @@ async def _execute_task(task: dict):
     """Execute a single task based on its type."""
     project_id = task["project_id"]
     task_type = task["task_type"]
+    task_id = task["task_id"]
 
+    print(f"[Worker] EXECUTING task={task_id} type={task_type} project={project_id} ep={task.get('episode_id')} shot={task.get('shot_id')}")
     task_repo.update_task(task["task_id"], status="running", started_at=datetime.utcnow().isoformat())
 
     try:
@@ -626,7 +629,6 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
     await _push_progress_update(project_id, episode_id)
 
     shots_completed = 0
-    from repositories.settings_repo import get_setting
     video_mode = get_setting("video_generation_mode") or "manual"
 
     # Determine series type
@@ -634,19 +636,41 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
     proj_config = json.loads(proj.get("config_json", "{}")) if proj and isinstance(proj.get("config_json"), str) else (proj.get("config", {}) if proj else {})
     series_type = proj_config.get("series_type", "live-action")
 
+    print(f"[Worker] Episode shot video: project={project_id} episode={episode_id} mode={video_mode} shots={len(shots)} series={series_type}")
+
     if video_mode == "manual":
+        # In manual mode: generate prompts + first-frame images, skip video generation
         add_production_event(
             project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-            "manual_mode", "手动模式", "视频生成模式为手动，请手动触发镜头生成",
+            "manual_mode", "半自动模式", "正在生成提示词和首帧图片，视频需手动触发",
             episode_id=episode_id
         )
-        project_repo.update_episode(episode_id, status="rendering", progress=72)
-        await _push_progress_update(project_id, episode_id)
+        for idx, shot in enumerate(shots, start=1):
+            await _generate_one_shot_video(project_id, episode, shot, agent_id, series_type, skip_video=True)
+            episode_progress = 70 + int((idx / max(1, len(shots))) * 10)
+            project_repo.update_episode(episode_id, status="rendering", progress=episode_progress)
+            await _push_progress_update(project_id, episode_id)
+            await _set_agent_status(
+                project_id, agent_id, status="working",
+                current_task=f"首帧图片：第{episode['episode_number']}集 / 镜头 {shot['shot_number']}",
+                completed_tasks=idx, total_tasks=max(1, len(shots)),
+                progress=int(idx / max(1, len(shots)) * 100)
+            )
+
+        update_project_stage(project_id, ProductionStage.SHOTS_GENERATING.value, "completed")
+        update_project_stage(project_id, ProductionStage.SHOTS_COMPLETED.value, "completed")
+        add_production_event(
+            project_id, agent_id, ProductionStage.SHOTS_COMPLETED.value,
+            "stage_completed", f"第{episode['episode_number']}集首帧完成",
+            f"已生成 {len(shots)} 个首帧图片（视频需手动触发）", episode_id=episode_id
+        )
+        task_repo.create_task(f"task_{episode_id}_compose", project_id, "episode_compose", episode_id=episode_id)
+        await _set_agent_status(project_id, agent_id, status="idle", current_task=None)
         task_repo.update_task(
             task["task_id"], status="completed",
-            output_json={"mode": "manual"}, completed_at=datetime.utcnow().isoformat()
+            output_json={"mode": "manual", "shots": len(shots)}, completed_at=datetime.utcnow().isoformat()
         )
-        await _set_agent_status(project_id, agent_id, status="idle", current_task=None)
+        _queue_next_episode_shot_task(project_id)
         return
 
     for idx, shot in enumerate(shots, start=1):
@@ -689,22 +713,25 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
 
 
 
-async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, agent_id: str, series_type: str = "live-action") -> bool:
+async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, agent_id: str, series_type: str = "live-action", skip_video: bool = False) -> bool:
     episode_id = episode["episode_id"]
     shot_id = shot["shot_id"]
     description = shot.get("description", "")
 
+    print(f"[ShotGen] START shot={shot_id} ep={episode['episode_number']} desc={description[:60]}...")
     update_shot(shot_id, status="running")
 
     # Step 0: Generate dual prompts with full script/character context
     storyboard_json = episode.get("storyboard_json")
     storyboard = json.loads(storyboard_json) if isinstance(storyboard_json, str) else (storyboard_json or [])
     sb_entry = next((s for s in storyboard if s.get("shot_number") == shot["shot_number"]), None)
+    print(f"[ShotGen] storyboard entry: {'found' if sb_entry else 'MISSING'} for shot_number={shot.get('shot_number')}")
 
     script_json = episode.get("script_json")
     script = json.loads(script_json) if isinstance(script_json, str) else (script_json or {})
     scene_number = sb_entry.get("scene_number") if sb_entry else None
     scene = next((s for s in script.get("scenes", []) if s.get("scene_number") == scene_number), None) if scene_number else None
+    print(f"[ShotGen] scene: {'found' if scene else 'MISSING'} for scene_number={scene_number}")
 
     # Identify appearing characters
     dialogues = sb_entry.get("dialogues", []) if sb_entry else []
@@ -717,6 +744,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
         name = ca.get("name", "")
         if name in mentioned_names or name in description:
             appearing_chars.append(ca)
+    print(f"[ShotGen] appearing chars: {[c.get('name') for c in appearing_chars]} (mentioned={mentioned_names})")
 
     # Resolve character sheet paths
     char_sheet_paths = []
@@ -725,11 +753,13 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             real_path = str(project_assets_dir(project_id).parent / ca["image_path"].replace("/assets/", ""))
             if Path(real_path).exists():
                 char_sheet_paths.append(real_path)
+    print(f"[ShotGen] char sheet paths: {len(char_sheet_paths)} resolved")
 
     # Generate dual prompts via LLM
     image_prompt = description
     video_prompt = description
     if is_llm_configured():
+        print(f"[ShotGen] calling LLM for dual prompts...")
         messages, ctx = build_shot_dual_prompt_request(
             shot=shot, storyboard_entry=sb_entry, scene=scene,
             appearing_characters=appearing_chars, series_type=series_type,
@@ -741,13 +771,18 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 parsed = json.loads(json_match.group())
                 image_prompt = parsed.get("image_prompt", description)
                 video_prompt = parsed.get("video_prompt", description)
+                print(f"[ShotGen] LLM prompts OK | img={len(image_prompt)} chars | vid={len(video_prompt)} chars")
+            else:
+                print(f"[ShotGen] LLM response no JSON match, using defaults")
         except Exception as e:
+            print(f"[ShotGen] LLM failed: {e}")
             agent_repo.add_agent_log(project_id, agent_id, "warning",
                                      f"Shot {shot_id} prompt generation failed: {e}")
             defaults = build_default_dual_prompts(shot, sb_entry)
             image_prompt = defaults["image_prompt"]
             video_prompt = defaults["video_prompt"]
     else:
+        print(f"[ShotGen] LLM not configured, using defaults")
         defaults = build_default_dual_prompts(shot, sb_entry)
         image_prompt = defaults["image_prompt"]
         video_prompt = defaults["video_prompt"]
@@ -765,9 +800,11 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
     # Step 1: Generate first-frame image using image_prompt + character references
     first_frame_path = None
     if is_image_configured() or is_image_demo_mode():
+        print(f"[ShotGen] generating first-frame image...")
         try:
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
             frame_output = str(project_renders_dir(project_id) / f"{shot_id}_frame.png")
+            print(f"[ShotGen] image output: {frame_output} | aspect={get_setting('video_aspect_ratio', '16:9')} | refs={len(char_sheet_paths)}")
             await generate_image(
                 image_prompt, frame_output,
                 reference_images=char_sheet_paths if char_sheet_paths else None,
@@ -775,18 +812,28 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             )
             first_frame_path = f"/renders/{project_id}/{shot_id}_frame.png"
             update_shot(shot_id, first_frame_path=first_frame_path)
+            print(f"[ShotGen] first-frame OK: {first_frame_path}")
             add_production_event(
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                 "first_frame_created", f"镜头 {shot['shot_number']} 首帧完成", "首帧图片已生成",
                 episode_id=episode_id, shot_id=shot_id, payload={"first_frame_path": first_frame_path, "prompt": image_prompt[:100]}
             )
         except Exception as e:
+            print(f"[ShotGen] first-frame FAILED: {e}")
             agent_repo.add_agent_log(project_id, agent_id, "warning",
                                      f"First-frame generation failed for shot {shot_id}: {e}")
+    else:
+        print(f"[ShotGen] image generation not configured, skipping first-frame")
 
-    # Step 2: Generate video using video_prompt + first-frame (or character sheets)
+    # Step 2: Generate video (skip in manual mode)
+    if skip_video:
+        print(f"[ShotGen] skip_video=True, skipping video generation")
+        update_shot(shot_id, status="pending")  # Reset to pending for later manual trigger
+        return False
+
     try:
         if is_video_configured():
+            print(f"[ShotGen] generating video...")
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
             output_path = str(project_renders_dir(project_id) / f"{shot_id}.mp4")
             video_config = get_video_config()
@@ -804,6 +851,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             if char_sheet_paths and len(video_refs) < 3:
                 video_refs.extend(char_sheet_paths[:3 - len(video_refs)])
 
+            print(f"[ShotGen] video refs: {len(video_refs)} | provider={video_config['provider']} | aspect={video_config.get('aspect_ratio', '16:9')}")
             await generate_video(
                 video_prompt, output_path,
                 reference_images=video_refs if video_refs else None,
@@ -816,6 +864,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 shot_id, project_id, "video_completed", agent_id=agent_id,
                 output_path=output_path, provider_name=video_config["provider"], model_name=video_config["model"],
             )
+            print(f"[ShotGen] video OK: /renders/{project_id}/{shot_id}.mp4")
             await _emit_agent_output(
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                 f"镜头 {shot['shot_number']} 视频生成完成：/renders/{project_id}/{shot_id}.mp4",
@@ -835,12 +884,14 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             )
             return True
 
+        print(f"[ShotGen] video not configured, marking failed")
         update_shot(shot_id, status="failed")
         add_shot_trace(
             shot_id, project_id, "video_failed", agent_id=agent_id,
             error_reason="Video provider not configured"
         )
     except Exception as e:
+        print(f"[ShotGen] video FAILED: {e}")
         update_shot(shot_id, status="failed")
         add_shot_trace(
             shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
@@ -1054,6 +1105,13 @@ async def _execute_shot_video_legacy(project_id: str, task: dict):
     if not shot:
         raise RuntimeError(f"Shot {shot_id} not found")
 
+    # Determine series type
+    proj = project_repo.get_project(project_id)
+    proj_config = json.loads(proj.get("config_json", "{}")) if proj and isinstance(proj.get("config_json"), str) else (proj.get("config", {}) if proj else {})
+    series_type = proj_config.get("series_type", "live-action")
+
+    print(f"[Worker] Legacy shot video: project={project_id} shot={shot_id} series={series_type}")
+
     agent_id = STAGE_AGENT_MAP[ProductionStage.SHOTS_GENERATING]
     update_project_stage(project_id, ProductionStage.SHOTS_GENERATING.value, "in_progress")
     project_repo.update_episode(episode_id, status="rendering", progress=max(episode.get("progress") or 0, 70))
@@ -1062,7 +1120,7 @@ async def _execute_shot_video_legacy(project_id: str, task: dict):
         current_task=f"镜头视频：第{episode['episode_number']}集 / 镜头 {shot['shot_number']}",
         completed_tasks=0, total_tasks=1
     )
-    completed = await _generate_one_shot_video(project_id, episode, shot, agent_id)
+    completed = await _generate_one_shot_video(project_id, episode, shot, agent_id, series_type)
     await _push_progress_update(project_id, episode_id)
     await _set_agent_status(project_id, agent_id, status="idle", current_task=None, completed_tasks=1 if completed else 0, total_tasks=1)
     task_repo.update_task(
@@ -1174,14 +1232,18 @@ def _queue_next_episode_shot_task(project_id: str) -> bool:
         for t in tasks
         if t["task_type"] in ("episode_shot_video", "episode_compose") and t["status"] in ("pending", "running")
     }
+    print(f"[Worker] _queue_next_episode_shot_task: project={project_id} episodes={len(episodes)} active={active_episode_ids}")
     for episode in episodes:
         if episode["status"] == "completed":
             continue
         if episode["episode_id"] in active_episode_ids:
             continue
+        task_id = f"task_{episode['episode_id']}_shots"
+        print(f"[Worker] queueing task={task_id} for episode={episode['episode_id']}")
         task_repo.create_task(
-            f"task_{episode['episode_id']}_shots", project_id,
+            task_id, project_id,
             "episode_shot_video", episode_id=episode["episode_id"]
         )
         return True
+    print(f"[Worker] no episode needs shot task")
     return False

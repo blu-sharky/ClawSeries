@@ -10,6 +10,16 @@ def create_task(task_id: str, project_id: str, task_type: str,
                 episode_id: str | None = None, shot_id: str | None = None,
                 agent_id: str | None = None, input_data: dict | None = None):
     conn = get_connection()
+    # Check if task already exists and its status
+    existing = conn.execute("SELECT status FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
+    if existing:
+        status = dict(existing)["status"]
+        if status in ("pending", "running"):
+            print(f"[TaskRepo] create_task SKIP: {task_id} already {status}")
+            conn.close()
+            return
+        print(f"[TaskRepo] create_task REPLACE: {task_id} was {status}, resetting to pending")
+
     conn.execute(
         """INSERT INTO tasks (task_id, project_id, episode_id, shot_id, task_type, agent_id, input_json)
            VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -26,7 +36,7 @@ def create_task(task_id: str, project_id: str, task_type: str,
                status = 'pending',
                started_at = NULL,
                completed_at = NULL
-           WHERE tasks.status = 'failed'""",
+           WHERE tasks.status IN ('failed', 'completed')""",
         (task_id, project_id, episode_id, shot_id, task_type, agent_id,
          json.dumps(input_data or {}, ensure_ascii=False)),
     )
