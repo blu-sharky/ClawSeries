@@ -138,6 +138,7 @@ class ConversationService:
                 state=ConversationState.COLLECTING_REQUIREMENTS,
             )
 
+        collected["original_request"] = conv.get("initial_idea") or collected.get("initial_idea", "")
         outline = await self._generate_outline_with_llm(collected)
         return self._finalize_outline_response(conversation_id, outline, now)
 
@@ -363,6 +364,7 @@ JSON 结构：
         story_background = collected.get("story_background", "")
         style_tone = collected.get("style_tone", "")
         special_elements = collected.get("special_elements", "")
+        original_request = collected.get("original_request") or collected.get("initial_idea", "")
         initial_idea = collected.get("initial_idea", "")
         phase1_answers = collected.get("phase1_answers", "")
         phase2_answers = collected.get("phase2_answers", "")
@@ -397,6 +399,7 @@ AI视频生成适配要求：
 - 故事背景：{story_background or '由编剧自由发挥'}
 - 风格基调：{style_tone or '由编剧根据题材判断'}
 - 特殊元素：{special_elements or '无特别要求'}
+- 用户原始请求：{original_request}
 - 初始想法：{initial_idea}
 - 第一轮补充：{phase1_answers or '无'}
 - 第二轮补充：{phase2_answers or '无'}
@@ -440,6 +443,7 @@ JSON 结构：
         story_background = collected.get("story_background", "")
         style_tone = collected.get("style_tone", "")
         special_elements = collected.get("special_elements", "")
+        original_request = collected.get("original_request") or collected.get("initial_idea", "")
         initial_idea = collected.get("initial_idea", "")
         phase1_answers = collected.get("phase1_answers", "")
         phase2_answers = collected.get("phase2_answers", "")
@@ -463,6 +467,7 @@ JSON 结构：
 - 故事背景：{story_background or '由编剧自由发挥'}
 - 风格基调：{style_tone or '由编剧根据题材判断'}
 - 特殊元素：{special_elements or '无特别要求'}
+- 用户原始请求：{original_request}
 - 初始想法：{initial_idea}
 - 第一轮补充：{phase1_answers or '无'}
 - 第二轮补充：{phase2_answers or '无'}

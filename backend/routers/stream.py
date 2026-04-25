@@ -108,6 +108,7 @@ async def generate_outline(conversation_id: str):
         if isinstance(conv["collected_info"], str)
         else (conv["collected_info"] or {})
     )
+    collected["original_request"] = conv.get("initial_idea") or collected.get("initial_idea", "")
 
     async def event_generator():
         try:
