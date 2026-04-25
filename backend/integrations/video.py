@@ -270,7 +270,6 @@ async def generate_video(prompt: str, output_path: str,
 
     # Demo mode: return a blank black video
     if is_demo_mode():
-        import asyncio
         await asyncio.sleep(0.1)
         _create_demo_video(output_path, duration_seconds=duration_seconds)
         return output_path
@@ -282,6 +281,19 @@ async def generate_video(prompt: str, output_path: str,
     # Append language emphasis to prompt
     prompt = f"{prompt}. The dialogue and any on-screen text must be in Chinese (中文)."
 
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return await _generate_video_inner(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio)
+        except Exception as e:
+            wait = min(30, 10 * attempt)  # 10s, 20s, 30s, 30s, ...
+            print(f"[Video] attempt {attempt} failed: {e}. Retrying in {wait}s...")
+            await asyncio.sleep(wait)
+
+
+async def _generate_video_inner(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio):
+    """Inner implementation — called with retry by generate_video."""
     # Route to provider-specific implementation
     provider = config.get('provider', 'seedance').lower()
     if provider in ('openai', 'sora'):
@@ -336,8 +348,6 @@ async def generate_video(prompt: str, output_path: str,
                 raise RuntimeError(f"Video generation failed: {error}")
 
         raise RuntimeError("Video generation timed out")
-
-    return output_path
 
 
 def test_video_connection(api_key: str, base_url: str, model: str,
