@@ -315,7 +315,23 @@ async def shots_node(state: ProductionState) -> dict:
                     aspect_ratio=video_config.get("aspect_ratio", "16:9"),
                 )
 
-                update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")
+                # Read actual video duration with ffprobe
+                actual_duration = None
+                try:
+                    import subprocess
+                    probe = subprocess.run(
+                        ["ffprobe", "-v", "quiet", "-show_entries",
+                         "format=duration", "-of", "csv=p=0", video_output],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if probe.returncode == 0 and probe.stdout.strip():
+                        actual_duration = f"{int(float(probe.stdout.strip()))}s"
+                except Exception:
+                    pass
+
+                update_shot(shot_id, status="completed",
+                            video_url=f"/renders/{project_id}/{shot_id}.mp4",
+                            duration=actual_duration or shot.get("duration", ""))
                 add_shot_trace(
                     shot_id, project_id, "video_completed", agent_id=agent_id,
                     output_path=video_output, provider_name=video_config["provider"],

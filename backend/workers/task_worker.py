@@ -16,6 +16,7 @@ import asyncio
 import json
 import hashlib
 import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -410,6 +411,12 @@ async def _execute_project_format(project_id: str, task: dict):
     episodes = project_repo.get_episodes(project_id)
     total_shots = 0
 
+    # Load project config for episode duration
+    project = project_repo.get_project(project_id)
+    proj_config = project.get("config", {}) if project else {}
+    if isinstance(proj_config, str):
+        proj_config = json.loads(proj_config)
+
     await _set_agent_status(
         project_id, agent_id, status="working", current_task="格式化分镜",
         completed_tasks=0, total_tasks=len(episodes)
@@ -434,6 +441,12 @@ async def _execute_project_format(project_id: str, task: dict):
         storyboard = []
         shot_num = 0
 
+        # Calculate per-shot duration from episode_duration config
+        ep_dur_str = proj_config.get("episode_duration", "3分钟")
+        ep_dur_match = re.search(r"(\d+)", str(ep_dur_str))
+        ep_dur_seconds = int(ep_dur_match.group(1)) * 60 if ep_dur_match else 180
+        shot_duration = max(3, ep_dur_seconds // max(1, len(scenes)))
+
         for scene in scenes:
             shot_num += 1
             storyboard.append({
@@ -441,7 +454,7 @@ async def _execute_project_format(project_id: str, task: dict):
                 "scene_number": scene.get("scene_number", 1),
                 "description": f"{scene.get('location', '未知')} - {scene.get('description', '')[:80]}",
                 "camera_movement": "固定机位",
-                "duration": "3s",
+                "duration": f"{shot_duration}s",
                 "dialogues": scene.get("dialogues", []),
             })
 
@@ -917,7 +930,22 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 aspect_ratio=video_config.get("aspect_ratio", "16:9"),
             )
 
-            update_shot(shot_id, status="completed", video_url=f"/renders/{project_id}/{shot_id}.mp4")
+            # Read actual video duration with ffprobe
+            actual_duration = None
+            try:
+                probe = subprocess.run(
+                    ["ffprobe", "-v", "quiet", "-show_entries",
+                     "format=duration", "-of", "csv=p=0", output_path],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if probe.returncode == 0 and probe.stdout.strip():
+                    actual_duration = f"{int(float(probe.stdout.strip()))}s"
+            except Exception:
+                pass
+
+            update_shot(shot_id, status="completed",
+                        video_url=f"/renders/{project_id}/{shot_id}.mp4",
+                        duration=actual_duration or shot.get("duration", ""))
             add_shot_trace(
                 shot_id, project_id, "video_completed", agent_id=agent_id,
                 output_path=output_path, provider_name=video_config["provider"], model_name=video_config["model"],

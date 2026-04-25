@@ -30,6 +30,12 @@ async def format_node(state: ProductionState) -> dict:
     episodes = project_repo.get_episodes(project_id)
     total_shots = 0
 
+    # Load project config for episode duration
+    project = project_repo.get_project(project_id)
+    proj_config = project.get("config", {}) if project else {}
+    if isinstance(proj_config, str):
+        proj_config = json.loads(proj_config)
+
     agent_repo.update_agent_state(
         project_id, agent_id,
         status="working",
@@ -56,6 +62,13 @@ async def format_node(state: ProductionState) -> dict:
         storyboard = []
         shot_num = 0
 
+        # Calculate per-shot duration from episode_duration config
+        import re
+        ep_dur_str = proj_config.get("episode_duration", "3分钟")
+        ep_dur_match = re.search(r"(\d+)", str(ep_dur_str))
+        ep_dur_seconds = int(ep_dur_match.group(1)) * 60 if ep_dur_match else 180
+        shot_duration = max(3, ep_dur_seconds // max(1, len(scenes)))
+
         for scene in scenes:
             shot_num += 1
             storyboard.append({
@@ -63,7 +76,7 @@ async def format_node(state: ProductionState) -> dict:
                 "scene_number": scene.get("scene_number", 1),
                 "description": f"{scene.get('location', '未知')} - {scene.get('description', '')[:80]}",
                 "camera_movement": "固定机位",
-                "duration": "3s",
+                "duration": f"{shot_duration}s",
                 "dialogues": scene.get("dialogues", []),
             })
 
