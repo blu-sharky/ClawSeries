@@ -138,24 +138,20 @@ def clone_speech_segment(
 
     seg_wav = wav[:, start_sample:end_sample]
 
-    # Save segment to temp file
-    fd, seg_path = tempfile.mkstemp(suffix=".wav", prefix="seg_ref_")
-    os.close(fd)
+    # Save segment alongside output for debug inspection
+    if output_path:
+        seg_path = str(Path(output_path).with_suffix('.ref.wav'))
+    else:
+        fd, seg_path = tempfile.mkstemp(suffix='.wav', prefix='seg_ref_')
+        os.close(fd)
     torchaudio.save(seg_path, seg_wav, sr)
 
-    try:
-        # Use the segment as reference with Ultimate Cloning
-        # Auto-transcribe the segment text from the full transcript
-        result = clone_speech(
-            text=text,
-            reference_audio_path=seg_path,
-            reference_text="",  # short segment — use controllable cloning
-            output_path=output_path,
-        )
-        return result
-    finally:
-        # Clean up temp segment file
-        try:
-            os.unlink(seg_path)
-        except OSError:
-            pass
+    # Use the segment as reference with Ultimate Cloning
+    # Auto-transcribe the segment text from the full transcript
+    result = clone_speech(
+        text=text,
+        reference_audio_path=seg_path,
+        reference_text="",  # short segment — use controllable cloning
+        output_path=output_path,
+    )
+    return result
