@@ -14,6 +14,7 @@ from repositories.production_event_repo import (
     is_stage_completed,
     create_asset,
     update_asset,
+    get_assets,
 )
 from models import ProductionStage, STAGE_AGENT_MAP
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
@@ -28,7 +29,9 @@ async def assets_node(state: ProductionState) -> dict:
     For each character, generates a portrait image to lock visual identity.
     For each scene, generates an establishing shot.
     """
-    project_id = state["project_id"]
+    project_id = state.get("project_id")
+    if not project_id:
+        raise RuntimeError("project_id is required")
     agent_id = STAGE_AGENT_MAP[ProductionStage.ASSETS_GENERATING]
 
     # Check precondition
@@ -85,6 +88,8 @@ async def assets_node(state: ProductionState) -> dict:
     state_series_type = state.get("series_type", series_type)
     series_type = state_series_type or series_type
 
+    assets_by_name = {a["name"]: a for a in get_assets(project_id, type="character")}
+
     # --- Generate character turnaround reference sheets ---
     for i, char in enumerate(characters, start=1):
         asset_id = f"{project_id}_char_{i:03d}"
@@ -93,6 +98,9 @@ async def assets_node(state: ProductionState) -> dict:
         gender = char.get("visual_assets", {}).get("gender")
         prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get('age'), gender)
 
+        existing = assets_by_name.get(char["name"])
+        if existing and existing.get("image_path"):
+            continue
         add_production_event(
             project_id, agent_id, ProductionStage.ASSETS_GENERATING.value,
             "prompt_issued", f"角色设定图提示词：{char['name']}",

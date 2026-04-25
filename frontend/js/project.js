@@ -717,7 +717,6 @@ const ProjectView = {
                 <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
                     ${!episode.has_script ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'script')">生成剧本</button>` : ''}
                     ${episode.has_script && !episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'format')">生成分镜</button>` : ''}
-                    ${episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'assets')">手动生成角色图片</button>` : ''}
                     ${episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'shots', '${episodeId}')">手动生成镜头视频</button>` : ''}
                     ${episode.has_storyboard ? `<button class="btn-secondary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'compose', '${episodeId}')">手动合成本集视频</button>` : ''}
                 </div>
@@ -859,7 +858,6 @@ const ProjectView = {
             const baseUrl = 'http://localhost:8000/api/v1';
             const endpoint = stage === 'script' ? `${baseUrl}/projects/${projectId}/generate-script`
                            : stage === 'format' ? `${baseUrl}/projects/${projectId}/format-script`
-                           : stage === 'assets' ? `${baseUrl}/projects/${projectId}/generate-assets`
                            : stage === 'compose' && episodeId ? `${baseUrl}/projects/${projectId}/episodes/${episodeId}/compose`
                            : episodeId ? `${baseUrl}/projects/${projectId}/episodes/${episodeId}/generate-shots`
                            : `${baseUrl}/projects/${projectId}/generate-shots`;
