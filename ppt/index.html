@@ -1,265 +1,247 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="clawseries-global">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClawSeries — 路演 Deck</title>
-<link rel="stylesheet" href="/Users/bluseliu50/.agents/skills/html-ppt/assets/fonts.css">
-<link rel="stylesheet" href="/Users/bluseliu50/.agents/skills/html-ppt/assets/base.css">
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClawSeries — 出海黑客松演讲 Deck</title>
+  <meta name="description" content="ClawSeries：面向短剧出海的零人 AI 制片与本地化工厂。" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="stylesheet" href="/Users/bluseliu50/.agents/skills/html-ppt/assets/fonts.css" />
+  <link rel="stylesheet" href="/Users/bluseliu50/.agents/skills/html-ppt/assets/base.css" />
+  <link rel="stylesheet" href="./style.css" />
 </head>
-<body class="tpl-clawseries">
-<div class="deck">
-
-  <!-- ========== 1. COVER ========== -->
-  <section class="slide is-active cs-center">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">01 / 08</div>
-    <p class="cs-eyebrow">ROADSHOW / ZERO-HUMAN AI STUDIO</p>
-    <h1 class="cs-hero-title">CLAW<br>SERIES</h1>
-    <p class="cs-subtitle" style="margin-top:16px;font-size:22px;color:var(--fg)">零人AI短剧公司</p>
-    <p class="cs-tagline">彻底打通 AI 短剧自动化生产的最后一公里</p>
-    <div class="cs-grid-3 cs-mt-m" style="max-width:800px">
-      <div class="cs-metric"><span class="cs-metric-label">自动化程度</span><strong>100% 无人类介入</strong></div>
-      <div class="cs-metric"><span class="cs-metric-label">并发能力</span><strong>50集同步渲染</strong></div>
-      <div class="cs-metric"><span class="cs-metric-label">效率提升</span><strong>1小时 = 数月工作</strong></div>
-    </div>
-    <div class="notes">
-      <p>各位评委好，我是 ClawSeries 的创始人。</p>
-      <p>一句话介绍我们：<strong>零人 AI 短剧公司</strong>——不是又一个 AI 工具，而是一整套自动化制片工厂。</p>
-      <p>三个数字记住我们：100% 无人类介入、50 集同步渲染、1 小时完成过去一个团队数月的工作。</p>
-    </div>
-  </section>
-
-  <!-- ========== 2. 行业痛点 ========== -->
-  <section class="slide">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">02 / 08</div>
-    <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:28px">
-      <span class="cs-section-idx">01</span>
-      <div>
-        <h2 class="cs-title">2026年的制片悖论</h2>
-        <p style="margin:8px 0 0;color:var(--text-secondary)">数万家 AI 短剧公司，没有一家真正实现全自动化</p>
+<body class="tpl-clawseries-global">
+  <div class="deck">
+    <section class="slide is-active cover" data-title="Cover">
+      <div class="slide-grid"></div>
+      <div class="ambient ambient-a"></div>
+      <div class="ambient ambient-b"></div>
+      <p class="eyebrow">HACKATHON / GLOBAL SHORT DRAMA INFRASTRUCTURE</p>
+      <h1 class="hero-title">CLAW<br />SERIES</h1>
+      <p class="hero-subtitle">出海不是翻译，是工业化交付</p>
+      <p class="hero-copy">用零人 AI 制片工厂，把中国短剧的内容优势转化为全球化发行能力。</p>
+      <div class="metric-row">
+        <div class="metric-card"><span>全球短剧应用收入占比</span><strong>94.93%</strong></div>
+        <div class="metric-card"><span>2025E 海外内购收入</span><strong>$23.29B</strong></div>
+        <div class="metric-card"><span>核心本地化目标</span><strong>100% 重配音自动化</strong></div>
       </div>
-    </div>
-    <div class="cs-grid-2">
-      <div class="cs-card"><div class="cs-card-icon">⚡</div><h3>数万家「AI公司」的诞生</h3><p>它们引以为傲的「人工+AI」工作流，本身就是完全可以被 AI 彻底取代的。人类只是 AI 模型的「搬运工」。</p></div>
-      <div class="cs-card"><div class="cs-card-icon">🎬</div><h3>成熟的模型，原始的流水线</h3><p>大模型数秒生成电影级单镜头，但连成连贯短剧的做法依然是极其落后的「人工作坊」模式。</p></div>
-      <div class="cs-card"><div class="cs-card-icon">💀</div><h3>致命的「人类沟通成本」</h3><p>导演反复解释镜头意图；制片肉眼筛选废片；剪辑师手工逐帧对齐画面、配音和字幕。</p></div>
-      <div class="cs-card"><div class="cs-card-icon">🔗</div><h3>人类 = 最慢的「路由器」</h3><p>在高效 AI 节点之间，缓慢的人类操作、审片疲劳和无休止的返工确认，吞噬利润和创意。</p></div>
-    </div>
-    <div class="notes">
-      <p>先说行业背景。过去一年，全球涌现了数万家 AI 短剧公司。</p>
-      <p>但残酷的真相是：<strong>它们的工作流本身就是可以被 AI 完全取代的</strong>。</p>
-      <p>模型已经成熟了——数秒出电影级镜头。但把这些镜头连成一部剧？还是人工作坊。</p>
-      <p>导演要反复跟提示词师解释意图，制片要肉眼筛废片，剪辑师逐帧对齐。人类成了流水线上最慢的路由器。</p>
-    </div>
-  </section>
+      <div class="slide-number">01 / 08</div>
+      <aside class="notes">
+        开场我们要先把主题钉住：今天不是讲“又一个 AI 短剧工具”，而是讲出海。短剧出海已经证明中国厂商有内容和运营优势，全球短剧应用收入里，中国出海产品占到 94.93%。但真正卡住规模化的，不是有没有剧，而是能不能低成本、稳定地把一部中文短剧变成多语言、多地区、可投流的全球产品。ClawSeries 的定位，就是把这个过程做成自动化制片与本地化工厂。
+      </aside>
+    </section>
 
-  <!-- ========== 3. 我们的使命 ========== -->
-  <section class="slide cs-center">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">03 / 08</div>
-    <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:28px">
-      <span class="cs-section-idx">02</span>
-      <div style="text-align:left">
-        <h2 class="cs-title">我们的使命</h2>
-        <p style="margin:8px 0 0;color:var(--text-secondary)">用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议</p>
-      </div>
-    </div>
-    <div class="cs-mission" style="max-width:860px">
-      <div class="cs-mission-glow"></div>
-      <p><strong>ClawSeries 不研发底层视频大模型，<br>我们做全新的「自动化制片工厂」。</strong></p>
-    </div>
-    <p class="cs-subtitle cs-mt-m" style="max-width:720px;text-align:center">
-      将传统 AI 短剧公司中耗时耗力的<strong style="color:var(--fg)">五个核心岗位</strong>，<br>
-      完全替换为自主协作的智能体（Agents）。<br>
-      让「一句话生成百集短剧」从商业概念变成<strong style="color:var(--fg)">工业级交付</strong>。
-    </p>
-    <div class="notes">
-      <p>所以我们的使命很简单：<strong>把人从流水线上彻底拿掉</strong>。</p>
-      <p>我们不做模型——模型已经够好了。我们做的是把五个人类岗位替换成五个自主协作的 Agent。</p>
-      <p>关键词：毫秒级通信。导演的意图不再需要开会传达，Agent 之间共享全局上下文，零损耗。</p>
-    </div>
-  </section>
-
-  <!-- ========== 4. 五大 Agent ========== -->
-  <section class="slide">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">04 / 08</div>
-    <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:20px">
-      <span class="cs-section-idx">03</span>
-      <div>
-        <h2 class="cs-title">五大自主智能体架构</h2>
-        <p style="margin:8px 0 0;color:var(--text-secondary)">Pentagram of Agents</p>
-      </div>
-    </div>
-    <div class="cs-agent-list">
-      <div class="cs-agent">
-        <div class="cs-agent-num">🎯 01</div>
-        <div class="cs-agent-body">
-          <h4>项目总监</h4>
-          <div class="cs-agent-func">全局状态管理与流程控制</div>
-          <p>接收一句话指令，自动拆解数十集制片任务。实时监控进度，调度 API 负载，彻底取代人类制片人。</p>
+    <section class="slide" data-title="Market why now">
+      <div class="slide-grid"></div>
+      <div class="slide-head">
+        <span class="section-index">01</span>
+        <div>
+          <p class="eyebrow">WHY NOW</p>
+          <h2>短剧出海已经不是试水，而是主战场</h2>
+          <p class="section-subtitle">中国短剧的供给能力，正在遇到全球移动影视消费的结构性迁移。</p>
         </div>
       </div>
-      <div class="cs-agent">
-        <div class="cs-agent-num">🎬 02</div>
-        <div class="cs-agent-body">
-          <h4>总导演</h4>
-          <div class="cs-agent-func">剧本与戏剧张力控制</div>
-          <p>构建连贯世界观，自动设置每集悬念（Hook），确保长线剧情逻辑自洽。</p>
+      <div class="stat-wall">
+        <article class="big-stat accent-lilac"><strong>373.9亿</strong><span>2023 中国短剧市场规模，已超过国内电影票房总额的 50%</span></article>
+        <article class="big-stat accent-sky"><strong>3.7亿次</strong><span>2025 Q1 全球下载量，同比增长 6.2 倍</span></article>
+        <article class="big-stat accent-cyan"><strong>$1000亿</strong><span>2029 年全球短剧长期潜力预测</span></article>
+        <article class="big-stat accent-amber"><strong>133%</strong><span>2025E 全球累计内购收入同比增长</span></article>
+      </div>
+      <div class="callout-bar">结论：短剧下半场的核心竞争，不是“会不会拍”，而是“能不能全球化规模交付”。</div>
+      <div class="slide-number">02 / 08</div>
+      <aside class="notes">
+        这一页解决“为什么是现在”。短剧不是小众娱乐，它已经从边缘爆红进入全球扩散。国内市场 2023 年是 373.9 亿元，2025 年第一季度全球下载量 3.7 亿次，长期甚至被预测为千亿美金级别的移动影视市场。更重要的是，中国企业已经在这个赛道占据统治级位置。所以机会不是从零开始，而是把已经验证过的中国短剧生产和运营能力，系统性输出到海外。
+      </aside>
+    </section>
+
+    <section class="slide" data-title="Profit squeeze">
+      <div class="slide-grid"></div>
+      <div class="slide-head">
+        <span class="section-index">02</span>
+        <div>
+          <p class="eyebrow">STRUCTURAL PAIN</p>
+          <h2>利润被平台和投流吞噬，制作方只剩一条路</h2>
+          <p class="section-subtitle">当 ROI 生存线只有 1.1–1.2，生产成本不降，出海就无法规模化。</p>
         </div>
       </div>
-      <div class="cs-agent">
-        <div class="cs-agent-num">👁️ 03</div>
-        <div class="cs-agent-body">
-          <h4>视觉总监</h4>
-          <div class="cs-agent-func">视觉资产与一致性锚定</div>
-          <p>永久锁定角色脸部、服装与场景资产。确保从第1集到最后1集始终如一。</p>
+      <div class="split-layout">
+        <div class="card danger-card">
+          <span class="material-symbols-outlined card-icon">warning</span>
+          <h3>结构性利润压缩</h3>
+          <ul>
+            <li>头部平台抽成比例可高达 <strong>94%</strong></li>
+            <li>投流成本普遍占总票房 <strong>80%+</strong></li>
+            <li>多数项目生死线：ROI <strong>1.1–1.2</strong></li>
+            <li>80% 项目面临亏损压力</li>
+          </ul>
+        </div>
+        <div class="roi-diagram">
+          <div class="roi-ring"><span>票房</span><strong>100</strong></div>
+          <div class="roi-row"><span>平台 / 渠道</span><div><i style="width:94%"></i></div><b>94</b></div>
+          <div class="roi-row"><span>制作方剩余</span><div><i style="width:6%"></i></div><b>6</b></div>
+          <div class="roi-row"><span>投流黑洞</span><div><i style="width:80%"></i></div><b>80%+</b></div>
+          <p>AI 不是锦上添花，而是“剩下 6%”里的利润保卫战。</p>
         </div>
       </div>
-      <div class="cs-agent">
-        <div class="cs-agent-num">💡 04</div>
-        <div class="cs-agent-body">
-          <h4>提示词架构师</h4>
-          <div class="cs-agent-func">跨模型语义翻译</div>
-          <p>将文学分镜转化为引擎最优 Prompt 矩阵，自带「避坑指南」避免画面崩坏。</p>
+      <div class="slide-number">03 / 08</div>
+      <aside class="notes">
+        第二个关键点是利润结构。短剧看起来增长很快，但制作方并不轻松。平台抽成、渠道佣金、投流成本会把利润层层拿走。报告里提到，部分大型平台抽成最高到 94%，投流成本占总票房 80% 以上。也就是说，制作方真正能控制的空间非常小。所以我们不是为了炫技而做 AI，而是在一个利润极薄、高周转的行业里，用自动化把成本打下来，把项目从亏损边缘拉回来。
+      </aside>
+    </section>
+
+    <section class="slide" data-title="Global segments">
+      <div class="slide-grid"></div>
+      <div class="slide-head">
+        <span class="section-index">03</span>
+        <div>
+          <p class="eyebrow">GLOBAL MAP</p>
+          <h2>不同区域，不同变现逻辑；共同痛点是本地化</h2>
+          <p class="section-subtitle">北美/欧洲贡献高 ARPU，东南亚/拉美贡献流量与 IAA 增长。</p>
         </div>
       </div>
-      <div class="cs-agent">
-        <div class="cs-agent-num">⚡ 05</div>
-        <div class="cs-agent-body">
-          <h4>自动化剪辑师</h4>
-          <div class="cs-agent-func">音画压制与情感封装</div>
-          <p>基于多模态理解，删除多余片段，拼接分镜，添加 BGM 并对齐压制字幕。</p>
+      <div class="market-grid">
+        <article class="market-card accent-sky">
+          <span class="material-symbols-outlined card-icon">public</span>
+          <h3>北美 / 欧洲</h3>
+          <p>30–60 岁城市女性为主，偏好霸总、狼人、复仇等强情绪母题。</p>
+          <div class="market-kpi"><strong>$80</strong><span>月度 ARPU 可达</span></div>
+          <div class="market-kpi"><strong>$2B</strong><span>2024 年底北美年收入预估</span></div>
+        </article>
+        <article class="market-card accent-teal">
+          <span class="material-symbols-outlined card-icon">travel_explore</span>
+          <h3>东南亚 / 拉美</h3>
+          <p>流量高地，免费看剧 + 广告解锁正在适配当地消费能力。</p>
+          <div class="market-kpi"><strong>+60%</strong><span>下载量单季度涨幅</span></div>
+          <div class="market-kpi"><strong>24.7%</strong><span>IAA 下载占比跃升</span></div>
+        </article>
+      </div>
+      <div class="language-strip">
+        <span>EN</span><span>JP</span><span>ES</span><span>KR</span><span>FR</span><span>DE</span><span>PT</span><span>HI</span><span>CN</span><span>TH</span>
+      </div>
+      <div class="slide-number">04 / 08</div>
+      <aside class="notes">
+        出海不是单一市场。北美和欧洲是高净值市场，用户愿意为强情绪、强反转内容付费，ARPU 可以非常高；东南亚和拉美则是流量高地，IAA 广告模式增长很快。两个市场看起来不同，但共同的瓶颈都是本地化。不是把字幕翻译一下就结束，而是要把声音、语气、文化语境、投放素材都变成本地用户愿意相信的内容。
+      </aside>
+    </section>
+
+    <section class="slide" data-title="Localization bottleneck">
+      <div class="slide-grid"></div>
+      <div class="slide-head">
+        <span class="section-index">04</span>
+        <div>
+          <p class="eyebrow">BOTTLENECK</p>
+          <h2>“翻译剧”占 9:1，但机械生硬正在吃掉转化率</h2>
+          <p class="section-subtitle">出海成本的真正黑洞，是 100% 重配音与部分本地化重拍。</p>
         </div>
       </div>
-    </div>
-    <div class="notes">
-      <p>这是我们的核心架构——五个 Agent，各司其职。</p>
-      <p><strong>项目总监</strong>：接收一句话，拆解成数十集任务，调度所有 API。</p>
-      <p><strong>总导演</strong>：管剧本和悬念，确保剧情不崩。</p>
-      <p><strong>视觉总监</strong>：锁定角色长相，从第一集到最后一集不变脸。</p>
-      <p><strong>提示词架构师</strong>：把文学描述翻译成模型能理解的 Prompt。</p>
-      <p><strong>自动化剪辑师</strong>：剪辑、配乐、字幕，一步到位。</p>
-    </div>
-  </section>
+      <div class="contrast-flow">
+        <div class="flow-card bad">
+          <span class="material-symbols-outlined card-icon">close</span>
+          <h3>传统翻译剧</h3>
+          <p>字幕翻译、海外声优、人工审听、反复返工。哭腔变成平淡念白，怒吼变成朗读。</p>
+          <strong>单剧北美成本：$250K–$300K</strong>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-card good">
+          <span class="material-symbols-outlined card-icon">check</span>
+          <h3>AI 深度本地化</h3>
+          <p>声纹克隆保留角色声线，情绪一致性转换，自动生成多语言投放物料。</p>
+          <strong>目标：成本下降 70%+，周期从周到天</strong>
+        </div>
+      </div>
+      <div class="quote-panel">“出海不是语言替换，而是把文化折扣压到最低。”</div>
+      <div class="slide-number">05 / 08</div>
+      <aside class="notes">
+        这一页是我们最想强调的痛点。今天海外市场里，“翻译剧”占绝对多数，但用户很容易感受到机械、生硬和不真实。尤其短剧靠的是情绪爆发：哭、吵、复仇、反转。如果声音没有情绪，转化率就会掉。传统做法要找海外声优，甚至要重拍部分情节，北美单剧成本可能到 25 到 30 万美金。ClawSeries 要做的，是用声纹克隆和情绪一致性，把本地化变成自动化链路。
+      </aside>
+    </section>
 
-  <!-- ========== 5. 技术哲学 ========== -->
-  <section class="slide">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">05 / 08</div>
-    <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:28px">
-      <span class="cs-section-idx">04</span>
-      <div>
-        <h2 class="cs-title">核心技术哲学</h2>
-        <p style="margin:8px 0 0;color:var(--text-secondary)">Engineering Philosophy</p>
+    <section class="slide" data-title="ClawSeries solution">
+      <div class="slide-grid"></div>
+      <div class="slide-head">
+        <span class="section-index">05</span>
+        <div>
+          <p class="eyebrow">SOLUTION</p>
+          <h2>ClawSeries：面向出海的零人 AI 制片工厂</h2>
+          <p class="section-subtitle">从剧本、分镜、资产、视频到译制，统一在一个自动化流水线里完成。</p>
+        </div>
       </div>
-    </div>
-    <div class="cs-grid-3">
-      <div class="cs-philo">
-        <span class="cs-philo-icon">⚡</span>
-        <h3>零沟通损耗</h3>
-        <p>五个 Agent 共享一个全局上下文（Context），导演的意图可以 100% 无损传递给剪辑师，彻底消除人类职场中的沟通误解。</p>
+      <div class="pipeline">
+        <div class="pipe-step"><span class="material-symbols-outlined">edit_note</span><b>剧本</b><small>Hook / 世界观</small></div>
+        <div class="pipe-step"><span class="material-symbols-outlined">view_timeline</span><b>分镜</b><small>镜头矩阵</small></div>
+        <div class="pipe-step"><span class="material-symbols-outlined">palette</span><b>资产</b><small>角色一致性</small></div>
+        <div class="pipe-step"><span class="material-symbols-outlined">movie</span><b>视频</b><small>VectorEngine</small></div>
+        <div class="pipe-step"><span class="material-symbols-outlined">record_voice_over</span><b>译制</b><small>VoxCPM / 声纹</small></div>
+        <div class="pipe-step"><span class="material-symbols-outlined">ads_click</span><b>分发</b><small>多语言素材</small></div>
       </div>
-      <div class="cs-philo">
-        <span class="cs-philo-icon">🔧</span>
-        <h3>全自动质检自愈</h3>
-        <p>内置视觉审核逻辑。一旦发现素材存在逻辑错误（如多出一根手指），QC Agent 瞬间驳回并触发重练，全程无需人类介入。</p>
+      <div class="solution-grid">
+        <div class="mini-card"><strong>10x</strong><span>创作提速</span></div>
+        <div class="mini-card"><strong>-90%</strong><span>宣传物料成本</span></div>
+        <div class="mini-card"><strong>15天 → 3天</strong><span>制作周期压缩</span></div>
+        <div class="mini-card"><strong>50集</strong><span>并行渲染目标</span></div>
       </div>
-      <div class="cs-philo">
-        <span class="cs-philo-icon">🚀</span>
-        <h3>极致并发</h3>
-        <p>突破人类精力的物理极限，支持 50 集短剧同时进入并行渲染与剪辑工作流。</p>
-      </div>
-    </div>
-    <div class="notes">
-      <p>三个技术原则。</p>
-      <p><strong>零沟通损耗</strong>：五个 Agent 共享全局上下文，导演意图 100% 无损传递到剪辑师。不是优化沟通，是消灭沟通。</p>
-      <p><strong>全自动质检</strong>：多了根手指？QC Agent 自动驳回重练。不需要人类审片。</p>
-      <p><strong>极致并发</strong>：50 集同时渲染。人类一天审 3 集就累了，我们同时跑 50 集。</p>
-    </div>
-  </section>
+      <div class="slide-number">06 / 08</div>
+      <aside class="notes">
+        ClawSeries 的解决方案不是单点工具，而是一条完整流水线。我们先用 LLM 生成剧本和 Hook，再把剧本结构化成分镜；资产阶段解决角色一致性；视频阶段接入向量矩阵等视频生成服务；最后进入译制和分发，把声音、字幕、投放物料全部本地化。这样一来，出海不再是项目制外包，而是流水线能力。这个差异很关键：单点工具只能提效，流水线才能改变成本结构。
+      </aside>
+    </section>
 
-  <!-- ========== 6. 全球分发 ========== -->
-  <section class="slide">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">06 / 08</div>
-    <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:20px">
-      <span class="cs-section-idx">05</span>
-      <div>
-        <h2 class="cs-title">全球分发</h2>
-        <p style="margin:8px 0 0;color:var(--text-secondary)">IP跨国迁移 + 深度本地化</p>
+    <section class="slide" data-title="Recent demo progress">
+      <div class="slide-grid"></div>
+      <div class="slide-head">
+        <span class="section-index">06</span>
+        <div>
+          <p class="eyebrow">DEMO PROOF</p>
+          <h2>最近的系统进展：把“出海链路”做成可观察、可调试</h2>
+          <p class="section-subtitle">黑客松展示重点：不是只生成一个视频，而是能持续监控、复现和修正流水线。</p>
+        </div>
       </div>
-    </div>
-    <div class="cs-grid-2">
-      <div class="cs-card"><div class="cs-card-icon">🌎</div><h3>北美 / 欧洲</h3><p>30-60岁城市女性为主，偏好霸总、狼人、复仇等强情绪母题。ARPU极高，月度可达 <strong>$80</strong>。北美市场年收入突破 <strong>$2B</strong>。</p></div>
-      <div class="cs-card"><div class="cs-card-icon">🌏</div><h3>东南亚 / 拉美</h3><p>下载量单季度涨幅超 <strong>60%</strong>。DramaWave 等平台在东南亚实现 10 倍以上增长。IAA 模式崛起，占比从 4.7% 跃升至 <strong>24.7%</strong>。</p></div>
-      <div class="cs-card"><div class="cs-card-icon">💀</div><h3>传统出海的痛点</h3><p>「翻译剧」占 9:1 统治地位，但「机械生硬」是核心痛点。雇佣海外声优成本高昂，且丢失原剧的戏剧张力。</p></div>
-      <div class="cs-card"><div class="cs-card-icon">⚡</div><h3>ClawSeries 解决方案</h3><p>AI 声纹克隆（Voice Cloning）+ 表情同步技术，实现<strong>文化折扣最小化</strong>。保留角色独特声线与爆发情感。</p></div>
-    </div>
-    <div class="cs-lang-row cs-mt-s">
-      <span class="cs-lang">🇺🇸 EN</span><span class="cs-lang">🇯🇵 JP</span><span class="cs-lang">🇪🇸 ES</span>
-      <span class="cs-lang">🇰🇷 KR</span><span class="cs-lang">🇫🇷 FR</span><span class="cs-lang">🇩🇪 DE</span>
-      <span class="cs-lang">🇧🇷 PT</span><span class="cs-lang">🇮🇳 HI</span><span class="cs-lang">🇹🇭 TH</span>
-    </div>
-    <div class="notes">
-      <p>短剧是全球生意。北美 ARPU $80/月，市场 $2B。东南亚下载量季度涨 60%。</p>
-      <p>但传统出海的痛点是：翻译剧机械生硬，海外声优贵且丢失情感。</p>
-      <p>我们的方案：AI 声纹克隆 + 表情同步，保留原角色的声线和情感爆发力，一键全球上线。</p>
-    </div>
-  </section>
-
-  <!-- ========== 7. 商业形态 ========== -->
-  <section class="slide cs-center">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">07 / 08</div>
-    <div style="display:flex;gap:24px;align-items:flex-start;margin-bottom:28px">
-      <span class="cs-section-idx">06</span>
-      <div style="text-align:left">
-        <h2 class="cs-title">商业形态重构</h2>
-        <p style="margin:8px 0 0;color:var(--text-secondary)">Business Evolution</p>
+      <div class="progress-grid">
+        <article class="progress-card accent-cyan">
+          <span class="material-symbols-outlined card-icon">dashboard</span>
+          <h3>Video Tab 镜头级监控</h3>
+          <p>每个镜头一张近方形卡片，首帧、提示词、日志和状态统一可见。</p>
+        </article>
+        <article class="progress-card accent-sky">
+          <span class="material-symbols-outlined card-icon">auto_awesome_motion</span>
+          <h3>VectorEngine 自动视频</h3>
+          <p>首帧上传图床后传入向量矩阵，支持自动生成和手动逐镜头重跑。</p>
+        </article>
+        <article class="progress-card accent-amber">
+          <span class="material-symbols-outlined card-icon">graphic_eq</span>
+          <h3>VoxCPM 参考音频保留</h3>
+          <p>每段译制的原声参考切片保存在旁边，方便对比音色与情绪。</p>
+        </article>
+        <article class="progress-card accent-teal">
+          <span class="material-symbols-outlined card-icon">language</span>
+          <h3>多语言展示与出海叙事</h3>
+          <p>官网与 deck 统一强调全球发行，而不是单纯国内生产工具。</p>
+        </article>
       </div>
-    </div>
-    <div class="cs-mission" style="max-width:860px">
-      <div class="cs-mission-glow"></div>
-      <p>在 ClawSeries 的架构下，「短剧公司」不再是一个需要租赁场地、招聘数十名员工、每天开会确认的实体组织，而是一套部署在云端的<strong>自动化代码</strong>。</p>
-    </div>
-    <div class="cs-mt-l" style="text-align:center">
-      <span class="cs-final-stat">一句话</span>
-      <p class="cs-subtitle" style="margin-top:12px">= 过去一个团队<strong style="color:var(--fg)">数个月</strong>的制片工作</p>
-    </div>
-    <div class="notes">
-      <p>最后说商业形态。</p>
-      <p>在我们的架构下，短剧公司不再需要场地、不需要几十号人、不需要每天开会。它就是一套云端代码。</p>
-      <p><strong>一句话输入，一小时出片。</strong>这就是我们要做的事。</p>
-    </div>
-  </section>
+      <div class="slide-number">07 / 08</div>
+      <aside class="notes">
+        这一页连接到我们的实际 demo。最近系统里我们补了几个关键能力。第一是 Video Tab，镜头级任务可以被看见，首帧、prompt 和日志都能追踪。第二是向量矩阵的视频生成链路，解决了本地首帧不能直接传给云端的问题。第三是 VoxCPM 译制调试，参考音频切片会被保留，方便我们验证每段译文是否对应原视频同一时间段的声音。对黑客松来说，这些不是细节，而是证明我们在做可运营的生产系统。
+      </aside>
+    </section>
 
-  <!-- ========== 8. CLOSING ========== -->
-  <section class="slide cs-center">
-    <div class="cs-glow"></div>
-    <div class="cs-grid"></div>
-    <div class="cs-snum">08 / 08</div>
-    <blockquote class="cs-quote">用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议</blockquote>
-    <p class="cs-attribution">— ClawSeries 核心技术哲学</p>
-    <p class="cs-footer cs-mt-l">CLAWSERIES — 零人AI短剧公司 — 2026</p>
-    <div class="notes">
-      <p>感谢各位评委的时间。</p>
-      <p>我们相信，AI 短剧的最后一公里不是模型能力，而是自动化协作。ClawSeries 就是来解决这个问题的。</p>
-      <p>欢迎提问。</p>
-    </div>
-  </section>
-
-</div>
-<script src="/Users/bluseliu50/.agents/skills/html-ppt/assets/runtime.js"></script>
+    <section class="slide closing" data-title="Closing">
+      <div class="slide-grid"></div>
+      <div class="ambient ambient-a"></div>
+      <p class="eyebrow">CLOSING THESIS</p>
+      <h2>短剧出海的下半场：<br />技术即基石</h2>
+      <p class="closing-copy">谁先把本地化做成流水线，谁就能把中国 IP 的内容优势变成全球增长优势。</p>
+      <div class="closing-cards">
+        <div><span>01</span><strong>抓住全球增量</strong><p>2025E 海外内购收入 $23.29B，下载仍在高速扩散。</p></div>
+        <div><span>02</span><strong>守住利润底线</strong><p>用自动化抵消平台税与投流黑洞。</p></div>
+        <div><span>03</span><strong>跨越文化折扣</strong><p>用声纹、情绪和多语言物料完成深度本地化。</p></div>
+      </div>
+      <div class="final-line">ClawSeries = Global Short Drama Autopilot</div>
+      <div class="slide-number">08 / 08</div>
+      <aside class="notes">
+        最后一页回到我们的核心判断：短剧行业仍然是数字娱乐里回报率确定性最高、全球化潜力最强的赛道之一。但靠人力堆规模的时代已经结束。真正的机会，是把出海本地化做成一条可复制、可调试、可规模化的生产线。ClawSeries 想成为这条生产线的底座。我们不是把一个视频翻译成另一种语言，而是让一套中国 IP 可以持续、低成本、高质量地进入全球市场。谢谢大家。
+      </aside>
+    </section>
+  </div>
+  <script src="/Users/bluseliu50/.agents/skills/html-ppt/assets/runtime.js"></script>
 </body>
 </html>

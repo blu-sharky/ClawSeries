@@ -1,328 +1,258 @@
-const pptxgen = require("pptxgenjs");
+const pptxgen = require('pptxgenjs');
 
-// ===== Design tokens (matching website/styles.css) =====
-const BG      = "1F2228";
-const FG      = "FFFFFF";
-const DIM     = "B8BEC8";   // --text-secondary on dark
-const DIMMER  = "808890";   // --text-tertiary on dark
-const ACCENT  = "6366F1";   // --accent
-const SURFACE = "282D35";   // card bg
-const BORDER  = "3A3F48";   // card border
+const pptx = new pptxgen();
+pptx.defineLayout({ name: 'WIDE', width: 13.333, height: 7.5 });
+pptx.margin = 0;
+pptx.slideWidth = 13.333;
+pptx.slideHeight = 7.5;
+pptx.version = '1.0.0';
+pptx.subject = 'ClawSeries hackathon pitch';
+pptx.company = 'ClawSeries';
+pptx.author = 'ClawSeries';
+pptx.lang = 'zh-CN';
+const FONT_LATIN = 'Inter';
+const FONT_CJK = 'PingFang SC';
+const CJK_RE = /[\u3400-\u9FFF\uF900-\uFAFF]/;
 
-// Fonts — matching HTML deck (Inter + JetBrains Mono)
-const SANS = "Inter";
-const MONO = "JetBrains Mono";
+pptx.theme = { headFontFace: FONT_LATIN, bodyFontFace: FONT_CJK, lang: 'zh-CN' };
+pptx.layout = 'WIDE';
 
-// Factory functions — pptxgenjs mutates option objects
-const mkShadow  = () => ({ type: "outer", color: "000000", blur: 6, offset: 2, angle: 135, opacity: 0.25 });
-const mkCardFill = () => ({ color: SURFACE });
-const mkCardLine = () => ({ color: BORDER, pt: 1 });
+const ICON_PATHS = {
+  warning: 'ppt/icons/warning-white.png',
+  public: 'ppt/icons/public-white.png',
+  travel_explore: 'ppt/icons/travel_explore-white.png',
+  close: 'ppt/icons/close-white.png',
+  check: 'ppt/icons/check-white.png',
+  bolt: 'ppt/icons/bolt-white.png',
+  movie: 'ppt/icons/movie-white.png',
+  translate: 'ppt/icons/translate-white.png',
+  settings: 'ppt/icons/settings-white.png',
+};
 
-const pres = new pptxgen();
-pres.layout = "LAYOUT_16x9";
-pres.author = "ClawSeries";
-pres.title  = "ClawSeries — 路演 Deck";
+const C = {
+  bg: '1F2228',
+  bg2: '191C22',
+  fg: 'FFFFFF',
+  muted: 'B9BBC3',
+  faint: '7C7F8B',
+  border: '4A4D56',
+  surface: '2A2D34',
+  surface2: '30343D',
+  accent: '6366F1',
+  lilac: 'A78BFA',
+  sky: '60A5FA',
+  cyan: '22D3EE',
+  teal: '2DD4BF',
+  emerald: '34D399',
+  amber: 'FBBF24',
+  rose: 'FB7185'
+};
 
-function darkSlide() {
-  const s = pres.addSlide();
-  s.background = { color: BG };
-  return s;
+const W = 13.333;
+const H = 7.5;
+
+function addBg(slide, num) {
+  slide.background = { color: C.bg };
+  slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: H, fill: { color: C.bg }, line: { color: C.bg, transparency: 100 } });
+  for (let x = 0; x <= W; x += 0.64) {
+    slide.addShape(pptx.ShapeType.line, { x, y: 0, w: 0, h: H, line: { color: 'FFFFFF', transparency: 94, width: 0.35 } });
+  }
+  for (let y = 0; y <= H; y += 0.64) {
+    slide.addShape(pptx.ShapeType.line, { x: 0, y, w: W, h: 0, line: { color: 'FFFFFF', transparency: 94, width: 0.35 } });
+  }
+  slide.addShape(pptx.ShapeType.rect, { x: 10.95, y: -0.03, w: 2.38, h: 0.50, fill: { color: C.accent, transparency: 68 }, line: { color: C.accent, transparency: 100 } });
+  slide.addShape(pptx.ShapeType.rect, { x: -0.12, y: 7.03, w: 1.62, h: 0.045, fill: { color: C.accent }, line: { color: C.accent, transparency: 100 } });
+  slide.addShape(pptx.ShapeType.arc, { x: -0.72, y: 5.48, w: 2.45, h: 2.45, line: { color: C.cyan, transparency: 100 }, fill: { color: C.cyan, transparency: 92 } });
+  slide.addText(num, { x: 11.72, y: 7.02, w: 0.95, h: 0.18, margin: 0, fontFace: 'Inter', fontSize: 7.5, color: C.faint, align: 'right' });
 }
 
-function slideNum(s, n) {
-  s.addText(`0${n} / 08`, {
-    x: 8.5, y: 0.25, w: 1.2, h: 0.25,
-    fontSize: 10, fontFace: MONO, color: DIMMER, align: "right",
+function resolveFont(s, opts = {}) {
+  if (opts.fontFace) return opts.fontFace;
+  return CJK_RE.test(String(s)) ? FONT_CJK : FONT_LATIN;
+}
+
+function text(slide, s, x, y, w, h, opts = {}) {
+  slide.addText(s, {
+    x, y, w, h,
+    margin: opts.margin ?? 0,
+    fit: 'shrink',
+    fontFace: resolveFont(s, opts),
+    fontSize: opts.size || 18,
+    color: opts.color || C.fg,
+    bold: opts.bold || false,
+    valign: opts.valign || 'top',
+    align: opts.align || 'left',
+    charSpacing: opts.charSpacing || 0,
+    breakLine: opts.breakLine,
+    paraSpaceAfterPt: opts.paraSpaceAfterPt || 0,
   });
 }
 
-function sectionHead(s, idx, title, subtitle, y) {
-  y = y || 0.5;
-  s.addText(idx, {
-    x: 0.6, y, w: 0.6, h: 0.5,
-    fontSize: 24, fontFace: MONO, color: DIMMER, margin: 0,
-  });
-  s.addText(title, {
-    x: 1.3, y, w: 7, h: 0.5,
-    fontSize: 28, fontFace: SANS, color: FG, bold: false, margin: 0,
-  });
-  if (subtitle) {
-    s.addText(subtitle, {
-      x: 1.3, y: y + 0.45, w: 7, h: 0.3,
-      fontSize: 13, fontFace: SANS, color: DIM, margin: 0,
-    });
+function kicker(slide, s, x, y, w = 8) {
+  text(slide, s, x, y, w, 0.22, { size: 8.5, color: C.muted, charSpacing: 2 });
+}
+
+function title(slide, s, x, y, w, h = 1.25) {
+  text(slide, s, x, y, w, h, { size: 32, color: C.fg });
+}
+
+function sectionHead(slide, idx, kickerText, titleText, subtitle) {
+  text(slide, idx, 0.62, 0.48, 0.55, 0.35, { size: 16, color: C.faint });
+  kicker(slide, kickerText, 1.32, 0.48, 8.6);
+  title(slide, titleText, 1.32, 0.86, 10.8, 0.92);
+  text(slide, subtitle, 1.32, 1.88, 9.8, 0.33, { size: 12.5, color: C.muted });
+}
+
+
+function iconBadge(slide, x, y, accent, icon = '', tag = '') {
+  slide.addShape(pptx.ShapeType.roundRect, { x, y, w: 0.96, h: 0.29, rectRadius: 0.05, fill: { color: accent, transparency: 70 }, line: { color: accent, transparency: 18, width: 0.7 } });
+  slide.addShape(pptx.ShapeType.roundRect, { x: x + 0.04, y: y + 0.035, w: 0.22, h: 0.22, rectRadius: 0.04, fill: { color: accent, transparency: 10 }, line: { color: 'FFFFFF', transparency: 72, width: 0.35 } });
+  if (icon && ICON_PATHS[icon]) {
+    slide.addImage({ path: ICON_PATHS[icon], x: x + 0.072, y: y + 0.066, w: 0.15, h: 0.15 });
+  }
+  if (tag) text(slide, tag, x + 0.31, y + 0.082, 0.58, 0.12, { fontFace: FONT_LATIN, size: 6.8, color: C.fg, align: 'center', charSpacing: 0.5 });
+}
+
+
+function card(slide, x, y, w, h, heading, body, accent = C.cyan, tag = '', icon = '') {
+  slide.addShape(pptx.ShapeType.rect, { x, y, w, h, fill: { color: C.surface, transparency: 4 }, line: { color: C.border, width: 0.75 }, shadow: { type: 'outer', color: '000000', blur: 1.2, offset: 1, angle: 45, opacity: 0.10 } });
+  slide.addShape(pptx.ShapeType.rect, { x, y, w: 0.045, h, fill: { color: accent, transparency: 0 }, line: { color: accent, transparency: 100 } });
+  if (tag || icon) iconBadge(slide, x + 0.18, y + 0.16, accent, icon, tag);
+  const headY = tag || icon ? y + 0.62 : y + 0.32;
+  text(slide, heading, x + 0.22, headY, w - 0.44, 0.34, { size: 15.5, color: C.fg });
+  text(slide, body, x + 0.22, headY + 0.46, w - 0.44, h - ((tag || icon) ? 1.14 : 0.85), { size: 10.2, color: C.muted });
+}
+
+function statCard(slide, x, y, w, h, value, label, accent, opts = {}) {
+  slide.addShape(pptx.ShapeType.rect, { x, y, w, h, fill: { color: C.surface, transparency: 3 }, line: { color: C.border, width: 0.75 } });
+  slide.addShape(pptx.ShapeType.rect, { x: x + 0.18, y: y + 0.16, w: 0.48, h: 0.035, fill: { color: accent }, line: { color: accent, transparency: 100 } });
+  if (h <= 1.05) {
+    text(slide, label, x + 0.18, y + 0.20, w - 0.36, 0.22, { size: opts.labelSize || 7.8, color: C.muted });
+    text(slide, value, x + 0.18, y + 0.52, w - 0.36, h - 0.62, { size: opts.valueSize || 27, color: accent });
+  } else {
+    text(slide, value, x + 0.20, y + 0.38, w - 0.4, 0.72, { size: opts.valueSize || 32, color: accent });
+    text(slide, label, x + 0.22, y + 1.30, w - 0.44, h - 1.48, { size: opts.labelSize || 10.2, color: C.muted });
   }
 }
 
-function card(s, x, y, w, h, icon, title, body) {
-  s.addShape(pres.shapes.RECTANGLE, {
-    x, y, w, h, fill: mkCardFill(), line: mkCardLine(),
-  });
-  let ty = y + 0.12;
-  if (icon) {
-    s.addText(icon, { x: x + 0.15, y: ty, w: 0.5, h: 0.4, fontSize: 20, margin: 0 });
-    ty += 0.38;
-  }
-  s.addText(title, {
-    x: x + 0.15, y: ty, w: w - 0.3, h: 0.32,
-    fontSize: 14, fontFace: SANS, color: FG, bold: false, margin: 0,
-  });
-  s.addText(body, {
-    x: x + 0.15, y: ty + 0.32, w: w - 0.3, h: h - (ty - y) - 0.45,
-    fontSize: 11, fontFace: SANS, color: DIM, valign: "top", margin: 0,
-    lineSpacingMultiple: 1.3,
-  });
+function pill(slide, s, x, y, w, accent) {
+  slide.addShape(pptx.ShapeType.roundRect, { x, y, w, h: 0.32, rectRadius: 0.06, fill: { color: accent, transparency: 88 }, line: { color: accent, transparency: 40, width: 0.5 } });
+  text(slide, s, x, y + 0.095, w, 0.12, { size: 7.2, color: accent, align: 'center', charSpacing: 0.7 });
 }
 
-// ============ 1. COVER ============
+function note(slide, s) {
+  slide.addNotes(s);
+}
+
+async function main() {
+
 {
-  const s = darkSlide();
-  slideNum(s, 1);
-  s.addText("ROADSHOW / ZERO-HUMAN AI STUDIO", {
-    x: 0.5, y: 0.7, w: 9, h: 0.3,
-    fontSize: 10, fontFace: MONO, color: DIMMER, align: "center",
-    charSpacing: 2,
-  });
-  s.addText("CLAWSERIES", {
-    x: 0.5, y: 1.2, w: 9, h: 1.1,
-    fontSize: 60, fontFace: MONO, color: FG, align: "center",
-    charSpacing: 8, bold: false,
-  });
-  s.addText("零人AI短剧公司", {
-    x: 0.5, y: 2.25, w: 9, h: 0.45,
-    fontSize: 20, fontFace: SANS, color: FG, align: "center",
-  });
-  s.addText("彻底打通 AI 短剧自动化生产的最后一公里", {
-    x: 0.5, y: 2.7, w: 9, h: 0.35,
-    fontSize: 12, fontFace: MONO, color: ACCENT, align: "center",
-    charSpacing: 2,
-  });
-  // Metrics
-  const ms = [
-    ["自动化程度", "100% 无人类介入"],
-    ["并发能力", "50集同步渲染"],
-    ["效率提升", "1小时 = 数月工作"],
-  ];
-  ms.forEach(([label, val], i) => {
-    const mx = 1.3 + i * 2.6;
-    s.addShape(pres.shapes.RECTANGLE, {
-      x: mx, y: 3.5, w: 2.3, h: 0.85,
-      fill: mkCardFill(), line: mkCardLine(),
-    });
-    s.addText(label, {
-      x: mx + 0.12, y: 3.55, w: 2.06, h: 0.25,
-      fontSize: 9, fontFace: MONO, color: DIMMER, charSpacing: 1.5, margin: 0,
-    });
-    s.addText(val, {
-      x: mx + 0.12, y: 3.82, w: 2.06, h: 0.35,
-      fontSize: 13, fontFace: SANS, color: FG, margin: 0,
-    });
-  });
-  s.addNotes("各位评委好。一句话介绍：零人 AI 短剧公司。100% 无人类介入、50 集同步渲染、1 小时完成数月工作。");
+  const s = pptx.addSlide(); addBg(s, '01 / 08');
+  kicker(s, 'HACKATHON / GLOBAL SHORT DRAMA INFRASTRUCTURE', 2.72, 0.92, 8.2);
+  text(s, 'CLAW\nSERIES', 3.83, 1.27, 5.7, 2.18, { size: 64, color: C.fg, align: 'center' });
+  text(s, '出海不是翻译，是工业化交付', 2.85, 3.70, 7.65, 0.42, { size: 21, color: C.fg, align: 'center' });
+  text(s, '用零人 AI 制片工厂，把中国短剧的内容优势转化为全球化发行能力。', 2.60, 4.20, 8.12, 0.34, { size: 13.3, color: C.muted, align: 'center' });
+  statCard(s, 2.65, 5.22, 2.7, 0.98, '94.93%', '全球短剧应用收入占比', C.lilac);
+  statCard(s, 5.58, 5.22, 2.7, 0.98, '$23.29B', '2025E 海外内购收入', C.sky);
+  statCard(s, 8.51, 5.22, 2.7, 0.98, '100%', '核心本地化目标：重配音自动化', C.cyan);
+  note(s, '开场强调：ClawSeries 不是又一个 AI 短剧工具，而是面向出海的自动化制片与本地化工厂。');
 }
 
-// ============ 2. 行业痛点 ============
 {
-  const s = darkSlide();
-  slideNum(s, 2);
-  sectionHead(s, "01", "2026年的制片悖论", "数万家 AI 短剧公司，没有一家真正实现全自动化");
-  const cs = [
-    ["⚡", "数万家「AI公司」的诞生", "「人工+AI」工作流本身就是完全可以被 AI 彻底取代的。人类只是搬运工。"],
-    ["🎬", "成熟的模型，原始的流水线", "大模型数秒生成电影级镜头，但连成短剧仍是「人工作坊」模式。"],
-    ["💀", "致命的「人类沟通成本」", "导演反复解释意图；制片肉眼筛片；剪辑师手工逐帧对齐。"],
-    ["🔗", "人类 = 最慢的「路由器」", "审片疲劳和无休止的返工确认，吞噬利润和创意。"],
-  ];
-  cs.forEach(([icon, t, b], i) => {
-    const cx = 0.5 + (i % 2) * 4.6;
-    const cy = 1.45 + Math.floor(i / 2) * 1.75;
-    card(s, cx, cy, 4.3, 1.55, icon, t, b);
-  });
-  s.addNotes("行业背景：模型已成熟，但人类是流水线上最慢的路由器。数万家公司本质是搬运工。");
+  const s = pptx.addSlide(); addBg(s, '02 / 08');
+  sectionHead(s, '01', 'WHY NOW', '短剧出海已经不是试水，而是主战场', '中国短剧的供给能力，正在遇到全球移动影视消费的结构性迁移。');
+  statCard(s, 0.78, 2.62, 2.86, 2.20, '373.9亿', '2023 中国短剧市场规模，已经超过国内电影票房总额 50%。', C.lilac, { valueSize: 29 });
+  statCard(s, 3.84, 2.62, 2.86, 2.20, '3.7亿次', '2025 Q1 全球下载量，同比增长 6.2 倍，流量仍在扩张。', C.sky, { valueSize: 29 });
+  statCard(s, 6.90, 2.62, 2.86, 2.20, '$100B', '2029 全球短剧长期潜力预测，出海空间远大于单一国内市场。', C.cyan, { valueSize: 31 });
+  statCard(s, 9.96, 2.62, 2.86, 2.20, '+133%', '2025E 全球累计内购收入同比增长，付费模型已经被验证。', C.amber, { valueSize: 31 });
+  s.addShape(pptx.ShapeType.rect, { x: 1.15, y: 5.55, w: 11.0, h: 0.62, fill: { color: C.accent, transparency: 84 }, line: { color: C.border, width: 0.75 } });
+  text(s, '结论：下半场的核心竞争，不是“会不会拍”，而是“能不能全球化规模交付”。', 1.35, 5.73, 10.6, 0.26, { size: 14, color: C.fg, align: 'center' });
+  note(s, '短剧出海进入主战场。中国公司已经证明内容和运营优势，下一步是规模交付。');
 }
 
-// ============ 3. 使命 ============
 {
-  const s = darkSlide();
-  slideNum(s, 3);
-  sectionHead(s, "02", "我们的使命", "用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议");
-  // Mission box
-  s.addShape(pres.shapes.RECTANGLE, {
-    x: 1.2, y: 1.6, w: 7.6, h: 1.0,
-    fill: { color: "252840" }, line: { color: "3D4070", pt: 1 },
+  const s = pptx.addSlide(); addBg(s, '03 / 08');
+  sectionHead(s, '02', 'STRUCTURAL PAIN', '利润被平台和投流吞噬，制作方只剩一条路', '当 ROI 生存线只有 1.1–1.2，生产成本不降，出海就无法规模化。');
+  card(s, 0.95, 2.55, 5.10, 3.60, '结构性利润压缩', '平台抽成比例可高达 94%\n投流成本普遍占总票房 80%+\n多数项目生死线：ROI 1.1–1.2\n80% 项目面临亏损压力', C.rose, 'RISK', 'warning');
+  s.addShape(pptx.ShapeType.rect, { x: 6.55, y: 2.55, w: 5.75, h: 3.60, fill: { color: C.surface, transparency: 3 }, line: { color: C.border, width: 0.75 } });
+  text(s, '票房 100 的分配压力', 6.85, 2.86, 4.5, 0.32, { size: 17, color: C.fg });
+  const rows = [['平台 / 渠道', 94, '94'], ['制作方剩余', 6, '6'], ['投流黑洞', 80, '80%+']];
+  rows.forEach((r, i) => {
+    const y = 3.45 + i * 0.62;
+    text(s, r[0], 6.85, y, 1.3, 0.2, { size: 8.5, color: C.muted });
+    s.addShape(pptx.ShapeType.rect, { x: 8.35, y: y + 0.05, w: 2.65, h: 0.09, fill: { color: 'FFFFFF', transparency: 90 }, line: { color: 'FFFFFF', transparency: 100 } });
+    s.addShape(pptx.ShapeType.rect, { x: 8.35, y: y + 0.05, w: 2.65 * r[1] / 100, h: 0.09, fill: { color: C.rose }, line: { color: C.rose, transparency: 100 } });
+    text(s, r[2], 11.2, y, 0.55, 0.18, { size: 9, color: C.fg });
   });
-  s.addShape(pres.shapes.RECTANGLE, {
-    x: 1.2, y: 1.6, w: 7.6, h: 1.0,
-    fill: { color: ACCENT, transparency: 92 },
-  });
-  s.addText([
-    { text: "ClawSeries 不研发底层视频大模型，", options: { breakLine: true, bold: true } },
-    { text: "我们做全新的「自动化制片工厂」。", options: { bold: true } },
-  ], {
-    x: 1.4, y: 1.65, w: 7.2, h: 0.9,
-    fontSize: 18, fontFace: SANS, color: FG,
-    align: "center", valign: "middle", lineSpacingMultiple: 1.5,
-  });
-  s.addText([
-    { text: "将传统 AI 短剧公司中耗时耗力的五个核心岗位，", options: { breakLine: true } },
-    { text: "完全替换为自主协作的智能体（Agents）。", options: { breakLine: true } },
-    { text: "让「一句话生成百集短剧」从商业概念变成工业级交付。" },
-  ], {
-    x: 1.5, y: 2.85, w: 7, h: 1.0,
-    fontSize: 14, fontFace: SANS, color: DIM,
-    align: "center", lineSpacingMultiple: 1.5,
-  });
-  s.addNotes("我们不做模型，做工厂。五个人类岗位替换成五个 Agent，毫秒级通信，零损耗。");
+  text(s, 'AI 不是锦上添花，而是“剩下 6%”里的利润保卫战。', 6.85, 5.48, 5.0, 0.34, { size: 13.5, color: C.muted, align: 'center' });
+  note(s, '利润结构决定了 AI 必须做成本改造，而不是单纯做创意辅助。');
 }
 
-// ============ 4. 五大 Agent ============
 {
-  const s = darkSlide();
-  slideNum(s, 4);
-  sectionHead(s, "03", "五大自主智能体架构", "Pentagram of Agents");
-  const agents = [
-    ["🎯 01", "项目总监", "全局状态管理与流程控制", "接收一句话指令，自动拆解数十集制片任务，实时监控进度。"],
-    ["🎬 02", "总导演", "剧本与戏剧张力控制", "构建连贯世界观，自动设置每集悬念，确保剧情逻辑自洽。"],
-    ["👁️ 03", "视觉总监", "视觉资产与一致性锚定", "永久锁定角色脸部、服装与场景资产，确保始终如一。"],
-    ["💡 04", "提示词架构师", "跨模型语义翻译", "将文学分镜转化为引擎最优 Prompt 矩阵，避免画面崩坏。"],
-    ["⚡ 05", "自动化剪辑师", "音画压制与情感封装", "删除多余片段，拼接分镜，添加 BGM 并对齐压制字幕。"],
-  ];
-  agents.forEach(([num, name, func, desc], i) => {
-    const ay = 1.4 + i * 0.76;
-    // Row bg
-    s.addShape(pres.shapes.RECTANGLE, {
-      x: 0.5, y: ay, w: 9, h: 0.66,
-      fill: mkCardFill(), line: mkCardLine(),
-    });
-    s.addText(num, {
-      x: 0.6, y: ay + 0.05, w: 0.8, h: 0.56,
-      fontSize: 16, fontFace: MONO, color: ACCENT, valign: "middle", margin: 0,
-    });
-    s.addText(name, {
-      x: 1.5, y: ay + 0.02, w: 1.8, h: 0.32,
-      fontSize: 14, fontFace: SANS, color: FG, margin: 0,
-    });
-    s.addText(func, {
-      x: 1.5, y: ay + 0.34, w: 2.5, h: 0.25,
-      fontSize: 9, fontFace: MONO, color: DIMMER, charSpacing: 0.8, margin: 0,
-    });
-    s.addText(desc, {
-      x: 4.2, y: ay + 0.05, w: 5.1, h: 0.56,
-      fontSize: 11, fontFace: SANS, color: DIM, valign: "middle", margin: 0,
-    });
-  });
-  s.addNotes("五个 Agent：项目总监、总导演、视觉总监、提示词架构师、自动化剪辑师。各司其职，毫秒级协作。");
+  const s = pptx.addSlide(); addBg(s, '04 / 08');
+  sectionHead(s, '03', 'GLOBAL MAP', '不同区域，不同变现逻辑；共同痛点是本地化', '北美/欧洲贡献高 ARPU，东南亚/拉美贡献流量与 IAA 增长。');
+  card(s, 0.85, 2.56, 5.65, 3.25, '北美 / 欧洲', '30–60 岁城市女性为主，偏好霸总、狼人、复仇等强情绪母题。\n\n$80 月度 ARPU 可达\n$2B 2024 年底北美年收入预估', C.sky, 'ARPU', 'public');
+  card(s, 6.83, 2.56, 5.65, 3.25, '东南亚 / 拉美', '流量高地，免费看剧 + 广告解锁正在适配当地消费能力。\n\n+60% 下载量单季度涨幅\n24.7% IAA 下载占比跃升', C.teal, 'IAA', 'travel_explore');
+  ['EN', 'JP', 'ES', 'KR', 'FR', 'DE', 'PT', 'HI', 'CN', 'TH'].forEach((lang, i) => pill(s, lang, 2.28 + i * 0.86, 6.24, 0.54, [C.lilac, C.sky, C.cyan, C.teal, C.amber][i % 5]));
+  note(s, '两个区域逻辑不同，但共同瓶颈都是本地化：声音、语气、文化语境和投放素材。');
 }
 
-// ============ 5. 技术哲学 ============
 {
-  const s = darkSlide();
-  slideNum(s, 5);
-  sectionHead(s, "04", "核心技术哲学", "Engineering Philosophy");
-  const ps = [
-    ["⚡", "零沟通损耗", "五个 Agent 共享全局上下文，\n导演意图 100% 无损传递给剪辑师。"],
-    ["🔧", "全自动质检自愈", "发现素材逻辑错误，\nQC Agent 瞬间驳回并触发重练。"],
-    ["🚀", "极致并发", "突破人类精力极限，\n50 集短剧同时并行渲染与剪辑。"],
-  ];
-  ps.forEach(([icon, title, desc], i) => {
-    const px = 0.5 + i * 3.15;
-    s.addShape(pres.shapes.RECTANGLE, {
-      x: px, y: 1.5, w: 2.85, h: 2.8,
-      fill: mkCardFill(), line: mkCardLine(),
-    });
-    s.addText(icon, {
-      x: px, y: 1.7, w: 2.85, h: 0.55,
-      fontSize: 32, align: "center", margin: 0,
-    });
-    s.addText(title, {
-      x: px + 0.15, y: 2.3, w: 2.55, h: 0.4,
-      fontSize: 16, fontFace: SANS, color: FG, align: "center", margin: 0,
-    });
-    s.addText(desc, {
-      x: px + 0.15, y: 2.75, w: 2.55, h: 1.3,
-      fontSize: 12, fontFace: SANS, color: DIM,
-      align: "center", valign: "top", lineSpacingMultiple: 1.4, margin: 0,
-    });
-  });
-  s.addNotes("三个原则：零损耗（共享上下文）、自愈（自动质检重练）、极致并发（50集同时跑）。");
+  const s = pptx.addSlide(); addBg(s, '05 / 08');
+  sectionHead(s, '04', 'BOTTLENECK', '“翻译剧”占 9:1，但机械生硬正在吃掉转化率', '出海成本的真正黑洞，是 100% 重配音与部分本地化重拍。');
+  card(s, 0.95, 2.64, 4.95, 2.95, '传统翻译剧', '字幕翻译、海外声优、人工审听、反复返工。哭腔变成平淡念白，怒吼变成朗读。\n\n单剧北美成本：$250K–$300K', C.rose, 'OLD', 'close');
+  text(s, '→', 6.18, 3.82, 0.7, 0.55, { size: 34, color: C.accent, align: 'center' });
+  card(s, 7.05, 2.64, 4.95, 2.95, 'AI 深度本地化', '声纹克隆保留角色声线，情绪一致性转换，自动生成多语言投放物料。\n\n目标：成本下降 70%+，周期从周到天', C.emerald, 'AI', 'bolt');
+  s.addShape(pptx.ShapeType.rect, { x: 2.0, y: 6.02, w: 9.35, h: 0.55, fill: { color: C.accent, transparency: 84 }, line: { color: C.border, width: 0.75 } });
+  text(s, '出海不是语言替换，而是把文化折扣压到最低。', 2.2, 6.19, 8.95, 0.22, { size: 14, color: C.fg, align: 'center' });
+  note(s, '翻译剧占多数，但机械声音会伤害转化率。关键是把声纹、情绪、口型和投放素材都自动化。');
 }
 
-// ============ 6. 全球分发 ============
 {
-  const s = darkSlide();
-  slideNum(s, 6);
-  sectionHead(s, "05", "全球分发", "IP跨国迁移 + 深度本地化");
-  const ms = [
-    ["🌎", "北美 / 欧洲", "ARPU $80/月，市场 $2B+\n霸总、狼人、复仇等强情绪母题"],
-    ["🌏", "东南亚 / 拉美", "下载量 +60% QoQ\nIAA 占比 4.7% → 24.7%"],
-    ["💀", "传统出海痛点", "「翻译剧」机械生硬\n海外声优贵且丢失戏剧张力"],
-    ["⚡", "ClawSeries 方案", "AI 声纹克隆 + 表情同步\n文化折扣最小化"],
-  ];
-  ms.forEach(([icon, t, b], i) => {
-    const cx = 0.5 + (i % 2) * 4.6;
-    const cy = 1.45 + Math.floor(i / 2) * 1.65;
-    card(s, cx, cy, 4.3, 1.45, icon, t, b);
+  const s = pptx.addSlide(); addBg(s, '06 / 08');
+  sectionHead(s, '05', 'SOLUTION', 'ClawSeries：面向出海的零人 AI 制片工厂', '从剧本、分镜、资产、视频到译制，统一在一个自动化流水线里完成。');
+  const steps = [['剧本','HOOK'], ['分镜','SHOT'], ['资产','ASSET'], ['视频','VECTOR'], ['译制','VOX'], ['分发','GLOBAL']];
+  steps.forEach((st, i) => {
+    const x = 0.75 + i * 2.04;
+    s.addShape(pptx.ShapeType.rect, { x, y: 2.74, w: 1.75, h: 1.48, fill: { color: C.surface, transparency: 3 }, line: { color: C.border, width: 0.75 } });
+    s.addShape(pptx.ShapeType.rect, { x, y: 2.74, w: 1.75, h: 0.055, fill: { color: [C.lilac, C.sky, C.cyan, C.teal, C.amber, C.rose][i] }, line: { color: [C.lilac, C.sky, C.cyan, C.teal, C.amber, C.rose][i], transparency: 100 } });
+    text(s, st[0], x + 0.15, 3.00, 1.45, 0.28, { size: 15, color: C.fg, align: 'center' });
+    text(s, st[1], x + 0.15, 3.47, 1.45, 0.2, { size: 8.5, color: C.muted, align: 'center', charSpacing: 1.2 });
   });
-  s.addText("🇺🇸 EN   🇯🇵 JP   🇪🇸 ES   🇰🇷 KR   🇫🇷 FR   🇩🇪 DE   🇧🇷 PT   🇮🇳 HI   🇹🇭 TH", {
-    x: 0.5, y: 4.85, w: 9, h: 0.3,
-    fontSize: 11, fontFace: MONO, color: DIMMER, align: "center",
-  });
-  s.addNotes("北美 ARPU $80/月，市场 $2B。东南亚下载量季度涨 60%。我们用 AI 声纹克隆解决翻译剧痛点。");
+  statCard(s, 1.10, 5.02, 2.55, 0.88, '10x', '创作提速', C.cyan, { valueSize: 25 });
+  statCard(s, 3.92, 5.02, 2.55, 0.88, '-90%', '宣传物料成本', C.amber, { valueSize: 25 });
+  statCard(s, 6.74, 5.02, 2.55, 0.88, '15→3天', '制作周期压缩', C.teal, { valueSize: 24 });
+  statCard(s, 9.56, 5.02, 2.55, 0.88, '50集', '并行渲染目标', C.lilac, { valueSize: 25 });
+  note(s, 'ClawSeries 是完整流水线，不是单点工具。流水线才能改变成本结构。');
 }
 
-// ============ 7. 商业形态 ============
 {
-  const s = darkSlide();
-  slideNum(s, 7);
-  sectionHead(s, "06", "商业形态重构", "Business Evolution");
-  s.addShape(pres.shapes.RECTANGLE, {
-    x: 1.0, y: 1.6, w: 8, h: 1.0,
-    fill: { color: "252840" }, line: { color: "3D4070", pt: 1 },
-  });
-  s.addText("在 ClawSeries 的架构下，「短剧公司」不再是一个需要租赁场地、招聘数十名员工的实体组织，而是一套部署在云端的自动化代码。", {
-    x: 1.2, y: 1.65, w: 7.6, h: 0.9,
-    fontSize: 14, fontFace: SANS, color: DIM,
-    align: "center", valign: "middle", lineSpacingMultiple: 1.5,
-  });
-  s.addText("一句话", {
-    x: 0.5, y: 3.0, w: 9, h: 0.8,
-    fontSize: 54, fontFace: MONO, color: ACCENT, align: "center",
-  });
-  s.addText("= 过去一个团队数个月的制片工作", {
-    x: 0.5, y: 3.75, w: 9, h: 0.45,
-    fontSize: 18, fontFace: SANS, color: DIM, align: "center",
-  });
-  s.addNotes("短剧公司变成云端代码。一句话输入，一小时出片。");
+  const s = pptx.addSlide(); addBg(s, '07 / 08');
+  sectionHead(s, '06', 'DEMO PROOF', '最近的系统进展：把“出海链路”做成可观察、可调试', '黑客松展示重点：不是只生成一个视频，而是能持续监控、复现和修正流水线。');
+  card(s, 0.85, 2.50, 5.72, 1.45, 'Video Tab 镜头级监控', '每个镜头一张近方形卡片，首帧、提示词、日志和状态统一可见。', C.cyan, 'UI', 'settings');
+  card(s, 6.82, 2.50, 5.72, 1.45, 'VectorEngine 自动视频', '首帧上传图床后传入向量矩阵，支持自动生成和手动逐镜头重跑。', C.sky, 'VID', 'movie');
+  card(s, 0.85, 4.26, 5.72, 1.45, 'VoxCPM 参考音频保留', '每段译制的原声参考切片保存在旁边，方便对比音色与情绪。', C.amber, 'DUB', 'translate');
+  card(s, 6.82, 4.26, 5.72, 1.45, '多语言展示与出海叙事', '官网与 deck 统一强调全球发行，而不是单纯国内生产工具。', C.teal, 'I18N', 'public');
+  note(s, '这些进展证明我们在做可运营、可调试的生产系统，而不是一次性 demo。');
 }
 
-// ============ 8. CLOSING ============
 {
-  const s = darkSlide();
-  slideNum(s, 8);
-  s.addText([
-    { text: "「", options: { color: ACCENT, fontSize: 36, fontFace: MONO } },
-    { text: "用毫秒级的 Agent 内部通信，取代漫长的人类沟通会议", options: { color: FG, fontSize: 22, fontFace: MONO } },
-    { text: "」", options: { color: ACCENT, fontSize: 36, fontFace: MONO } },
-  ], {
-    x: 1.0, y: 1.3, w: 8, h: 1.0,
-    fontFace: MONO, align: "center", valign: "middle",
-  });
-  s.addText("— ClawSeries 核心技术哲学", {
-    x: 1.0, y: 2.3, w: 8, h: 0.35,
-    fontSize: 11, fontFace: MONO, color: DIMMER, align: "center",
-    charSpacing: 2,
-  });
-  s.addText("Thanks.", {
-    x: 0.5, y: 3.2, w: 9, h: 0.9,
-    fontSize: 54, fontFace: SANS, color: FG, align: "center",
-  });
-  s.addText("CLAWSERIES — 零人AI短剧公司 — 2026", {
-    x: 0.5, y: 4.4, w: 9, h: 0.35,
-    fontSize: 11, fontFace: MONO, color: DIMMER, align: "center",
-    charSpacing: 2,
-  });
-  s.addNotes("感谢各位评委。AI 短剧的最后一公里不是模型能力，而是自动化协作。欢迎提问。");
+  const s = pptx.addSlide(); addBg(s, '08 / 08');
+  kicker(s, 'CLOSING THESIS', 1.0, 0.95, 9.0);
+  text(s, '短剧出海的下半场：\n技术即基石', 1.0, 1.42, 9.6, 1.55, { size: 42, color: C.fg });
+  text(s, '谁先把本地化做成流水线，谁就能把中国 IP 的内容优势变成全球增长优势。', 1.0, 3.18, 9.6, 0.42, { size: 16, color: C.muted });
+  card(s, 1.0, 4.25, 3.45, 1.45, '01 抓住全球增量', '2025E 海外内购收入 $23.29B，下载仍在高速扩散。', C.sky, '01', 'public');
+  card(s, 4.75, 4.25, 3.45, 1.45, '02 守住利润底线', '用自动化抵消平台税与投流黑洞。', C.amber, '02', 'warning');
+  card(s, 8.5, 4.25, 3.45, 1.45, '03 跨越文化折扣', '用声纹、情绪和多语言物料完成深度本地化。', C.teal, '03', 'translate');
+  s.addShape(pptx.ShapeType.rect, { x: 1.0, y: 6.35, w: 10.95, h: 0.43, fill: { color: C.accent, transparency: 82 }, line: { color: C.border, width: 0.75 } });
+  text(s, 'ClawSeries = Global Short Drama Autopilot', 1.2, 6.48, 10.55, 0.18, { size: 10.5, color: C.fg, align: 'center' });
+  note(s, '最后强调：本地化流水线是短剧出海的底座。ClawSeries 想成为 Global Short Drama Autopilot。');
 }
 
-pres.writeFile({ fileName: __dirname + "/ClawSeries.pptx" })
-  .then(() => console.log("ClawSeries.pptx created"))
-  .catch(err => { console.error(err); process.exit(1); });
+  await pptx.writeFile({ fileName: 'ppt/ClawSeries.pptx' });
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
