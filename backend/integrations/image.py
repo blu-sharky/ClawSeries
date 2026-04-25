@@ -11,6 +11,8 @@ import requests
 from repositories.settings_repo import get_setting
 
 
+IMAGE_NO_TEXT_OVERLAY_SUFFIX = " No text overlay, no title text, no large centered text, no subtitles, no captions, no logo, no watermark."
+
 def _get_provider() -> str:
     return get_setting("image_provider", "openai")
 
@@ -67,8 +69,9 @@ async def generate_image(prompt: str, output_path: str,
     provider = config["provider"]
     model = config.get("model", "?")
     timeout_sec = 300  # 5 minutes max per attempt
+    effective_prompt = f"{prompt.rstrip().rstrip('.')}" + IMAGE_NO_TEXT_OVERLAY_SUFFIX
 
-    print(f"[ImageGen] START provider={provider} model={model} aspect={aspect_ratio} refs={len(reference_images or [])} prompt_len={len(prompt)} retries={max_retries}")
+    print(f"[ImageGen] START provider={provider} model={model} aspect={aspect_ratio} refs={len(reference_images or [])} prompt_len={len(effective_prompt)} retries={max_retries}")
 
     last_error = None
     for attempt in range(1, max_retries + 1):
@@ -77,28 +80,28 @@ async def generate_image(prompt: str, output_path: str,
             if provider == "siliconflow":
                 image_bytes = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, lambda: _siliconflow_generate(prompt, config)
+                        None, lambda: _siliconflow_generate(effective_prompt, config)
                     ),
                     timeout=timeout_sec,
                 )
             elif provider == "google_genai":
                 image_bytes = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, lambda p=prompt, c=config, ar=aspect_ratio, ri=reference_images: _google_generate(p, c, ar, ri)
+                        None, lambda p=effective_prompt, c=config, ar=aspect_ratio, ri=reference_images: _google_generate(p, c, ar, ri)
                     ),
                     timeout=timeout_sec,
                 )
             elif provider == "openai":
                 image_bytes = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, lambda: _openai_generate(prompt, config)
+                        None, lambda: _openai_generate(effective_prompt, config)
                     ),
                     timeout=timeout_sec,
                 )
             else:
                 image_bytes = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, lambda: _openai_generate(prompt, config)
+                        None, lambda: _openai_generate(effective_prompt, config)
                     ),
                     timeout=timeout_sec,
                 )

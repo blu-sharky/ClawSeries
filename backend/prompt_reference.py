@@ -184,11 +184,12 @@ def build_shot_dual_prompt_request(
             "- 提示词必须用英文输出（给AI模型用）\n"
             "- 只描述能直接看到/听到的内容，不要使用文学化的修辞、比喻、意境描述\n"
             "- 不需要描述背景环境设定（已由参考图片提供）\n"
+            "- 当前视频链路固定为 8 秒单镜头，提示词必须服务于 8 秒内可完成的动作与信息量\n"
             "- 台词/对话内容必须体现在提示词中\n\n"
             "【image_prompt 规则（给图片生成模型 Nano Banana Pro）】\n"
             "- 描述画面中人物的具体外观：位置、表情、服装细节、动作姿态\n"
             "- 如果有台词，描述人物说话时的表情和口型\n"
-            "- 如有文字出现在画面中，描述文字内容和位置\n"
+            "- 禁止生成任何叠加文字：不要标题字、不要居中大字、不要字幕、不要 caption、不要 logo、不要 watermark\n"
             "- 不要描述摄影机运动，这是静态图片\n"
             f"- 风格标注：{style_note}\n\n"
             "【video_prompt 规则（给视频生成模型 VEO）】\n"
@@ -196,6 +197,7 @@ def build_shot_dual_prompt_request(
             "- 描述画面中人物的具体动作和表情变化过程\n"
             "- 台词内容用 spoken dialogue 标注\n"
             "- 描述画面节奏：slow motion、normal speed、quick cut 等\n"
+            "- 必须按 8-second single shot 来写，不要暗示超过 8 秒才能完成的大段情节或多次复杂换景\n"
             f"- 风格标注：{style_note}\n\n"
             "【输出格式 - 绝对遵守】\n"
             "直接输出纯JSON，禁止使用markdown代码块。\n"
@@ -241,7 +243,7 @@ def build_default_dual_prompts(shot: dict, storyboard_entry: dict | None = None)
     dialogues = (storyboard_entry or {}).get("dialogues", [])
     dialogue_text = " ".join(d.get("line", "") for d in dialogues if d.get("line"))
 
-    image_prompt = f"{desc}, cinematic frame, film still"
+    image_prompt = f"{desc}, cinematic frame, film still, no text overlay, no title text, no large centered text, no subtitles, no captions, no logo, no watermark"
     if dialogue_text:
         image_prompt += f", dialogue: {dialogue_text[:150]}"
 

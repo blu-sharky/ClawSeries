@@ -650,14 +650,14 @@ const ProjectView = {
                 html += `
                     <div class="character-card">
                         ${asset.image_path
-                            ? `<div class="character-sheet"><img src="${MEDIA_BASE}${this._escapeAttr(asset.image_path)}" alt="${this._escape(asset.name || typeLabel)}"></div>`
+                            ? `<div class="character-sheet"><img src="${MEDIA_BASE}${this._escapeHtml(asset.image_path)}" alt="${this._escapeHtml(asset.name || typeLabel)}"></div>`
                             : ''
                         }
                         <div class="character-info">
-                            <h3>${this._escape(asset.name || typeLabel)}</h3>
+                            <h3>${this._escapeHtml(asset.name || typeLabel)}</h3>
                             <div class="character-meta">${typeLabel}</div>
-                            ${asset.description ? `<div class="character-desc">${this._escape(asset.description)}</div>` : ''}
-                            ${asset.prompt ? `<details style="margin-top:8px;"><summary style="font-size:12px;color:var(--text-secondary);cursor:pointer;">Prompt</summary><pre style="font-size:11px;white-space:pre-wrap;color:var(--text-secondary);margin-top:4px;">${this._escape(asset.prompt)}</pre></details>` : ''}
+                            ${asset.description ? `<div class="character-desc">${this._escapeHtml(asset.description)}</div>` : ''}
+                            ${asset.prompt ? `<details style="margin-top:8px;"><summary style="font-size:12px;color:var(--text-secondary);cursor:pointer;">Prompt</summary><pre style="font-size:11px;white-space:pre-wrap;color:var(--text-secondary);margin-top:4px;">${this._escapeHtml(asset.prompt)}</pre></details>` : ''}
                         </div>
                     </div>
                 `;
