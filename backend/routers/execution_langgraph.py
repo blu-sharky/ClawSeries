@@ -10,7 +10,7 @@ import time
 from fastapi import APIRouter, HTTPException
 
 from repositories import project_repo, agent_repo, task_repo
-from repositories.production_event_repo import init_project_stages, update_project_stage
+from repositories.production_event_repo import init_project_stages, update_project_stage, get_current_stage
 from graphs.production_graph import compile_production_graph
 from graphs.state import ProductionState
 from checkpoint.sqlite_saver import get_checkpointer
@@ -20,6 +20,25 @@ router = APIRouter()
 
 # Track running graph tasks to avoid duplicates
 _running_graphs: dict[str, asyncio.Task] = {}
+
+
+def _initial_state_from_project(project: dict) -> ProductionState:
+    return {
+        "project_id": project["project_id"],
+        "title": project["title"],
+        "status": "in_progress",
+        "config": project.get("config", {}),
+        "characters": [],
+        "episodes": [],
+        "current_stage": ProductionStage.SCRIPT_GENERATING.value,
+        "current_episode_index": 0,
+        "current_shot_index": 0,
+        "events": [],
+        "errors": [],
+        "awaiting_input": False,
+        "interrupt_data": None,
+        "video_mode": "auto",
+    }
 
 
 async def _run_production_graph(project_id: str, initial_state: ProductionState | None = None):
@@ -93,23 +112,7 @@ async def start_production_langgraph(project_id: str):
     project_repo.update_project(project_id, status="in_progress")
     agent_repo.add_agent_log(project_id, "agent_director", "info", "制片流程已启动 (LangGraph)")
 
-    # Initial state
-    initial_state: ProductionState = {
-        "project_id": project_id,
-        "title": project["title"],
-        "status": "in_progress",
-        "config": project.get("config", {}),
-        "characters": [],
-        "episodes": [],
-        "current_stage": ProductionStage.SCRIPT_GENERATING.value,
-        "current_episode_index": 0,
-        "current_shot_index": 0,
-        "events": [],
-        "errors": [],
-        "awaiting_input": False,
-        "interrupt_data": None,
-        "video_mode": "auto",
-    }
+    initial_state = _initial_state_from_project(project)
 
     # Start graph execution as background task
     task = asyncio.create_task(_run_production_graph(project_id, initial_state))
@@ -152,36 +155,34 @@ async def continue_production(project_id: str):
     if project["status"] not in ("paused", "in_progress", "pending"):
         raise HTTPException(status_code=400, detail=f"项目状态不允许继续: {project['status']}")
 
-    # Don't start if already running
     if project_id in _running_graphs and not _running_graphs[project_id].done():
+        current = get_current_stage(project_id)
         return {
             "status": "resumed",
             "message": "制片流程继续执行中",
-            "current_stage": ProductionStage.SCRIPT_GENERATING.value,
+            "current_stage": current["stage"] if current else None,
         }
 
-    # Check if there's a checkpoint to resume
-    checkpointer = await get_checkpointer()
-    graph = compile_production_graph(checkpointer)
-    config = {"configurable": {"thread_id": project_id}}
-
-    state = await graph.aget_state(config)
-
-    if not state.values:
-        # No previous state, start fresh
-        return await start_production_langgraph(project_id)
+    init_project_stages(project_id)
+    task_repo.reset_running_tasks(project_id)
+    current = get_current_stage(project_id)
+    stage = current["stage"] if current else ProductionStage.SCRIPT_GENERATING.value
 
     project_repo.update_project(project_id, status="in_progress")
+    agent_repo.add_agent_log(project_id, "agent_director", "info", f"恢复制片流程: {stage}")
 
-    # Resume graph execution as background task
-    task = asyncio.create_task(_run_production_graph(project_id))
+    if stage in (ProductionStage.SCRIPT_GENERATING.value, ProductionStage.REQUIREMENTS_CONFIRMED.value):
+        initial_state = _initial_state_from_project(project)
+        task = asyncio.create_task(_run_production_graph(project_id, initial_state))
+    else:
+        task = asyncio.create_task(_run_production_graph(project_id))
+
     _running_graphs[project_id] = task
 
-    current_stage = state.values.get("current_stage", "")
     return {
         "status": "resumed",
         "message": "制片流程已继续",
-        "current_stage": current_stage,
+        "current_stage": stage,
     }
 
 

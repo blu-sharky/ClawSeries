@@ -78,6 +78,16 @@ def update_task(task_id: str, **kwargs):
     conn.close()
 
 
+def reset_running_tasks(project_id: str):
+    conn = get_connection()
+    conn.execute(
+        "UPDATE tasks SET status = 'pending', started_at = NULL WHERE project_id = ? AND status = 'running'",
+        (project_id,),
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_pending_tasks(project_id: str) -> list[dict]:
     return get_tasks_by_project(project_id, status="pending")
 
