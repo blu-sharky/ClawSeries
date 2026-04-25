@@ -17,6 +17,7 @@ import json
 import logging
 import os
 import subprocess
+import re
 import uuid
 from pathlib import Path
 from typing import Optional
@@ -60,7 +61,7 @@ def _adjust_audio_speed(input_file: str, output_file: str, speed_factor: float) 
     filters.append(f"atempo={temp_factor}")
     filter_str = ",".join(filters)
 
-    cmd = ['ffmpeg', '-y', '-i', input_file, '-filter:a', filter_str, output_file]
+    cmd = ['ffmpeg', '-y', '-i', input_file, '-filter:a', filter_str, '-ar', '44100', '-ac', '2', output_file]
     try:
         subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return True
@@ -69,6 +70,58 @@ def _adjust_audio_speed(input_file: str, output_file: str, speed_factor: float) 
         shutil.copy2(input_file, output_file)
         return False
 
+
+def _char_weight(text: str) -> float:
+    total = 0.0
+    for ch in str(text):
+        code = ord(ch)
+        if 0x4E00 <= code <= 0x9FFF or 0x3040 <= code <= 0x30FF or 0xFF01 <= code <= 0xFF5E:
+            total += 1.75
+        elif 0xAC00 <= code <= 0xD7A3 or 0x1100 <= code <= 0x11FF:
+            total += 1.5
+        else:
+            total += 1.0
+    return total
+
+
+def _split_dialogue_text(text: str, max_weight: int = 32) -> list[str]:
+    parts = re.split(r'(?<=[。！？!?；;])|(?<=[，,、])', str(text).strip())
+    chunks = []
+    current = ""
+    for part in [p.strip() for p in parts if p.strip()]:
+        if current and _char_weight(current + part) > max_weight:
+            chunks.append(current)
+            current = part
+        else:
+            current += part
+    if current:
+        chunks.append(current)
+    return chunks or [str(text).strip()]
+
+
+def _split_segment_by_text(seg: dict, text_key: str = "translated_text") -> list[dict]:
+    chunks = _split_dialogue_text(seg.get(text_key, ""))
+    if len(chunks) <= 1:
+        return [seg]
+
+    start = float(seg["start"])
+    end = float(seg["end"])
+    duration = max(0.0, end - start)
+    total_weight = sum(_char_weight(chunk) for chunk in chunks) or len(chunks)
+    cursor = start
+    result = []
+    for i, chunk in enumerate(chunks):
+        if i == len(chunks) - 1:
+            chunk_end = end
+        else:
+            chunk_end = cursor + duration * (_char_weight(chunk) / total_weight)
+        item = dict(seg)
+        item[text_key] = chunk
+        item["start"] = cursor
+        item["end"] = chunk_end
+        result.append(item)
+        cursor = chunk_end
+    return result
 
 # ── status constants ──────────────────────────────────────────────────
 ST_PENDING = "pending"
@@ -271,12 +324,13 @@ class DubbingPipeline:
         # Merge back
         result = []
         for i, seg in enumerate(segments):
-            result.append({
+            item = {
                 "original_text": seg["text"],
                 "translated_text": translated_lines.get(i, seg["text"]),
                 "start": seg["start"],
                 "end": seg["end"],
-            })
+            }
+            result.extend(_split_segment_by_text(item))
 
         with open(self.work_dir / "translated.json", "w", encoding="utf-8") as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
@@ -341,7 +395,6 @@ class DubbingPipeline:
             "-crf", "23",
             "-c:a", "aac",
             "-movflags", "+faststart",
-            "-shortest",
             out_video,
         ]
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -445,7 +498,7 @@ class DubbingPipeline:
                     speed_factor = total_actual_tts_dur / available_total_dur
                     keep_gaps = False
 
-            speed_factor = max(0.85, speed_factor)
+            speed_factor = min(max(0.9, speed_factor), 1.35)
 
             log.info("[Dubbing] Chunk %03d | speed=%.2fx | tts=%.2fs | available=%.2fs",
                      chunk_idx, speed_factor, total_actual_tts_dur, available_total_dur)
@@ -462,6 +515,9 @@ class DubbingPipeline:
 
                 _adjust_audio_speed(tts_file, processed_file, speed_factor)
                 seg_audio = AudioSegment.from_file(processed_file)
+                target_ms = max(1, int((seg['end'] - seg['start']) * 1000))
+                if len(seg_audio) > target_ms * 1.2:
+                    seg_audio = seg_audio[:target_ms]
 
                 vocal = vocal.overlay(seg_audio, position=current_time_ms)
 

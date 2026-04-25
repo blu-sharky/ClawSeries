@@ -128,6 +128,10 @@ def clone_speech_segment(
     wav, sr = torchaudio.load(full_audio_path)
     start_sample = int(seg_start * sr)
     end_sample = int(seg_end * sr)
+    if end_sample - start_sample < int(1.0 * sr):
+        center = (start_sample + end_sample) // 2
+        start_sample = center - int(0.5 * sr)
+        end_sample = center + int(0.5 * sr)
     # Clamp
     start_sample = max(0, start_sample)
     end_sample = min(wav.shape[1], end_sample)
