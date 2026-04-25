@@ -1,6 +1,7 @@
 const VideoView = {
     _timer: null,
     _selected: null,
+    _lastTasksJson: null,
 
     async init() {
         await this.load();
@@ -14,6 +15,15 @@ const VideoView = {
         try {
             const data = await Api.getVideoTasks();
             const tasks = data.tasks || [];
+
+            // Snapshot comparison: skip DOM update if data unchanged
+            const snapshot = JSON.stringify(tasks.map(t => ({
+                id: t.task_id, status: t.status, shot_status: t.shot_status,
+                frame: t.first_frame_path, video: t.video_url, prompt: t.shot_description,
+            })));
+            if (snapshot === this._lastTasksJson) return;
+            this._lastTasksJson = snapshot;
+
             el.innerHTML = `
                 <div class="card video-board">
                     <div class="video-board-header">

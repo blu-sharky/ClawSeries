@@ -45,9 +45,15 @@ def get_image_config() -> dict:
 
 async def generate_image(prompt: str, output_path: str,
                          reference_images: list[str] | None = None,
-                         aspect_ratio: str = "1:1") -> str:
-    """Generate an image. Routes to the configured provider."""
+                         aspect_ratio: str = "1:1",
+                         max_retries: int = 3) -> str:
+    """Generate an image. Routes to the configured provider.
+
+    Retries up to max_retries times on transient errors (429, timeout).
+    Uses exponential backoff: 10s, 20s, 40s...
+    """
     import asyncio
+    import time
     from pathlib import Path
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
@@ -59,32 +65,72 @@ async def generate_image(prompt: str, output_path: str,
 
     config = get_image_config()
     provider = config["provider"]
+    model = config.get("model", "?")
+    timeout_sec = 300  # 5 minutes max per attempt
 
-    if provider == "siliconflow":
-        image_bytes = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: _siliconflow_generate(prompt, config)
-        )
-    elif provider == "google_genai":
-        image_bytes = await asyncio.get_event_loop().run_in_executor(
-            None, lambda p=prompt, c=config, ar=aspect_ratio, ri=reference_images: _google_generate(p, c, ar, ri)
-        )
-    elif provider == "openai":
-        image_bytes = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: _openai_generate(prompt, config)
-        )
-    else:
-        # custom / fallback — try OpenAI-compatible endpoint
-        image_bytes = await asyncio.get_event_loop().run_in_executor(
-            None, lambda: _openai_generate(prompt, config)
-        )
+    print(f"[ImageGen] START provider={provider} model={model} aspect={aspect_ratio} refs={len(reference_images or [])} prompt_len={len(prompt)} retries={max_retries}")
 
-    if not image_bytes:
-        raise RuntimeError(f"Image generation returned no data (provider: {provider})")
+    last_error = None
+    for attempt in range(1, max_retries + 1):
+        t0 = time.monotonic()
+        try:
+            if provider == "siliconflow":
+                image_bytes = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None, lambda: _siliconflow_generate(prompt, config)
+                    ),
+                    timeout=timeout_sec,
+                )
+            elif provider == "google_genai":
+                image_bytes = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None, lambda p=prompt, c=config, ar=aspect_ratio, ri=reference_images: _google_generate(p, c, ar, ri)
+                    ),
+                    timeout=timeout_sec,
+                )
+            elif provider == "openai":
+                image_bytes = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None, lambda: _openai_generate(prompt, config)
+                    ),
+                    timeout=timeout_sec,
+                )
+            else:
+                image_bytes = await asyncio.wait_for(
+                    asyncio.get_event_loop().run_in_executor(
+                        None, lambda: _openai_generate(prompt, config)
+                    ),
+                    timeout=timeout_sec,
+                )
 
-    with open(output_path, "wb") as f:
-        f.write(image_bytes)
+            elapsed = time.monotonic() - t0
+            print(f"[ImageGen] DONE provider={provider} attempt={attempt}/{max_retries} elapsed={elapsed:.1f}s size={len(image_bytes) if image_bytes else 0}")
 
-    return output_path
+            if not image_bytes:
+                raise RuntimeError(f"Image generation returned no data (provider: {provider})")
+
+            with open(output_path, "wb") as f:
+                f.write(image_bytes)
+
+            return output_path
+
+        except asyncio.TimeoutError:
+            elapsed = time.monotonic() - t0
+            last_error = f"Timed out after {elapsed:.0f}s"
+        except Exception as e:
+            elapsed = time.monotonic() - t0
+            last_error = str(e)
+
+        # Retry logic — longer backoff for rate-limit errors
+        if attempt < max_retries:
+            is_rate_limit = "429" in last_error or "RESOURCE_EXHAUSTED" in last_error or "rate" in last_error.lower()
+            delay = 30 * (2 ** (attempt - 1)) if is_rate_limit else 10 * (2 ** (attempt - 1))
+            print(f"[ImageGen] RETRY attempt={attempt}/{max_retries} failed: {last_error[:120]} — waiting {delay}s before retry...")
+            await asyncio.sleep(delay)
+        else:
+            print(f"[ImageGen] FAILED all {max_retries} attempts. Last error: {last_error[:200]}")
+
+    raise RuntimeError(f"Image generation failed after {max_retries} retries: {last_error}")
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +139,9 @@ async def generate_image(prompt: str, output_path: str,
 
 def _siliconflow_generate(prompt: str, config: dict) -> bytes:
     """Generate image via SiliconFlow API (OpenAI-compatible /images/generations)."""
+    import time
+    print(f"[ImageGen] SiliconFlow model={config.get('model', '?')} size={config.get('image_size', '?')}")
+    t0 = time.monotonic()
     url = config.get("base_url") or "https://api.siliconflow.cn/v1"
     if not url.endswith("/images/generations"):
         url = url.rstrip("/") + "/images/generations"
@@ -140,6 +189,9 @@ def _siliconflow_generate(prompt: str, config: dict) -> bytes:
 
 def _openai_generate(prompt: str, config: dict) -> bytes:
     """Generate image via OpenAI-compatible API."""
+    import time
+    print(f"[ImageGen] OpenAI model={config.get('model', '?')} size={config.get('image_size', '?')}")
+    t0 = time.monotonic()
     url = config.get("base_url") or "https://api.openai.com/v1"
     if not url.endswith("/images/generations"):
         url = url.rstrip("/") + "/images/generations"
@@ -198,6 +250,7 @@ def _get_google_client():
 
 
 def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", reference_images: list[str] | None = None) -> bytes:
+    import time
     from google.genai import types
     from pathlib import Path
 
@@ -205,7 +258,9 @@ def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", refer
     model = config["model"]
 
     ar_map = {"1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "3:4": "3:4", "4:3": "4:3"}
-    imagen_ar = ar_map.get(aspect_ratio, "1:1")
+    # Unsupported ratios map to closest supported: 2:1 -> 16:9, 1:2 -> 9:16
+    imagen_ar = ar_map.get(aspect_ratio, "16:9" if aspect_ratio not in ar_map else aspect_ratio)
+    print(f"[ImageGen] Google GenAI model={model} aspect={aspect_ratio}->{imagen_ar} refs={len(reference_images or [])}")
 
     parts = [types.Part(text=prompt)]
 
@@ -240,13 +295,20 @@ def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", refer
         ),
     )
 
+    t0 = time.monotonic()
+    chunk_count = 0
     for chunk in client.models.generate_content_stream(model=model, contents=contents, config=gen_config):
+        chunk_count += 1
+        if chunk_count % 5 == 0:
+            print(f"[ImageGen] Google streaming... chunk #{chunk_count} elapsed={time.monotonic()-t0:.1f}s")
         if hasattr(chunk, "candidates") and chunk.candidates:
             for candidate in chunk.candidates:
                 if hasattr(candidate, "content") and candidate.content:
                     for part in candidate.content.parts or []:
                         if hasattr(part, "inline_data") and part.inline_data:
+                            print(f"[ImageGen] Google got image data after {time.monotonic()-t0:.1f}s ({chunk_count} chunks)")
                             return part.inline_data.data
+    print(f"[ImageGen] Google stream ended with no image after {time.monotonic()-t0:.1f}s ({chunk_count} chunks)")
     return None
 
 

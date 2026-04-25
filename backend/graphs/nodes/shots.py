@@ -302,14 +302,11 @@ async def shots_node(state: ProductionState) -> dict:
                     provider_name=video_config["provider"], model_name=video_config["model"],
                 )
 
-                # Video reference images: first-frame (primary), character sheets (fallback)
+                # Video reference: first-frame only (already contains characters)
                 video_refs = []
                 if first_frame_path:
                     real_frame_path = str(RENDERS_DIR.parent / first_frame_path.lstrip("/"))
                     video_refs.append(real_frame_path)
-                if char_sheet_paths and len(video_refs) < 3:
-                    # Fill remaining slots with character sheets (max 3 total)
-                    video_refs.extend(char_sheet_paths[:3 - len(video_refs)])
 
                 await generate_video(
                     video_prompt, video_output,
