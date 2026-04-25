@@ -2,13 +2,12 @@
  * 聊天模块 - 处理对话流程，支持五大 Agent 身份
  */
 
-// Agent identity map matching README five agents
 const AGENT_IDENTITIES = {
-    agent_director: { icon: 'assignment', name: '\u9879\u76EE\u603B\u76D1', color: '#6c5ce7' },
-    agent_chief_director: { icon: 'movie_creation', name: '\u603B\u5BFC\u6F14', color: '#e17055' },
-    agent_prompt: { icon: 'edit_note', name: '\u63D0\u793A\u8BCD\u67B6\u6784\u5E08', color: '#fdcb6e' },
-    agent_visual: { icon: 'palette', name: '\u89C6\u89C9\u603B\u76D1', color: '#00b894' },
-    agent_editor: { icon: 'video_library', name: '\u81EA\u52A8\u5316\u526A\u8F91\u5E08', color: '#74b9ff' },
+    agent_director: { icon: 'assignment', getName: () => I18n.t('agent.director'), color: '#6c5ce7' },
+    agent_chief_director: { icon: 'movie_creation', getName: () => I18n.t('agent.chief_director'), color: '#e17055' },
+    agent_prompt: { icon: 'edit_note', getName: () => I18n.t('agent.prompt'), color: '#fdcb6e' },
+    agent_visual: { icon: 'palette', getName: () => I18n.t('agent.visual'), color: '#00b894' },
+    agent_editor: { icon: 'video_library', getName: () => I18n.t('agent.editor'), color: '#74b9ff' },
 };
 
 const Chat = {
@@ -39,13 +38,14 @@ const Chat = {
     },
 
     _getAgentInfo(agentId) {
-        if (!agentId) return { icon: 'assignment', name: '\u9879\u76EE\u603B\u76D1', color: '#6c5ce7' };
-        return AGENT_IDENTITIES[agentId] || { icon: 'smart_toy', name: 'Agent', color: '#6b7280' };
+        if (!agentId) return { icon: 'assignment', getName: () => I18n.t('agent.director'), color: '#6c5ce7' };
+        return AGENT_IDENTITIES[agentId] || { icon: 'smart_toy', getName: () => 'Agent', color: '#6b7280' };
     },
 
     _renderAvatar(agentId) {
         const agent = this._getAgentInfo(agentId);
-        return `<div class="message-avatar material-symbols-outlined" style="background: ${agent.color}" title="${agent.name}">${agent.icon}</div>`;
+        const name = agent.getName();
+        return `<div class="message-avatar material-symbols-outlined" style="background: ${agent.color}" title="${name}">${agent.icon}</div>`;
     },
 
     async sendQuickStart(text) {
@@ -94,7 +94,7 @@ const Chat = {
             }
         } catch (err) {
             this._hideTyping();
-            this._addMessage('assistant', '抱歉，出了点问题，请重试。');
+            this._addMessage('assistant', I18n.t('chat.errorRetry'));
             this._setMainInputVisible(true);
             this.isTyping = false;
         }
@@ -117,12 +117,13 @@ const Chat = {
             this._hideTyping();
             const resolvedAgentId = agentId || 'agent_director';
             const agent = this._getAgentInfo(resolvedAgentId);
+            const name = agent.getName();
             streamingDiv = document.createElement('div');
             streamingDiv.className = 'message assistant';
             streamingDiv.innerHTML = `
                 ${this._renderAvatar(resolvedAgentId)}
                 <div class="message-body">
-                    <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${agent.name}</div>
+                    <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${name}</div>
                     ${this._renderThinkingPanel(resolvedAgentId)}
                     <div class="message-content streaming" style="display: none;"><span class="streaming-cursor"></span></div>
                 </div>
@@ -150,7 +151,6 @@ const Chat = {
             (data) => {
                 mergeMeta(data);
 
-                // Handle loading indicator
                 if (data.loading) {
                     if (!streamingDiv) startStreamingUI(data.agent_id || 'agent_director');
                     return;
@@ -158,7 +158,6 @@ const Chat = {
 
                 if (!data.content) return;
 
-                // Type only the user-facing opening line, never raw JSON fragments.
                 if (!streamingDiv) startStreamingUI(data.agent_id || data.message?.agent_id);
                 fullContent += data.content;
                 if (contentEl) {
@@ -199,7 +198,7 @@ const Chat = {
             },
             (error) => {
                 if (streamingDiv) streamingDiv.remove();
-                this._addMessage('assistant', '抱歉，出了点问题，请重试。');
+                this._addMessage('assistant', I18n.t('chat.errorRetry'));
                 this._setMainInputVisible(true);
                 this.isTyping = false;
             }
@@ -213,7 +212,7 @@ const Chat = {
 
         if (role === 'user') {
             div.innerHTML = `
-                <div class="message-avatar user-avatar">\u4F60</div>
+                <div class="message-avatar user-avatar">${I18n.t('chat.userLabel')}</div>
                 <div class="message-body">
                     <div class="message-content">${this._formatContent(content)}</div>
                 </div>
@@ -239,46 +238,46 @@ const Chat = {
 
         const agentId = message.agent_id || 'agent_director';
         const agent = this._getAgentInfo(agentId);
+        const name = agent.getName();
 
         let extra = '';
         if (message.questions?.length) {
             extra = this._renderQuestions(message.questions);
         }
 
-        // Show skip-to-outline button during question rounds
         if (state === 'collecting_requirements') {
             extra += `
                 <div class="action-bar">
-                    <button class="btn-skip" onclick="Chat.skipToOutline()">跳过追问，直接生成大纲</button>
+                    <button class="btn-skip" onclick="Chat.skipToOutline()">${I18n.t('chat.skipToOutline')}</button>
                 </div>`;
         }
 
         if (state === 'ready_for_outline') {
             extra = `
                 <div class="action-bar">
-                    <button class="btn-primary" onclick="Chat.generateOutline()">生成大纲</button>
+                    <button class="btn-primary" onclick="Chat.generateOutline()">${I18n.t('chat.generateOutline')}</button>
                 </div>`;
         }
 
         if (state === 'awaiting_final_confirmation') {
             extra = `
                 <div class="action-bar">
-                    <button class="btn-primary" onclick="Chat.confirmOutline()">确认大纲</button>
-                    <button class="btn-secondary" onclick="Chat.requestRevision()">修改要求</button>
+                    <button class="btn-primary" onclick="Chat.confirmOutline()">${I18n.t('chat.confirmOutline')}</button>
+                    <button class="btn-secondary" onclick="Chat.requestRevision()">${I18n.t('chat.revise')}</button>
                 </div>`;
         }
 
         if (state === 'confirmed') {
             extra = `
                 <div class="action-bar">
-                    <button class="btn-start-production" onclick="Chat.startProduction()">启动制片</button>
+                    <button class="btn-start-production" onclick="Chat.startProduction()">${I18n.t('chat.startProduction')}</button>
                 </div>`;
         }
 
         div.innerHTML = `
             ${this._renderAvatar(agentId)}
             <div class="message-body">
-                <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${agent.name}</div>
+                <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${name}</div>
                 <div class="message-content">${this._formatContent(message.content)}</div>
                 ${extra}
             </div>
@@ -308,7 +307,7 @@ const Chat = {
                         >${opt}</button>`;
                 }
                 html += '</div>';
-                html += '<input class="question-text-input" type="text" placeholder="其他答案（可选）" data-role="other">';
+                html += `<input class="question-text-input" type="text" placeholder="${I18n.t('chat.otherAnswer')}" data-role="other">`;
             } else {
                 html += `
                     <input
@@ -324,7 +323,7 @@ const Chat = {
 
         html += `
             <div class="action-bar">
-                <button type="button" class="btn-primary" onclick="Chat.submitQuestions(this)">提交回答</button>
+                <button type="button" class="btn-primary" onclick="Chat.submitQuestions(this)">${I18n.t('chat.submitAnswers')}</button>
             </div>`;
         html += '</div>';
         return html;
@@ -376,12 +375,12 @@ const Chat = {
                 value = primaryValue;
             } else {
                 const parts = [...selected];
-                if (otherValue) parts.push(`其他：${otherValue}`);
-                value = parts.join('、');
+                if (otherValue) parts.push(I18n.t('chat.otherPrefix') + otherValue);
+                value = parts.join(I18n.t('chat.answerSeparator'));
             }
 
             if (value) {
-                answers.push(`${label}：${value}`);
+                answers.push(I18n.t('chat.answerFormat', { label, value }));
             }
         }
 
@@ -391,7 +390,7 @@ const Chat = {
     async confirmOutline() {
         if (!this.conversationId) return;
 
-        this._addMessage('user', '确认大纲');
+        this._addMessage('user', I18n.t('chat.confirmOutlineMsg'));
         this.isTyping = true;
         this._showTyping();
 
@@ -402,7 +401,7 @@ const Chat = {
             this._addAssistantMessage(response.message, response.state);
         } catch (err) {
             this._hideTyping();
-            this._addMessage('assistant', '确认失败，请重试。');
+            this._addMessage('assistant', I18n.t('chat.confirmFailed'));
             this._setMainInputVisible(true);
         }
 
@@ -412,7 +411,7 @@ const Chat = {
     async startProduction() {
         if (!this.conversationId) return;
 
-        this._addMessage('user', '启动制片');
+        this._addMessage('user', I18n.t('chat.startProductionMsg'));
         this.isTyping = true;
         this._showTyping();
 
@@ -427,7 +426,7 @@ const Chat = {
             }, 1500);
         } catch (err) {
             this._hideTyping();
-            this._addMessage('assistant', '启动失败，请重试。');
+            this._addMessage('assistant', I18n.t('chat.startFailed'));
             this._setMainInputVisible(true);
         }
 
@@ -435,14 +434,13 @@ const Chat = {
     },
 
     skipToOutline() {
-        // User skips remaining questions, go directly to outline
         this.generateOutline();
     },
 
     async generateOutline() {
         if (!this.conversationId) return;
 
-        this._addMessage('user', '直接生成大纲');
+        this._addMessage('user', I18n.t('chat.generateOutlineMsg'));
         this.isTyping = true;
         this._setMainInputVisible(false);
         this._showTyping('agent_chief_director');
@@ -462,12 +460,13 @@ const Chat = {
             this._hideTyping();
             const agentId = 'agent_chief_director';
             const agent = this._getAgentInfo(agentId);
+            const name = agent.getName();
             streamingDiv = document.createElement('div');
             streamingDiv.className = 'message assistant';
             streamingDiv.innerHTML = `
                 ${this._renderAvatar(agentId)}
                 <div class="message-body">
-                    <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${agent.name}</div>
+                    <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${name}</div>
                     ${this._renderThinkingPanel(agentId)}
                     <div class="message-content streaming" style="display: none;"><span class="streaming-cursor"></span></div>
                 </div>
@@ -506,7 +505,7 @@ const Chat = {
             },
             (error) => {
                 if (streamingDiv) streamingDiv.remove();
-                this._addMessage('assistant', '大纲生成失败，请重试。');
+                this._addMessage('assistant', I18n.t('chat.outlineFailed'));
                 this._setMainInputVisible(true);
                 this.isTyping = false;
             }
@@ -516,7 +515,7 @@ const Chat = {
     requestRevision() {
         const input = document.getElementById('chat-input');
         input.value = '';
-        input.placeholder = '请告诉我您想修改的内容...';
+        input.placeholder = I18n.t('chat.revisionPlaceholder');
         this._setMainInputVisible(true);
         input.focus();
     },
@@ -525,12 +524,13 @@ const Chat = {
         const container = document.getElementById('chat-messages');
         const div = document.createElement('div');
         const agent = this._getAgentInfo(agentId);
+        const name = agent.getName();
         div.className = 'message assistant';
         div.id = 'typing-indicator';
         div.innerHTML = `
             ${this._renderAvatar(agentId)}
             <div class="message-body">
-                <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${agent.name}</div>
+                <div class="agent-label" style="color: ${agent.color}; font-size: 12px; font-weight: 600; margin-bottom: 4px;">${name}</div>
                 ${this._renderThinkingPanel(agentId)}
             </div>
         `;
@@ -540,9 +540,9 @@ const Chat = {
 
     _thinkingTextForAgent(agentId) {
         if (agentId === 'agent_chief_director') {
-            return '正在梳理故事骨架、节奏和分集结构';
+            return I18n.t('chat.thinking.chief_director');
         }
-        return '正在分析题材、冲突、人物关系和爆点';
+        return I18n.t('chat.thinking.director');
     },
 
     _renderThinkingPanel(agentId) {
@@ -617,7 +617,7 @@ const Chat = {
 
         const input = document.getElementById('chat-input');
         input.value = '';
-        input.placeholder = '描述您想制作的短剧...';
+        input.placeholder = I18n.t('chat.placeholder');
         input.style.height = 'auto';
         this._setMainInputVisible(true);
 
@@ -625,19 +625,18 @@ const Chat = {
         container.innerHTML = `
             <div class="chat-welcome">
                 <div class="welcome-icon">CS</div>
-                <h2>欢迎使用 ClawSeries</h2>
-                <p>描述您想制作的短剧，AI 将引导您完成从剧本到成片的全流程。</p>
+                <h2>${I18n.t('welcome.title')}</h2>
+                <p>${I18n.t('welcome.desc')}</p>
                 <div class="quick-starters">
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('我想做一部都市爱情短剧，重点是极限拉扯和身份反转')">都市爱情短剧</button>
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('做一个悬疑推理系列，类似隐秘的角落那种风格')">悬疑推理系列</button>
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('古风仙侠短剧，要有修炼升级和爱情线')">古风仙侠</button>
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('职场商战题材，讲一个年轻人逆袭的故事')">职场逆袭</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart('我想做一部都市爱情短剧，重点是极限拉扯和身份反转')">${I18n.t('welcome.quick1')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart('做一个悬疑推理系列，类似隐秘的角落那种风格')">${I18n.t('welcome.quick2')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart('古风仙侠短剧，要有修炼升级和爱情线')">${I18n.t('welcome.quick3')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart('职场商战题材，讲一个年轻人逆袭的故事')">${I18n.t('welcome.quick4')}</button>
                 </div>
             </div>`;
     }
 };
 
-// 全局快捷方法
 function sendQuickStart(text) { Chat.sendQuickStart(text); }
 function sendMessage() { Chat.sendMessage(); }
 

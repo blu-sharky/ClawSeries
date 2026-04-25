@@ -17,7 +17,7 @@ const Settings = {
             this.render();
         } catch (err) {
             console.error('Failed to load settings:', err);
-            this.showError('无法加载设置，请确保后端服务正在运行');
+            this.showError(I18n.t('settings.cannotLoad'));
         }
     },
 
@@ -44,7 +44,7 @@ const Settings = {
                 ${this._renderGoogleSection(google)}
             </div>
             <div class="settings-bottom-bar">
-                <button class="btn-primary" onclick="Settings.saveSettings()">保存设置</button>
+                <button class="btn-primary" onclick="Settings.saveSettings()">${I18n.t('settings.save')}</button>
                 <span id="settings-status" class="status-message"></span>
             </div>
         `;
@@ -59,8 +59,8 @@ const Settings = {
                 <div class="settings-section-header">
                     <div class="settings-section-icon material-symbols-outlined" style="background: rgba(108, 92, 231, 0.15); color: #6c5ce7;">smart_toy</div>
                     <div>
-                        <h3>LLM 模型</h3>
-                        <p class="settings-desc">剧本生成、分镜设计等文本任务</p>
+                        <h3>${I18n.t('settings.llm.title')}</h3>
+                        <p class="settings-desc">${I18n.t('settings.llm.desc')}</p>
                     </div>
                 </div>
 
@@ -71,7 +71,7 @@ const Settings = {
                         <option value="google_genai" ${llm.provider === 'google_genai' ? 'selected' : ''}>Google Gen AI</option>
                         <option value="azure" ${llm.provider === 'azure' ? 'selected' : ''}>Azure OpenAI</option>
                         <option value="anthropic" ${llm.provider === 'anthropic' ? 'selected' : ''}>Anthropic</option>
-                        <option value="custom" ${llm.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                        <option value="custom" ${llm.provider === 'custom' ? 'selected' : ''}>Custom</option>
                     </select>
                 </div>
 
@@ -85,8 +85,8 @@ const Settings = {
                     <label>API Key</label>
                     <div class="input-with-button">
                         <input type="password" id="llm-api-key"
-                               placeholder="${llm.has_api_key ? '已配置' : '输入 API Key'}">
-                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('llm')">测试</button>
+                               placeholder="${llm.has_api_key ? I18n.t('settings.configured') : I18n.t('settings.enterApiKey')}">
+                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('llm')">${I18n.t('settings.llm.testGoogle').replace('Google Gen AI', 'Test')}</button>
                     </div>
                 </div>
 
@@ -98,11 +98,11 @@ const Settings = {
                 </div>
 
                 <div class="form-group" id="llm-google-test-row" style="display: ${isGoogle ? 'block' : 'none'};">
-                    <label>Google Gen AI 连接</label>
+                    <label>${I18n.t('settings.llm.googleConn')}</label>
                     <div class="settings-inline-actions">
-                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('llm')">测试 Google Gen AI</button>
+                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('llm')">${I18n.t('settings.llm.testGoogle')}</button>
                     </div>
-                    <p class="form-hint">使用当前 Project / Location 与 ADC 凭证测试 Vertex AI 连接。</p>
+                    <p class="form-hint">${I18n.t('settings.llm.googleHint')}</p>
                 </div>
             </div>
         `;
@@ -118,18 +118,18 @@ const Settings = {
                 <div class="settings-section-header">
                     <div class="settings-section-icon material-symbols-outlined" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">palette</div>
                     <div>
-                        <h3>图片生成</h3>
-                        <p class="settings-desc">角色立绘、场景图、分镜参考图</p>
+                        <h3>${I18n.t('settings.image.title')}</h3>
+                        <p class="settings-desc">${I18n.t('settings.image.desc')}</p>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>图片 Demo 测试模式</label>
+                    <label>${I18n.t('settings.image.demoLabel')}</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="image-demo-mode" ${imageDemoMode ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
-                    <p class="form-hint">启用后使用占位图替代真实生成，无需 API 密钥</p>
+                    <p class="form-hint">${I18n.t('settings.image.demoHint')}</p>
                 </div>
 
                 <div class="form-group">
@@ -139,7 +139,7 @@ const Settings = {
                         <option value="openai" ${image.provider === 'openai' ? 'selected' : ''}>OpenAI (DALL-E)</option>
                         <option value="google_genai" ${image.provider === 'google_genai' ? 'selected' : ''}>Google Imagen</option>
                         <option value="stability" ${image.provider === 'stability' ? 'selected' : ''}>Stability AI</option>
-                        <option value="custom" ${image.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                        <option value="custom" ${image.provider === 'custom' ? 'selected' : ''}>Custom</option>
                     </select>
                 </div>
 
@@ -153,8 +153,8 @@ const Settings = {
                     <label>API Key</label>
                     <div class="input-with-button">
                         <input type="password" id="image-api-key"
-                               placeholder="${image.has_api_key ? '已配置' : '输入 API Key'}">
-                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('image')">测试</button>
+                               placeholder="${image.has_api_key ? I18n.t('settings.configured') : I18n.t('settings.enterApiKey')}">
+                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('image')">${I18n.t('settings.llm.testGoogle').replace('Google Gen AI', 'Test')}</button>
                     </div>
                 </div>
 
@@ -190,11 +190,11 @@ const Settings = {
                 </div>
 
                 <div class="form-group" id="image-google-test-row" style="display: ${isGoogle ? 'block' : 'none'};">
-                    <label>Google Imagen 连接</label>
+                    <label>${I18n.t('settings.image.googleConn')}</label>
                     <div class="settings-inline-actions">
-                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('image')">测试 Google Imagen</button>
+                        <button class="btn-secondary btn-sm" onclick="Settings.testConnection('image')">${I18n.t('settings.image.testGoogle')}</button>
                     </div>
-                    <p class="form-hint">使用当前 Project / Location 与 ADC 凭证测试 Imagen 连接。</p>
+                    <p class="form-hint">${I18n.t('settings.image.googleHint')}</p>
                 </div>
             </div>
         `;
@@ -207,18 +207,18 @@ const Settings = {
                 <div class="settings-section-header">
                     <div class="settings-section-icon material-symbols-outlined" style="background: rgba(233, 69, 96, 0.15); color: #e94560;">movie</div>
                     <div>
-                        <h3>视频生成</h3>
-                        <p class="settings-desc">分镜视频、成片渲染</p>
+                        <h3>${I18n.t('settings.video.title')}</h3>
+                        <p class="settings-desc">${I18n.t('settings.video.desc')}</p>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>Demo 测试模式</label>
+                    <label>${I18n.t('settings.video.demoLabel')}</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="video-demo-mode" ${demoMode ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
-                    <p class="form-hint">启用后使用空白视频替代真实生成，无需填写 API 密钥</p>
+                    <p class="form-hint">${I18n.t('settings.video.demoHint')}</p>
                 </div>
 
                 <div id="video-real-config" style="${demoMode ? 'opacity: 0.4; pointer-events: none;' : ''}">
@@ -226,10 +226,10 @@ const Settings = {
                         <label>Provider</label>
                         <select id="video-provider">
                             <option value="seedance" ${video.provider === 'seedance' ? 'selected' : ''}>Seedance</option>
-                            <option value="vectorengine" ${video.provider === 'vectorengine' ? 'selected' : ''}>向量矩阵 / VectorEngine</option>
+                            <option value="vectorengine" ${video.provider === 'vectorengine' ? 'selected' : ''}>VectorEngine</option>
                             <option value="runway" ${video.provider === 'runway' ? 'selected' : ''}>Runway</option>
                             <option value="pika" ${video.provider === 'pika' ? 'selected' : ''}>Pika</option>
-                            <option value="custom" ${video.provider === 'custom' ? 'selected' : ''}>自定义</option>
+                            <option value="custom" ${video.provider === 'custom' ? 'selected' : ''}>Custom</option>
                         </select>
                     </div>
 
@@ -243,8 +243,8 @@ const Settings = {
                         <label>API Key</label>
                         <div class="input-with-button">
                             <input type="password" id="video-api-key"
-                                   placeholder="${video.has_api_key ? '已配置' : '输入 API Key'}">
-                            <button class="btn-secondary btn-sm" onclick="Settings.testConnection('video')">测试</button>
+                                   placeholder="${video.has_api_key ? I18n.t('settings.configured') : I18n.t('settings.enterApiKey')}">
+                            <button class="btn-secondary btn-sm" onclick="Settings.testConnection('video')">${I18n.t('settings.llm.testGoogle').replace('Google Gen AI', 'Test')}</button>
                         </div>
                     </div>
 
@@ -255,21 +255,21 @@ const Settings = {
                     </div>
 
                     <div class="form-group">
-                        <label>画面比例</label>
+                        <label>${I18n.t('settings.video.aspectRatio')}</label>
                         <select id="video-aspect-ratio">
-                            <option value="16:9" ${(video.aspect_ratio || '16:9') === '16:9' ? 'selected' : ''}>横屏 16:9</option>
-                            <option value="9:16" ${video.aspect_ratio === '9:16' ? 'selected' : ''}>竖屏 9:16</option>
+                            <option value="16:9" ${(video.aspect_ratio || '16:9') === '16:9' ? 'selected' : ''}>${I18n.t('settings.video.aspectLandscape')}</option>
+                            <option value="9:16" ${video.aspect_ratio === '9:16' ? 'selected' : ''}>${I18n.t('settings.video.aspectPortrait')}</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>生成模式</label>
+                    <label>${I18n.t('settings.video.generationMode')}</label>
                     <select id="video-generation-mode">
-                        <option value="manual" ${mode === 'manual' ? 'selected' : ''}>手动触发</option>
-                        <option value="auto" ${mode === 'auto' ? 'selected' : ''}>自动执行</option>
+                        <option value="manual" ${mode === 'manual' ? 'selected' : ''}>${I18n.t('settings.video.manualMode')}</option>
+                        <option value="auto" ${mode === 'auto' ? 'selected' : ''}>${I18n.t('settings.video.autoMode')}</option>
                     </select>
-                    <p class="form-hint">手动模式避免意外产生费用</p>
+                    <p class="form-hint">${I18n.t('settings.video.modeHint')}</p>
                 </div>
             </div>
         `;
@@ -281,8 +281,8 @@ const Settings = {
                 <div class="settings-section-header">
                     <div class="settings-section-icon material-symbols-outlined" style="background: rgba(66, 133, 244, 0.15); color: #4285f4;">cloud</div>
                     <div>
-                        <h3>Google Cloud 配置</h3>
-                        <p class="settings-desc">Vertex AI 认证使用 Application Default Credentials (ADC)，无需 API Key</p>
+                        <h3>${I18n.t('settings.google.title')}</h3>
+                        <p class="settings-desc">${I18n.t('settings.google.desc')}</p>
                     </div>
                 </div>
 
@@ -291,19 +291,18 @@ const Settings = {
                         <label>GCP Project ID</label>
                         <input type="text" id="google-project" value="${google.project || ''}"
                                placeholder="my-gcp-project">
-                        <p class="form-hint">留空则使用环境变量 GOOGLE_CLOUD_PROJECT</p>
+                        <p class="form-hint">${I18n.t('settings.google.projectHint')}</p>
                     </div>
                     <div class="form-group">
                         <label>Location</label>
                         <input type="text" id="google-location" value="${google.location || 'us-central1'}"
                                placeholder="us-central1">
-                        <p class="form-hint">留空则使用环境变量 GOOGLE_CLOUD_LOCATION</p>
+                        <p class="form-hint">${I18n.t('settings.google.locationHint')}</p>
                     </div>
                 </div>
 
                 <p class="form-hint" style="margin-top: 4px;">
-                    认证方式: 请确保已通过 <code>gcloud auth application-default login</code> 登录，
-                    或设置了 <code>GOOGLE_APPLICATION_CREDENTIALS</code> 环境变量。
+                    ${I18n.t('settings.google.authHint')}
                 </p>
             </div>
         `;
@@ -317,25 +316,25 @@ const Settings = {
                 <div class="settings-section-header">
                     <div class="settings-section-icon material-symbols-outlined" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">translate</div>
                     <div>
-                        <h3>配音测试</h3>
-                        <p class="settings-desc">使用测试视频验证配音流水线</p>
+                        <h3>${I18n.t('settings.dubbing.title')}</h3>
+                        <p class="settings-desc">${I18n.t('settings.dubbing.desc')}</p>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>配音测试模式</label>
+                    <label>${I18n.t('settings.dubbing.demoLabel')}</label>
                     <label class="toggle-switch">
                         <input type="checkbox" id="dubbing-test-mode" ${dubbingTestMode ? 'checked' : ''}>
                         <span class="toggle-slider"></span>
                     </label>
-                    <p class="form-hint">启用后在配音页面默认使用测试视频</p>
+                    <p class="form-hint">${I18n.t('settings.dubbing.demoHint')}</p>
                 </div>
 
                 <div class="form-group">
-                    <label>测试视频路径</label>
+                    <label>${I18n.t('settings.dubbing.videoPath')}</label>
                     <input type="text" id="dubbing-test-video-path" value="${dubbingTestVideo}"
                            placeholder="test-video.mp4">
-                    <p class="form-hint">默认使用项目根目录下的 test-video.mp4</p>
+                    <p class="form-hint">${I18n.t('settings.dubbing.videoHint')}</p>
                 </div>
             </div>
         `;
@@ -457,7 +456,7 @@ const Settings = {
 
     async saveSettings() {
         const statusEl = document.getElementById('settings-status');
-        statusEl.textContent = '保存中...';
+        statusEl.textContent = I18n.t('settings.saving');
         statusEl.className = 'status-message';
 
         const config = {
@@ -502,36 +501,33 @@ const Settings = {
             });
 
             if (res.ok) {
-                statusEl.textContent = '\u2713 \u5DF2\u4FDD\u5B58';
+                statusEl.textContent = I18n.t('settings.saved');
                 statusEl.className = 'status-message success';
-                // Clear API key inputs so placeholder updates on next render
                 const llmKey = document.getElementById('llm-api-key');
                 const imgKey = document.getElementById('image-api-key');
                 const vidKey = document.getElementById('video-api-key');
-                if (llmKey) { llmKey.value = ''; llmKey.placeholder = '\u5DF2\u914D\u7F6E'; }
-                if (imgKey) { imgKey.value = ''; imgKey.placeholder = '\u5DF2\u914D\u7F6E'; }
-                if (vidKey) { vidKey.value = ''; vidKey.placeholder = '\u5DF2\u914D\u7F6E'; }
+                if (llmKey) { llmKey.value = ''; llmKey.placeholder = I18n.t('settings.configured'); }
+                if (imgKey) { imgKey.value = ''; imgKey.placeholder = I18n.t('settings.configured'); }
+                if (vidKey) { vidKey.value = ''; vidKey.placeholder = I18n.t('settings.configured'); }
             } else {
                 const err = await res.json();
-                statusEl.textContent = `保存失败: ${err.detail || res.statusText}`;
+                statusEl.textContent = I18n.t('settings.saveFailed', { msg: err.detail || res.statusText });
                 statusEl.className = 'status-message error';
             }
         } catch (err) {
-            statusEl.textContent = `保存失败: ${err.message}`;
+            statusEl.textContent = I18n.t('settings.saveFailed', { msg: err.message });
             statusEl.className = 'status-message error';
         }
     },
 
     async testConnection(type) {
-        const labels = { llm: 'LLM', image: '图片', video: '视频' };
+        const labels = { llm: 'LLM', image: I18n.t('settings.image.title').split(' ')[0], video: I18n.t('settings.video.title').split(' ')[0] };
 
-        // Save first — this re-renders the entire settings UI,
-        // so we must re-query the status element afterward.
         await this.saveSettings();
 
         const statusEl = document.getElementById('settings-status');
         if (!statusEl) return;
-        statusEl.textContent = `测试${labels[type]}连接...`;
+        statusEl.textContent = I18n.t('settings.testConn', { type: labels[type] });
         statusEl.className = 'status-message';
 
         try {
@@ -542,13 +538,12 @@ const Settings = {
             });
 
             const result = await res.json();
-            // Re-query in case saveSettings triggered another render
             const el = document.getElementById('settings-status') || statusEl;
             el.textContent = result.success ? `\u2713 ${result.message}` : `\u2717 ${result.message}`;
             el.className = `status-message ${result.success ? 'success' : 'error'}`;
         } catch (err) {
             const el = document.getElementById('settings-status') || statusEl;
-            el.textContent = `测试失败: ${err.message}`;
+            el.textContent = I18n.t('settings.testFailed', { msg: err.message });
             el.className = 'status-message error';
         }
     },
@@ -560,7 +555,7 @@ const Settings = {
                 <div class="error-state">
                     <div class="error-icon material-symbols-outlined">warning</div>
                     <p>${message}</p>
-                    <button class="btn-secondary" onclick="Settings.loadSettings()">重试</button>
+                    <button class="btn-secondary" onclick="Settings.loadSettings()">${I18n.t('settings.retry')}</button>
                 </div>
             `;
         }

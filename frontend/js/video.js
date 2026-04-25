@@ -16,7 +16,6 @@ const VideoView = {
             const data = await Api.getVideoTasks();
             const tasks = data.tasks || [];
 
-            // Snapshot comparison: skip DOM update if data unchanged
             const snapshot = JSON.stringify(tasks.map(t => ({
                 id: t.task_id, status: t.status, shot_status: t.shot_status,
                 frame: t.first_frame_path, video: t.video_url, prompt: t.shot_description,
@@ -28,12 +27,12 @@ const VideoView = {
                 <div class="card video-board">
                     <div class="video-board-header">
                         <div>
-                            <h3>视频任务</h3>
-                            <div class="video-board-subtitle">点击镜头卡片查看提示词和生成日志</div>
+                            <h3>${I18n.t('video.tasks')}</h3>
+                            <div class="video-board-subtitle">${I18n.t('video.tasksSubtitle')}</div>
                         </div>
-                        <button class="btn-secondary btn-sm" onclick="VideoView.load()">刷新</button>
+                        <button class="btn-secondary btn-sm" onclick="VideoView.load()">${I18n.t('video.refresh')}</button>
                     </div>
-                    ${tasks.length ? `<div class="video-card-grid">${tasks.map(t => this._taskHtml(t)).join('')}</div>` : '<div class="video-empty">暂无视频生成任务</div>'}
+                    ${tasks.length ? `<div class="video-card-grid">${tasks.map(t => this._taskHtml(t)).join('')}</div>` : `<div class="video-empty">${I18n.t('video.noTasks')}</div>`}
                     <div id="video-detail" class="video-detail"></div>
                 </div>
             `;
@@ -42,26 +41,26 @@ const VideoView = {
                 if (selected) await this.showDetail(selected.task_id, selected.project_id, selected.episode_id, selected.shot_id || '', false);
             }
         } catch (err) {
-            el.innerHTML = `<div class="error-state"><p>加载视频任务失败: ${this._escape(err.message)}</p></div>`;
+            el.innerHTML = `<div class="error-state"><p>${I18n.t('video.loadFailed', { msg: err.message })}</p></div>`;
         }
     },
 
     _taskHtml(t) {
-        const shotTitle = t.shot_number ? `镜头 ${t.shot_number}` : '整集镜头';
+        const shotTitle = t.shot_number ? I18n.t('video.shotTitle', { num: t.shot_number }) : I18n.t('video.allShots');
         const active = this._selected?.taskId === t.task_id ? 'active' : '';
         return `
             <button class="video-task-card ${active}" data-task-id="${this._escapeAttr(t.task_id)}" onclick="VideoView.showDetail('${this._escapeAttr(t.task_id)}', '${this._escapeAttr(t.project_id)}', '${this._escapeAttr(t.episode_id || '')}', '${this._escapeAttr(t.shot_id || '')}')">
                 <div class="video-frame-box">
-                    ${t.first_frame_path ? `<img src="${MEDIA_BASE}${this._escapeAttr(t.first_frame_path)}" alt="首帧图片">` : '<div class="video-frame-empty">暂无首帧</div>'}
+                    ${t.first_frame_path ? `<img src="${MEDIA_BASE}${this._escapeAttr(t.first_frame_path)}" alt="${I18n.t('video.noFrame')}">` : `<div class="video-frame-empty">${I18n.t('video.noFrame')}</div>`}
                 </div>
                 <div class="video-card-body">
                     <div class="video-card-title">${this._escape(t.project_title || t.project_id)}</div>
-                    <div class="video-card-meta">第${this._escape(t.episode_number || '-')}集 · ${this._escape(shotTitle)}</div>
-                    <div class="video-card-meta">时长：${this._escape(t.shot_duration || '-')} · 任务：${this._escape(t.status)}</div>
-                    <div class="video-card-desc">${this._escape(t.shot_description || '暂无提示词')}</div>
+                    <div class="video-card-meta">${I18n.t('video.ep', { n: t.episode_number || '-' })} \xB7 ${this._escape(shotTitle)}</div>
+                    <div class="video-card-meta">${I18n.t('video.duration')}\uFF1A${this._escape(t.shot_duration || '-')} \xB7 ${I18n.t('video.task')}\uFF1A${this._escape(t.status)}</div>
+                    <div class="video-card-desc">${this._escape(t.shot_description || I18n.t('video.noPrompt'))}</div>
                     <div class="video-card-footer">
                         <span class="episode-status ${this._escapeAttr(t.shot_status || t.status)}">${this._escape(t.shot_status || t.status)}</span>
-                        ${t.video_url ? `<a href="${MEDIA_BASE}${this._escapeAttr(t.video_url)}" target="_blank" onclick="event.stopPropagation()">查看视频</a>` : ''}
+                        ${t.video_url ? `<a href="${MEDIA_BASE}${this._escapeAttr(t.video_url)}" target="_blank" onclick="event.stopPropagation()">${I18n.t('video.viewVideo')}</a>` : ''}
                     </div>
                     ${t.error_message ? `<div class="trace-error">${this._escape(t.error_message)}</div>` : ''}
                 </div>
@@ -77,7 +76,7 @@ const VideoView = {
 
         const detail = document.getElementById('video-detail');
         if (!detail) return;
-        detail.innerHTML = '<div class="video-empty">加载日志中...</div>';
+        detail.innerHTML = `<div class="video-empty">${I18n.t('video.loadingLogs')}</div>`;
 
         const [tasksData, timelineData] = await Promise.all([
             Api.getVideoTasks(),
@@ -91,34 +90,34 @@ const VideoView = {
         detail.innerHTML = `
             <div class="video-detail-header">
                 <div>
-                    <div class="section-title" style="margin:0;">第${this._escape(task.episode_number || '-')}集 · 镜头 ${this._escape(task.shot_number || '-')}</div>
-                    <div class="video-board-subtitle">${this._escape(task.project_title || projectId)} · ${this._escape(task.shot_status || task.status || '')}</div>
+                    <div class="section-title" style="margin:0;">${I18n.t('video.ep', { n: task.episode_number || '-' })} \xB7 ${I18n.t('video.shot', { n: task.shot_number || '-' })}</div>
+                    <div class="video-board-subtitle">${this._escape(task.project_title || projectId)} \xB7 ${this._escape(task.shot_status || task.status || '')}</div>
                 </div>
-                ${task.video_url ? `<a class="btn-secondary btn-sm" href="${MEDIA_BASE}${this._escapeAttr(task.video_url)}" target="_blank">查看视频</a>` : ''}
+                ${task.video_url ? `<a class="btn-secondary btn-sm" href="${MEDIA_BASE}${this._escapeAttr(task.video_url)}" target="_blank">${I18n.t('video.viewVideo')}</a>` : ''}
             </div>
             <div class="video-detail-grid">
                 <div class="video-frame-box detail">
-                    ${framePath ? `<img src="${MEDIA_BASE}${this._escapeAttr(framePath)}" alt="首帧图片">` : '<div class="video-frame-empty">暂无首帧</div>'}
+                    ${framePath ? `<img src="${MEDIA_BASE}${this._escapeAttr(framePath)}" alt="${I18n.t('video.noFrame')}">` : `<div class="video-frame-empty">${I18n.t('video.noFrame')}</div>`}
                 </div>
                 <details class="monitor-stream-card prompt" open>
                     <summary class="monitor-stream-summary">
                         <div class="monitor-stream-copy">
-                            <div class="agent-monitor-label">最新提示词</div>
-                            <div class="monitor-stream-preview">${this._escape(this._monitorPreview(prompt, '暂无提示词'))}</div>
+                            <div class="agent-monitor-label">${I18n.t('video.latestPrompt')}</div>
+                            <div class="monitor-stream-preview">${this._escape(this._monitorPreview(prompt, I18n.t('video.noPrompt')))}</div>
                         </div>
-                        <div class="monitor-stream-meta">${this._escape(this._monitorStatText(prompt, '暂无提示词'))}</div>
+                        <div class="monitor-stream-meta">${this._escape(this._monitorStatText(prompt, I18n.t('video.noPrompt')))}</div>
                     </summary>
-                    <pre class="agent-monitor-text prompt">${this._escape(prompt || '暂无提示词')}</pre>
+                    <pre class="agent-monitor-text prompt">${this._escape(prompt || I18n.t('video.noPrompt'))}</pre>
                 </details>
             </div>
-            <div class="section-title" style="margin-top: 16px;">生成日志</div>
+            <div class="section-title" style="margin-top: 16px;">${I18n.t('video.genLogs')}</div>
             ${this._timelineHtml(events)}
         `;
         if (scroll) detail.scrollIntoView({ behavior: 'smooth', block: 'start' });
     },
 
     _timelineHtml(events) {
-        if (!events.length) return '<div class="video-empty">暂无日志</div>';
+        if (!events.length) return `<div class="video-empty">${I18n.t('video.noLogs')}</div>`;
         return `
             <div class="timeline-list">
                 ${events.map(e => {
@@ -131,11 +130,11 @@ const VideoView = {
                                 <div class="timeline-header">
                                     <span class="timeline-agent">${this._escape(meta.name)}</span>
                                     <span class="timeline-title">${this._escape(e.title)}</span>
-                                    <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString()}</span>
+                                    <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString(I18n.getLocale())}</span>
                                 </div>
                                 <div class="timeline-message">${this._escape(e.message)}</div>
                                 ${p.prompt ? `<div class="trace-detail">Prompt: ${this._escape(p.prompt)}</div>` : ''}
-                                ${p.first_frame_path ? `<div class="trace-detail"><img src="${MEDIA_BASE}${this._escapeAttr(p.first_frame_path)}" class="video-log-frame" alt="首帧图片"></div>` : ''}
+                                ${p.first_frame_path ? `<div class="trace-detail"><img src="${MEDIA_BASE}${this._escapeAttr(p.first_frame_path)}" class="video-log-frame" alt="${I18n.t('video.noFrame')}"></div>` : ''}
                                 ${p.output ? `<div class="trace-detail">Output: ${this._escape(p.output)}</div>` : ''}
                             </div>
                         </div>
@@ -167,7 +166,7 @@ const VideoView = {
         const normalized = String(value || '').replace(/```json\n?/g, '').replace(/```/g, '').trim();
         if (!normalized) return fallback;
         const lineCount = normalized.split(/\r?\n/).filter(Boolean).length;
-        return `${lineCount} 行 · ${normalized.length} 字`;
+        return I18n.t('project.monitor.lineChar', { lines: lineCount, chars: normalized.length });
     },
 
     _agentMeta(agentId) {

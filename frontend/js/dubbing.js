@@ -14,20 +14,20 @@ const DubbingView = {
     selectedEpisodes: new Set(),
 
     LANGUAGES: {
-        en: "🇺🇸 English", zh: "🇨🇳 Chinese", ja: "🇯🇵 Japanese",
-        ko: "🇰🇷 Korean", es: "🇪🇸 Spanish", fr: "🇫🇷 French",
-        de: "🇩🇪 German", pt: "🇧🇷 Portuguese", hi: "🇮🇳 Hindi",
-        th: "🇹🇭 Thai", ru: "🇷🇺 Russian", ar: "🇸🇦 Arabic",
-        it: "🇮🇹 Italian"
+        en: "\uD83C\uDDFA\uD83C\uDDF8 English", zh: "\uD83C\uDDE8\uD83C\uDDF3 Chinese", ja: "\uD83C\uDDEF\uD83C\uDDF5 Japanese",
+        ko: "\uD83C\uDDF0\uD83C\uDDF7 Korean", es: "\uD83C\uDDEA\uD83C\uDDF8 Spanish", fr: "\uD83C\uDDEB\uD83C\uDDF7 French",
+        de: "\uD83C\uDDE9\uD83C\uDDEA German", pt: "\uD83C\uDDE7\uD83C\uDDF7 Portuguese", hi: "\uD83C\uDDEE\uD83C\uDDF3 Hindi",
+        th: "\uD83C\uDDF9\uD83C\uDDED Thai", ru: "\uD83C\uDDF7\uD83C\uDDFA Russian", ar: "\uD83C\uDDF8\uD83C\uDDE6 Arabic",
+        it: "\uD83C\uDDEE\uD83C\uDDF9 Italian"
     },
 
     STEPS: [
-        { key: "extracting_audio", icon: "🎵", label: "提取音频" },
-        { key: "separating_vocals", icon: "🎤", label: "分离人声" },
-        { key: "transcribing", icon: "📝", label: "语音转文字" },
-        { key: "translating", icon: "🌐", label: "翻译" },
-        { key: "generating_speech", icon: "🗣️", label: "生成配音" },
-        { key: "merging", icon: "🎬", label: "合成视频" },
+        { key: "extracting_audio", icon: "\uD83C\uDFB5", get label() { return I18n.t('dubbing.step.extractAudio'); } },
+        { key: "separating_vocals", icon: "\uD83C\uDFA4", get label() { return I18n.t('dubbing.step.separateVocals'); } },
+        { key: "transcribing", icon: "\uD83D\uDCDD", get label() { return I18n.t('dubbing.step.transcribe'); } },
+        { key: "translating", icon: "\uD83C\uDF10", get label() { return I18n.t('dubbing.step.translate'); } },
+        { key: "generating_speech", icon: "\uD83D\uDDE3\uFE0F", get label() { return I18n.t('dubbing.step.generateSpeech'); } },
+        { key: "merging", icon: "\uD83C\uDFAC", get label() { return I18n.t('dubbing.step.merge'); } },
     ],
 
     STEP_MAP: {
@@ -43,7 +43,6 @@ const DubbingView = {
         this.selectedProject = null;
         this.selectedEpisodes = new Set();
 
-        // Load settings to check demo mode
         try {
             const res = await fetch('http://localhost:8000/api/v1/settings/models');
             const data = await res.json();
@@ -66,10 +65,10 @@ const DubbingView = {
 
         container.innerHTML = `
             <div class="dubbing-header">
-                <h2>AI 多语言配音</h2>
+                <h2>${I18n.t('dubbing.title')}</h2>
                 <p>${this.demoMode
-                    ? 'Demo 模式 — 可上传视频或使用内置测试视频'
-                    : '选择已完成的短剧项目，一键或逐集配音到指定语言'}</p>
+                    ? I18n.t('dubbing.demoModeDesc')
+                    : I18n.t('dubbing.normalModeDesc')}</p>
             </div>
             <div class="dubbing-panel">
                 ${this._renderLangSelector()}
@@ -83,35 +82,33 @@ const DubbingView = {
         this._bindEvents();
     },
 
-    // ── Language selector ────────────────────────────────────────────────
     _renderLangSelector() {
         const btns = Object.entries(this.LANGUAGES).map(([code, name]) =>
             `<button class="dubbing-lang-btn${this.selectedLang === code ? ' selected' : ''}" data-lang="${code}">${name}</button>`
         ).join('');
         return `
             <div class="dubbing-lang-section">
-                <h3>选择目标语言</h3>
+                <h3>${I18n.t('dubbing.selectLang')}</h3>
                 <div class="dubbing-lang-grid">${btns}</div>
             </div>
         `;
     },
 
-    // ── Demo mode source (file upload + test video) ──────────────────────
     _renderDemoSourceSection() {
         const selectedFile = this.selectedVideoPath
             ? `<div class="dubbing-selected-file">
-                <span class="file-icon">📎</span>
+                <span class="file-icon">\uD83D\uDCC1</span>
                 <span>${this.selectedVideoPath.split('/').pop()}</span>
-                <span class="file-remove" onclick="DubbingView.clearVideo()">✕</span>
+                <span class="file-remove" onclick="DubbingView.clearVideo()">\u2715</span>
                </div>`
             : '';
         return `
             <div class="dubbing-source-section">
-                <h3>选择视频文件</h3>
+                <h3>${I18n.t('dubbing.selectVideo')}</h3>
                 <div class="dubbing-upload-area" id="dubbing-drop-zone">
-                    <div class="dubbing-upload-icon">📁</div>
-                    <div class="dubbing-upload-text">拖拽视频文件到此处，或点击选择</div>
-                    <div class="dubbing-upload-hint">支持 MP4, MOV, AVI, MKV 等格式</div>
+                    <div class="dubbing-upload-icon">\uD83D\uDCC1</div>
+                    <div class="dubbing-upload-text">${I18n.t('dubbing.dragDrop')}</div>
+                    <div class="dubbing-upload-hint">${I18n.t('dubbing.supportFormats')}</div>
                     <input type="file" id="dubbing-file-input" accept="video/*">
                 </div>
                 ${selectedFile}
@@ -120,22 +117,21 @@ const DubbingView = {
                         <input type="checkbox" id="dubbing-use-test-video">
                         <span class="toggle-slider"></span>
                     </label>
-                    <label for="dubbing-use-test-video">使用内置测试视频 (test-video.mp4)</label>
+                    <label for="dubbing-use-test-video">${I18n.t('dubbing.useTestVideo')}</label>
                 </div>
             </div>
         `;
     },
 
-    // ── Project selector (non-demo mode) ─────────────────────────────────
     _renderProjectSelector() {
         if (this.completedProjects.length === 0) {
             return `
                 <div class="dubbing-source-section">
-                    <h3>选择短剧项目</h3>
+                    <h3>${I18n.t('dubbing.selectProject')}</h3>
                     <div class="dubbing-empty-state">
-                        <div class="dubbing-empty-icon">📺</div>
-                        <p>暂无已完成的短剧项目</p>
-                        <p class="dubbing-empty-hint">请先在"制作"流程中完成一个短剧项目，然后在此处进行配音</p>
+                        <div class="dubbing-empty-icon">\uD83D\uDCFA</div>
+                        <p>${I18n.t('dubbing.noCompleted')}</p>
+                        <p class="dubbing-empty-hint">${I18n.t('dubbing.noCompletedHint')}</p>
                     </div>
                 </div>
             `;
@@ -147,7 +143,7 @@ const DubbingView = {
                 <div class="dubbing-project-card${isSelected ? ' selected' : ''}" data-project-id="${p.project_id}">
                     <div class="dubbing-project-info">
                         <h4>${p.title}</h4>
-                        <span class="dubbing-project-meta">${p.episodes.length} 集</span>
+                        <span class="dubbing-project-meta">${I18n.t('dubbing.episodes', { n: p.episodes.length })}</span>
                     </div>
                     ${isSelected ? this._renderEpisodeList(p) : ''}
                 </div>
@@ -156,7 +152,7 @@ const DubbingView = {
 
         return `
             <div class="dubbing-source-section">
-                <h3>选择短剧项目</h3>
+                <h3>${I18n.t('dubbing.selectProject')}</h3>
                 <div class="dubbing-project-list">${projectCards}</div>
             </div>
         `;
@@ -168,13 +164,13 @@ const DubbingView = {
             const checked = this.selectedEpisodes.has(ep.episode_id) ? 'checked' : '';
             const dubCount = ep.dubbing_tasks ? ep.dubbing_tasks.length : 0;
             const dubInfo = dubCount > 0
-                ? `<span class="dubbing-ep-dub-count">${dubCount} 个配音任务</span>`
+                ? `<span class="dubbing-ep-dub-count">${I18n.t('dubbing.dubTasks', { n: dubCount })}</span>`
                 : '';
             return `
                 <div class="dubbing-episode-item">
                     <label class="dubbing-episode-label">
                         <input type="checkbox" class="dubbing-ep-checkbox" data-ep-id="${ep.episode_id}" ${checked}>
-                        <span>第${ep.episode_number}集: ${ep.title}</span>
+                        <span>${I18n.t('dubbing.episodeLabel', { n: ep.episode_number, title: ep.title })}</span>
                     </label>
                     ${dubInfo}
                 </div>
@@ -186,7 +182,7 @@ const DubbingView = {
                 <div class="dubbing-episode-header">
                     <label class="dubbing-episode-label">
                         <input type="checkbox" class="dubbing-ep-select-all" ${allSelected ? 'checked' : ''}>
-                        <span class="dubbing-select-all-text">全选</span>
+                        <span class="dubbing-select-all-text">${I18n.t('dubbing.selectAll')}</span>
                     </label>
                 </div>
                 ${items}
@@ -194,18 +190,16 @@ const DubbingView = {
         `;
     },
 
-    // ── Start button ─────────────────────────────────────────────────────
     _renderStartButton() {
         return `
             <div class="dubbing-start-section">
                 <button class="dubbing-start-btn" id="dubbing-start-btn" onclick="DubbingView.startDubbing()" disabled>
-                    🎬 开始配音
+                    ${I18n.t('dubbing.startDubbing')}
                 </button>
             </div>
         `;
     },
 
-    // ── Progress & result renderers ──────────────────────────────────────
     _renderProgress(status) {
         const pct = status.progress || 0;
         const currentStep = status.current_step || status.status || '';
@@ -217,7 +211,7 @@ const DubbingView = {
             else if (i === stepIdx) cls = 'active';
             if (status.status === 'failed' && i === stepIdx) cls = 'error';
             return `<div class="dubbing-step ${cls}">
-                <span class="dubbing-step-icon">${cls === 'done' ? '✓' : s.icon}</span>
+                <span class="dubbing-step-icon">${cls === 'done' ? '\u2713' : s.icon}</span>
                 <span>${s.label}</span>
             </div>`;
         }).join('');
@@ -225,7 +219,7 @@ const DubbingView = {
         return `
             <div class="dubbing-progress-section">
                 <div class="dubbing-progress-header">
-                    <h3>${currentStep || '处理中...'}</h3>
+                    <h3>${currentStep || I18n.t('dubbing.processing')}</h3>
                     <span class="dubbing-progress-percent">${pct}%</span>
                 </div>
                 <div class="dubbing-progress-bar">
@@ -246,16 +240,16 @@ const DubbingView = {
         return `
             <div class="dubbing-progress-section">
                 <div class="dubbing-progress-header">
-                    <h3>批量配音进度</h3>
-                    <span class="dubbing-progress-percent">${completed}/${total} 完成</span>
+                    <h3>${I18n.t('dubbing.batchProgress')}</h3>
+                    <span class="dubbing-progress-percent">${I18n.t('dubbing.batchComplete', { completed, total })}</span>
                 </div>
                 <div class="dubbing-progress-bar">
                     <div class="dubbing-progress-fill" style="width: ${pct}%"></div>
                 </div>
                 <div class="dubbing-batch-stats">
-                    <span class="dubbing-batch-stat done">✓ ${completed} 完成</span>
-                    <span class="dubbing-batch-stat fail">✗ ${failed} 失败</span>
-                    <span class="dubbing-batch-stat run">⏳ ${running} 进行中</span>
+                    <span class="dubbing-batch-stat done">${I18n.t('dubbing.batchDone', { n: completed })}</span>
+                    <span class="dubbing-batch-stat fail">${I18n.t('dubbing.batchFail', { n: failed })}</span>
+                    <span class="dubbing-batch-stat run">${I18n.t('dubbing.batchRunning', { n: running })}</span>
                 </div>
             </div>
         `;
@@ -267,14 +261,14 @@ const DubbingView = {
         const videoUrl = `http://localhost:8000/api/v1/dubbing/${taskId}/download`;
         return `
             <div class="dubbing-result-section">
-                <h3>✓ 配音完成</h3>
-                <p>目标语言: ${targetLang}</p>
+                <h3>${I18n.t('dubbing.dubComplete')}</h3>
+                <p>${I18n.t('dubbing.targetLang', { lang: targetLang })}</p>
                 <div class="dubbing-result-video">
                     <video controls src="${videoUrl}"></video>
                 </div>
                 <div class="dubbing-result-actions">
-                    <a class="btn-primary" href="${videoUrl}" download style="text-decoration:none;padding:10px 24px;border-radius:8px;font-size:14px;">⬇ 下载配音视频</a>
-                    <button class="btn-secondary" onclick="DubbingView.init()">🔄 再次配音</button>
+                    <a class="btn-primary" href="${videoUrl}" download style="text-decoration:none;padding:10px 24px;border-radius:8px;font-size:14px;">${I18n.t('dubbing.downloadDub')}</a>
+                    <button class="btn-secondary" onclick="DubbingView.init()">${I18n.t('dubbing.dubAgain')}</button>
                 </div>
             </div>
         `;
@@ -283,16 +277,14 @@ const DubbingView = {
     _renderError(status) {
         return `
             <div class="dubbing-error">
-                <h3>✗ 配音失败</h3>
-                <p>${status.error_message || '未知错误'}</p>
-                <button class="btn-secondary" style="margin-top:12px" onclick="DubbingView.init()">重试</button>
+                <h3>${I18n.t('dubbing.dubFailed')}</h3>
+                <p>${status.error_message || I18n.t('dubbing.unknownError')}</p>
+                <button class="btn-secondary" style="margin-top:12px" onclick="DubbingView.init()">${I18n.t('dubbing.retry')}</button>
             </div>
         `;
     },
 
-    // ── Event binding ────────────────────────────────────────────────────
     _bindEvents() {
-        // Language selection
         const langGrid = document.querySelector('.dubbing-lang-grid');
         if (langGrid) {
             langGrid.addEventListener('click', (e) => {
@@ -313,13 +305,11 @@ const DubbingView = {
     },
 
     _bindDemoEvents() {
-        // File upload
         const fileInput = document.getElementById('dubbing-file-input');
         if (fileInput) {
             fileInput.addEventListener('change', (e) => this._handleFileUpload(e.target.files[0]));
         }
 
-        // Drag and drop
         const dropZone = document.getElementById('dubbing-drop-zone');
         if (dropZone) {
             dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
@@ -331,7 +321,6 @@ const DubbingView = {
             });
         }
 
-        // Test video toggle
         const testToggle = document.getElementById('dubbing-use-test-video');
         if (testToggle) {
             testToggle.addEventListener('change', (e) => {
@@ -350,11 +339,9 @@ const DubbingView = {
         const list = document.querySelector('.dubbing-project-list');
         if (!list) return;
 
-        // Project card click
         list.addEventListener('click', (e) => {
             const card = e.target.closest('.dubbing-project-card');
             if (!card) return;
-            // If clicking on episode list internals, don't toggle project
             if (e.target.closest('.dubbing-episode-list')) return;
 
             const projectId = card.dataset.projectId;
@@ -369,7 +356,6 @@ const DubbingView = {
             this.loadHistory();
         });
 
-        // Episode checkbox
         list.addEventListener('change', (e) => {
             if (e.target.classList.contains('dubbing-ep-checkbox')) {
                 const epId = e.target.dataset.epId;
@@ -381,7 +367,6 @@ const DubbingView = {
                 this._updateStartButton();
             }
 
-            // Select all
             if (e.target.classList.contains('dubbing-ep-select-all')) {
                 const project = this.completedProjects.find(p => p.project_id === this.selectedProject);
                 if (project) {
@@ -411,7 +396,7 @@ const DubbingView = {
             this._updateSourceDisplay();
             this._updateStartButton();
         } catch (err) {
-            alert('上传失败: ' + err.message);
+            alert(I18n.t('dubbing.uploadFailed', { msg: err.message }));
         }
     },
 
@@ -425,9 +410,9 @@ const DubbingView = {
             const div = document.createElement('div');
             div.className = 'dubbing-selected-file';
             div.innerHTML = `
-                <span class="file-icon">📎</span>
+                <span class="file-icon">\uD83D\uDCC1</span>
                 <span>${this.selectedVideoPath.split('/').pop()}</span>
-                <span class="file-remove" onclick="DubbingView.clearVideo()">✕</span>
+                <span class="file-remove" onclick="DubbingView.clearVideo()">\u2715</span>
             `;
             section.querySelector('.dubbing-upload-area')?.after(div);
         }
@@ -452,16 +437,14 @@ const DubbingView = {
         this._updateStartButton();
     },
 
-    // ── Start dubbing ────────────────────────────────────────────────────
     async startDubbing() {
         if (!this.selectedLang) return;
 
         const btn = document.getElementById('dubbing-start-btn');
-        if (btn) { btn.disabled = true; btn.textContent = '⏳ 启动中...'; }
+        if (btn) { btn.disabled = true; btn.textContent = I18n.t('dubbing.starting'); }
 
         try {
             if (this.demoMode) {
-                // Single video dubbing
                 if (!this.selectedVideoPath) return;
                 const res = await fetch('http://localhost:8000/api/v1/dubbing/start', {
                     method: 'POST',
@@ -476,11 +459,10 @@ const DubbingView = {
                     this.currentTaskId = data.task_id;
                     this._startPolling(data.task_id);
                 } else {
-                    alert('启动失败: ' + (data.detail || JSON.stringify(data)));
-                    if (btn) { btn.disabled = false; btn.textContent = '🎬 开始配音'; }
+                    alert(I18n.t('dubbing.startFailed', { msg: data.detail || JSON.stringify(data) }));
+                    if (btn) { btn.disabled = false; btn.textContent = I18n.t('dubbing.startDubbing'); }
                 }
             } else {
-                // Batch project dubbing
                 if (this.selectedEpisodes.size === 0) return;
                 const res = await fetch('http://localhost:8000/api/v1/dubbing/start-batch', {
                     method: 'POST',
@@ -496,13 +478,13 @@ const DubbingView = {
                     this.batchTaskIds = data.tasks.map(t => t.task_id);
                     this._startBatchPolling();
                 } else {
-                    alert('启动失败: ' + (data.detail || JSON.stringify(data)));
-                    if (btn) { btn.disabled = false; btn.textContent = '🎬 开始配音'; }
+                    alert(I18n.t('dubbing.startFailed', { msg: data.detail || JSON.stringify(data) }));
+                    if (btn) { btn.disabled = false; btn.textContent = I18n.t('dubbing.startDubbing'); }
                 }
             }
         } catch (err) {
-            alert('启动失败: ' + err.message);
-            if (btn) { btn.disabled = false; btn.textContent = '🎬 开始配音'; }
+            alert(I18n.t('dubbing.startFailed', { msg: err.message }));
+            if (btn) { btn.disabled = false; btn.textContent = I18n.t('dubbing.startDubbing'); }
         }
     },
 
@@ -572,10 +554,10 @@ const DubbingView = {
                 if (resultArea) {
                     resultArea.innerHTML = `
                         <div class="dubbing-result-section">
-                            <h3>${completed.length === tasks.length ? '✓ 全部完成' : '⚠ 部分完成'}</h3>
-                            <p>成功: ${completed.length} / 失败: ${failed.length} / 总计: ${tasks.length}</p>
+                            <h3>${completed.length === tasks.length ? I18n.t('dubbing.allComplete') : I18n.t('dubbing.partialComplete')}</h3>
+                            <p>${I18n.t('dubbing.resultSummary', { completed: completed.length, failed: failed.length, total: tasks.length })}</p>
                             <div class="dubbing-result-actions">
-                                <button class="btn-secondary" onclick="DubbingView.init()">🔄 再次配音</button>
+                                <button class="btn-secondary" onclick="DubbingView.init()">${I18n.t('dubbing.dubAgain')}</button>
                             </div>
                         </div>
                     `;
@@ -591,7 +573,6 @@ const DubbingView = {
         }
     },
 
-    // ── Load data ────────────────────────────────────────────────────────
     async loadCompletedProjects() {
         try {
             const res = await fetch('http://localhost:8000/api/v1/dubbing/completed-projects');
@@ -601,7 +582,6 @@ const DubbingView = {
             this.completedProjects = [];
         }
 
-        // Re-render project selector if we have data
         const section = document.querySelector('.dubbing-source-section');
         if (section) {
             const oldList = section.querySelector('.dubbing-project-list, .dubbing-empty-state');
@@ -641,21 +621,21 @@ const DubbingView = {
             const items = data.tasks.map(t => {
                 const sClass = statusMap[t.status] || 'pending';
                 const lang = this.LANGUAGES[t.target_language] || t.target_language;
-                const time = t.created_at ? new Date(t.created_at).toLocaleString('zh-CN') : '';
+                const time = t.created_at ? new Date(t.created_at).toLocaleString(I18n.getLocale()) : '';
                 return `<div class="dubbing-history-item">
                     <div class="dubbing-history-status ${sClass}"></div>
                     <div class="dubbing-history-info">
                         <span>${t.source_video_path.split('/').pop()}</span>
-                        <span class="lang-badge">${lang} · ${time}</span>
+                        <span class="lang-badge">${lang} \xB7 ${time}</span>
                     </div>
                     <div class="dubbing-history-actions">
-                        ${t.status === 'completed' ? `<a class="btn-secondary btn-sm" href="http://localhost:8000/api/v1/dubbing/${t.task_id}/download" download>下载</a>` : ''}
-                        ${['pending','extracting_audio','separating_vocals','transcribing','translating','generating_speech','merging'].includes(t.status) ? `<button class="btn-secondary btn-sm" onclick="DubbingView.watchTask('${t.task_id}')">查看</button>` : ''}
+                        ${t.status === 'completed' ? `<a class="btn-secondary btn-sm" href="http://localhost:8000/api/v1/dubbing/${t.task_id}/download" download>${I18n.t('dubbing.download')}</a>` : ''}
+                        ${['pending','extracting_audio','separating_vocals','transcribing','translating','generating_speech','merging'].includes(t.status) ? `<button class="btn-secondary btn-sm" onclick="DubbingView.watchTask('${t.task_id}')">${I18n.t('dubbing.watch')}</button>` : ''}
                     </div>
                 </div>`;
             }).join('');
 
-            container.innerHTML = `<h3>配音历史</h3><div class="dubbing-history-list">${items}</div>`;
+            container.innerHTML = `<h3>${I18n.t('dubbing.history')}</h3><div class="dubbing-history-list">${items}</div>`;
         } catch (err) {
             container.innerHTML = '';
         }

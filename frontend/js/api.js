@@ -4,7 +4,7 @@
 
 const API_BASE = 'http://localhost:8000/api/v1';
 const MEDIA_BASE = 'http://localhost:8000';
-const USE_MOCK = false; // 切换为 false 连接真实后端
+const USE_MOCK = false;
 
 const Api = {
     // ========== 会话管理 ==========
@@ -41,7 +41,7 @@ const Api = {
                 throw new Error(`HTTP ${response.status}`);
             }
             if (!response.body) {
-                throw new Error('流式响应不可用');
+                throw new Error(I18n.t('api.streamUnavailable'));
             }
 
             const reader = response.body.getReader();
@@ -201,11 +201,11 @@ const Api = {
     connectWebSocket(projectId, onMessage) {
         const wsUrl = `ws://localhost:8000/ws/${projectId}`;
         const ws = new WebSocket(wsUrl);
-        
+
         ws.onopen = () => {
             console.log('WebSocket connected');
         };
-        
+
         ws.onmessage = (event) => {
             try {
                 const data = JSON.parse(event.data);
@@ -214,15 +214,15 @@ const Api = {
                 console.error('WebSocket message parse error:', e);
             }
         };
-        
+
         ws.onerror = (error) => {
             console.error('WebSocket error:', error);
         };
-        
+
         ws.onclose = () => {
             console.log('WebSocket disconnected');
         };
-        
+
         return ws;
     },
 
@@ -343,7 +343,6 @@ const MockApi = {
         this._collectedInfo = { initial_idea: initialIdea };
         this._selectedGenre = null;
 
-        // 自动检测类型
         for (const genre of Object.keys(MOCK.scriptTemplates)) {
             if (initialIdea.includes(genre)) {
                 this._selectedGenre = genre;
@@ -366,7 +365,6 @@ const MockApi = {
     sendMessage(conversationId, message) {
         this._phase++;
 
-        // 提取信息
         if (this._phase === 1) {
             for (const genre of Object.keys(MOCK.scriptTemplates)) {
                 if (message.includes(genre)) {
@@ -376,7 +374,7 @@ const MockApi = {
                 }
             }
             if (!this._collectedInfo.genre) {
-                this._collectedInfo.genre = this._selectedGenre || "都市爱情";
+                this._collectedInfo.genre = this._selectedGenre || I18n.t('mock.genre.urbanRomance');
             }
         } else if (this._phase === 2) {
             const nums = message.match(/\d+/g);
@@ -387,7 +385,6 @@ const MockApi = {
             this._collectedInfo.style_tone = message;
         }
 
-        // 还有更多问题
         if (this._phase < MOCK.conversationPhases.length) {
             const phase = MOCK.conversationPhases[this._phase];
             return {
@@ -401,19 +398,18 @@ const MockApi = {
             };
         }
 
-        // 生成剧本大纲
-        const genre = this._collectedInfo.genre || "都市爱情";
-        const template = MOCK.scriptTemplates[genre] || MOCK.scriptTemplates["都市爱情"];
+        const genre = this._collectedInfo.genre || I18n.t('mock.genre.urbanRomance');
+        const template = MOCK.scriptTemplates[genre] || MOCK.scriptTemplates[I18n.t('mock.genre.urbanRomance')];
         this._currentTemplate = template;
 
         const charsText = template.characters.map(c =>
-            `- ${c.name}：${c.age}岁，${c.role}，${c.description}`
+            `- ${c.name}\uFF1A${c.age}\u5C81\uFF0C${c.role}\uFF0C${c.description}`
         ).join('\n');
         const epsText = template.episodes_summary.map(e =>
-            `- 第${e.range}集：${e.theme}`
+            `- ${I18n.t('video.ep', { n: e.range })}\uFF1A${e.theme}`
         ).join('\n');
 
-        const content = `根据您的需求，我已生成以下剧本大纲：\n\n## 《${template.title}》\n\n**故事梗概**：${template.synopsis}\n\n**主要角色**：\n${charsText}\n\n**分集概要**：\n${epsText}\n\n请确认这个剧本大纲，确认后将进入全自动制片流程。`;
+        const content = `\u6839\u636E\u60A8\u7684\u9700\u6C42\uFF0C\u6211\u5DF2\u751F\u6210\u4EE5\u4E0B\u5267\u672C\u5927\u7EB2\uFF1A\n\n## \u300A${template.title}\u300B\n\n**\u6545\u4E8B\u6897\u6982**\uFF1A${template.synopsis}\n\n**\u4E3B\u8981\u89D2\u8272**\uFF1A\n${charsText}\n\n**\u5206\u96C6\u6982\u8981**\uFF1A\n${epsText}\n\n\u8BF7\u786E\u8BA4\u8FD9\u4E2A\u5267\u672C\u5927\u7EB2\uFF0C\u786E\u8BA4\u540E\u5C06\u8FDB\u5165\u5168\u81EA\u52A8\u5236\u7247\u6D41\u7A0B\u3002`;
 
         return {
             conversation_id: conversationId,
@@ -432,13 +428,13 @@ const MockApi = {
     },
 
     confirmOutline(conversationId) {
-        const template = this._currentTemplate || MOCK.scriptTemplates["都市爱情"];
+        const template = this._currentTemplate || MOCK.scriptTemplates[I18n.t('mock.genre.urbanRomance')];
         return {
             conversation_id: conversationId,
             project_id: "proj_" + (++this._projectIdCounter),
             message: {
                 role: "assistant",
-                content: `剧本大纲已确认！《${template.title}》的制片项目即将启动。\n\n确认后将进入全自动制片流程，包括：\n- 角色三视图自动生成\n- 分集剧本编写\n- 分镜设计与视频生成\n- 自动剪辑与合成\n\n请点击"启动制片"按钮开始。`
+                content: `\u5267\u672C\u5927\u7EB2\u5DF2\u786E\u8BA4\uFF01\u300A${template.title}\u300B\u7684\u5236\u7247\u9879\u76EE\u5373\u5C06\u542F\u52A8\u3002`
             },
             script_outline: {
                 title: template.title,
@@ -451,17 +447,16 @@ const MockApi = {
     },
 
     startProduction(conversationId) {
-        const template = this._currentTemplate || MOCK.scriptTemplates["都市爱情"];
+        const template = this._currentTemplate || MOCK.scriptTemplates[I18n.t('mock.genre.urbanRomance')];
         const projectId = "proj_" + this._projectIdCounter;
         const episodeCount = this._collectedInfo.episode_count || 20;
 
-        // 创建项目数据
         this._projects[projectId] = this._createProjectData(projectId, template, episodeCount);
 
         return {
             project_id: projectId,
             status: "production_started",
-            message: "制片工作流已启动！您可以在项目面板中查看实时进度。",
+            message: "\u5236\u7247\u5DE5\u4F5C\u6D41\u5DF2\u542F\u52A8\uFF01",
             estimated_completion_time: new Date(Date.now() + 3600000).toISOString()
         };
     },
@@ -486,11 +481,11 @@ const MockApi = {
     getAgents(projectId) {
         const statuses = ["working", "working", "idle", "working", "working"];
         const tasks = [
-            "监控全局进度",
-            "编写第8集剧本",
+            "\u76D1\u63A7\u5168\u5C40\u8FDB\u5EA6",
+            "\u7F16\u5199\u7B2C8\u96C6\u5267\u672C",
             null,
-            "优化第6集镜头提示词",
-            "剪辑第5集"
+            "\u4F18\u5316\u7B2C6\u96C6\u955C\u5934\u63D0\u793A\u8BCD",
+            "\u526A\u8F91\u7B2C5\u96C6"
         ];
 
         return {
@@ -531,7 +526,7 @@ const MockApi = {
             episodes.push({
                 episode_id: `ep_${String(i + 1).padStart(3, '0')}`,
                 episode_number: i + 1,
-                title: i < MOCK.episodeTitles.length ? MOCK.episodeTitles[i] : `第${i + 1}集`,
+                title: i < MOCK.episodeTitles.length ? MOCK.episodeTitles[i] : `${I18n.t('video.ep', { n: i + 1 })}`,
                 status,
                 progress: progressMap[status] || 0,
                 duration: status === "completed" ? "4:32" : null,
@@ -550,9 +545,9 @@ const MockApi = {
             created_at: new Date().toISOString(),
             config: {
                 episode_count: episodeCount,
-                episode_duration: "3-5分钟",
-                genre: this._collectedInfo.genre || "都市爱情",
-                style: "轻松幽默"
+                episode_duration: "3-5\u5206\u949F",
+                genre: this._collectedInfo.genre || I18n.t('mock.genre.urbanRomance'),
+                style: I18n.t('mock.tone.lighthearted')
             },
             characters: template.characters.map((c, i) => ({
                 character_id: `char_${String(i + 1).padStart(3, '0')}`,

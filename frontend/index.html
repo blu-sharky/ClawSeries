@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-locale-attr>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,29 +27,32 @@
             <div class="sidebar-nav">
                 <button class="nav-item active" data-view="new-project" onclick="navigateTo('new-project')">
                     <span class="nav-icon">+</span>
-                    <span class="nav-label">新建项目</span>
+                    <span class="nav-label" data-i18n="nav.newProject">新建项目</span>
                 </button>
-                <div class="nav-section-title">项目列表</div>
+                <div class="nav-section-title" data-i18n="nav.projectList">项目列表</div>
                 <div id="project-list" class="nav-projects"></div>
-                <div class="nav-section-title" style="margin-top: 12px;">系统</div>
+                <div class="nav-section-title" style="margin-top: 12px;" data-i18n="nav.system">系统</div>
                 <button class="nav-item" data-view="settings" onclick="navigateTo('settings')">
                     <span class="nav-icon material-symbols-outlined">settings</span>
-                    <span class="nav-label">设置</span>
+                    <span class="nav-label" data-i18n="nav.settings">设置</span>
                 </button>
                 <button class="nav-item" data-view="video" onclick="navigateTo('video')">
                     <span class="nav-icon material-symbols-outlined">movie</span>
-                    <span class="nav-label">视频</span>
+                    <span class="nav-label" data-i18n="nav.video">视频</span>
                 </button>
                 <button class="nav-item" data-view="dubbing" onclick="navigateTo('dubbing')">
                     <span class="nav-icon material-symbols-outlined">translate</span>
-                    <span class="nav-label">配音</span>
+                    <span class="nav-label" data-i18n="nav.dubbing">配音</span>
                 </button>
             </div>
             <div class="sidebar-footer">
                 <div class="system-indicator" id="system-status">
                     <span class="status-dot"></span>
-                    <span>系统正常</span>
+                    <span data-i18n="nav.systemOk">系统正常</span>
                 </div>
+                <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLanguage()" title="Switch Language">
+                    <span id="lang-label">EN</span>
+                </button>
             </div>
         </nav>
 
@@ -58,27 +61,27 @@
             <!-- 新建项目 - 对话视图 -->
             <div class="view" id="view-new-project">
                 <div class="view-header">
-                    <h1>新建制片项目</h1>
-                    <p>ClawSeries — 五大 AI 智能体协作，一键自动化制片</p>
+                    <h1 data-i18n="view.newProject.title">新建制片项目</h1>
+                    <p data-i18n="view.newProject.subtitle">ClawSeries — 五大 AI 智能体协作，一键自动化制片</p>
                 </div>
                 <div class="chat-container" id="chat-container">
                     <div class="chat-messages" id="chat-messages">
                         <div class="chat-welcome">
                             <div class="welcome-icon">CS</div>
-                            <h2>欢迎使用 ClawSeries</h2>
-                            <p>描述您想制作的短剧，AI 将引导您完成从剧本到成片的全流程。</p>
+                            <h2 data-i18n="welcome.title">欢迎使用 ClawSeries</h2>
+                            <p data-i18n="welcome.desc">描述您想制作的短剧，AI 将引导您完成从剧本到成片的全流程。</p>
                             <div class="quick-starters">
-                                <button class="quick-btn" onclick="sendQuickStart('我想做一部都市爱情短剧，重点是极限拉扯和身份反转')">都市爱情短剧</button>
-                                <button class="quick-btn" onclick="sendQuickStart('做一个悬疑推理系列，类似隐秘的角落那种风格')">悬疑推理系列</button>
-                                <button class="quick-btn" onclick="sendQuickStart('古风仙侠短剧，要有修炼升级和爱情线')">古风仙侠</button>
-                                <button class="quick-btn" onclick="sendQuickStart('职场商战题材，讲一个年轻人逆袭的故事')">职场逆袭</button>
+                                <button class="quick-btn" onclick="sendQuickStart('我想做一部都市爱情短剧，重点是极限拉扯和身份反转')" data-i18n="welcome.quick1">都市爱情短剧</button>
+                                <button class="quick-btn" onclick="sendQuickStart('做一个悬疑推理系列，类似隐秘的角落那种风格')" data-i18n="welcome.quick2">悬疑推理系列</button>
+                                <button class="quick-btn" onclick="sendQuickStart('古风仙侠短剧，要有修炼升级和爱情线')" data-i18n="welcome.quick3">古风仙侠</button>
+                                <button class="quick-btn" onclick="sendQuickStart('职场商战题材，讲一个年轻人逆袭的故事')" data-i18n="welcome.quick4">职场逆袭</button>
                             </div>
                         </div>
                     </div>
                     <div class="chat-input-area">
                         <div class="chat-input-wrapper">
-                            <textarea id="chat-input" placeholder="描述您想制作的短剧..." rows="1" onkeydown="handleInputKeydown(event)"></textarea>
-                            <button class="send-btn" id="send-btn" onclick="sendMessage()" title="发送（⌘/Ctrl + Enter）">
+                            <textarea id="chat-input" data-i18n="chat.placeholder" placeholder="描述您想制作的短剧..." rows="1" onkeydown="handleInputKeydown(event)"></textarea>
+                            <button class="send-btn" id="send-btn" onclick="sendMessage()" data-i18n="chat.sendTitle" title="发送（⌘/Ctrl + Enter）">
                                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M22 2L11 13M22 2L15 22L11 13M22 2L2 9L11 13"/>
                                 </svg>
@@ -97,8 +100,8 @@
             <!-- 设置视图 -->
             <div class="view hidden" id="view-settings">
                 <div class="view-header">
-                    <h1>模型配置</h1>
-                    <p>配置 LLM、图片生成、视频生成模型的连接信息</p>
+                    <h1 data-i18n="view.settings.title">模型配置</h1>
+                    <p data-i18n="view.settings.subtitle">配置 LLM、图片生成、视频生成模型的连接信息</p>
                 </div>
                 <div id="settings-content" class="settings-content"></div>
             </div>
@@ -107,22 +110,23 @@
             <!-- 视频视图 -->
             <div class="view hidden" id="view-video">
                 <div class="view-header">
-                    <h1>视频生成</h1>
-                    <p>查看镜头视频生成任务和日志</p>
+                    <h1 data-i18n="view.video.title">视频生成</h1>
+                    <p data-i18n="view.video.subtitle">查看镜头视频生成任务和日志</p>
                 </div>
                 <div id="video-content" class="project-detail-content"></div>
             </div>
             <!-- 配音视图 -->
             <div class="view hidden" id="view-dubbing">
                 <div class="view-header">
-                    <h1>AI 多语言配音</h1>
-                    <p>一键配音视频到指定语言，保持原音色和情感</p>
+                    <h1 data-i18n="view.dubbing.title">AI 多语言配音</h1>
+                    <p data-i18n="view.dubbing.subtitle">一键配音视频到指定语言，保持原音色和情感</p>
                 </div>
                 <div id="dubbing-content" class="dubbing-content"></div>
             </div>
         </main>
     </div>
 
+    <script src="js/i18n.js"></script>
     <script src="js/mock-data.js"></script>
     <script src="js/api.js"></script>
     <script src="js/chat.js"></script>

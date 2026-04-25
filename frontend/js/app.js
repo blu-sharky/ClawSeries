@@ -7,6 +7,12 @@ const App = {
         Chat.init();
         this.refreshProjectList();
         this.startSystemStatusPolling();
+        this._updateLangToggle();
+    },
+
+    _updateLangToggle() {
+        const label = document.getElementById('lang-label');
+        if (label) label.textContent = I18n.getLocale() === 'zh-CN' ? 'EN' : '中文';
     },
 
     async refreshProjectList() {
@@ -15,7 +21,7 @@ const App = {
             const data = await Api.getProjects();
 
             if (!data.projects || data.projects.length === 0) {
-                list.innerHTML = '<div style="padding: 8px 16px; font-size: 12px; color: rgba(255,255,255,0.3);">暂无项目</div>';
+                list.innerHTML = `<div style="padding: 8px 16px; font-size: 12px; color: rgba(255,255,255,0.3);">${I18n.t('app.noProjects')}</div>`;
                 return;
             }
 
@@ -29,14 +35,14 @@ const App = {
                             <span class="project-nav-title">${p.title}</span>
                         </button>
                         <div class="project-nav-actions">
-                            ${showContinue ? `<button class="project-action-btn continue" onclick="event.stopPropagation(); App.continueProject('${p.project_id}')" title="继续制片">▶</button>` : ''}
-                            <button class="project-action-btn delete" onclick="event.stopPropagation(); App.deleteProject('${p.project_id}', '${p.title}')" title="删除项目">×</button>
+                            ${showContinue ? `<button class="project-action-btn continue" onclick="event.stopPropagation(); App.continueProject('${p.project_id}')" title="${I18n.t('project.startProduction')}">▶</button>` : ''}
+                            <button class="project-action-btn delete" onclick="event.stopPropagation(); App.deleteProject('${p.project_id}', '${p.title}')" title="${I18n.t('project.newProject')}">×</button>
                         </div>
                     </div>
                 `;
             }).join('');
         } catch (err) {
-            list.innerHTML = '<div style="padding: 8px 16px; font-size: 12px; color: rgba(255,255,255,0.3);">无法连接后端</div>';
+            list.innerHTML = `<div style="padding: 8px 16px; font-size: 12px; color: rgba(255,255,255,0.3);">${I18n.t('app.backendOffline')}</div>`;
         }
     },
 
@@ -49,32 +55,29 @@ const App = {
             const res = await fetch('http://localhost:8000/api/v1/system/status', { signal: AbortSignal.timeout(3000) });
             const data = await res.json();
 
-            // Check if any critical service is down
             const apiStatus = data.api_status || {};
             const allDown = Object.values(apiStatus).every(v => v === 'not_configured');
 
             if (data.status === 'operational') {
                 dot.className = 'status-dot healthy';
-                text.textContent = allDown ? '系统正常 (未配置)' : '系统正常';
+                text.textContent = allDown ? I18n.t('app.systemOkUnconfigured') : I18n.t('app.systemOk');
             } else {
                 dot.className = 'status-dot warning';
                 text.textContent = data.status;
             }
         } catch (err) {
             dot.className = 'status-dot error';
-            text.textContent = '后端未连接';
+            text.textContent = I18n.t('app.backendDisconnected');
         }
     },
 
     startSystemStatusPolling() {
-        // Check immediately
         this.checkSystemStatus();
-        // Then every 10 seconds
         setInterval(() => this.checkSystemStatus(), 10000);
     },
 
     async deleteProject(projectId, title) {
-        if (!confirm(`确定要删除项目「${title}」吗？此操作不可撤销。`)) return;
+        if (!confirm(I18n.t('app.deleteConfirm', { title }))) return;
         try {
             await Api.deleteProject(projectId);
             this.refreshProjectList();
@@ -83,7 +86,7 @@ const App = {
                 navigateTo('new-project');
             }
         } catch (err) {
-            alert('删除失败: ' + err.message);
+            alert(I18n.t('app.deleteFailed', { msg: err.message }));
         }
     },
 
@@ -96,7 +99,7 @@ const App = {
                 ProjectView.show(projectId);
             }
         } catch (err) {
-            alert('继续制片失败: ' + err.message);
+            alert(I18n.t('app.continueFailed', { msg: err.message }));
         }
     }
 };
@@ -110,14 +113,12 @@ function navigateTo(view) {
         clearInterval(VideoView._timer);
         VideoView._timer = null;
     }
-    // Hide all views
     document.getElementById('view-new-project').classList.add('hidden');
     document.getElementById('view-project-detail').classList.add('hidden');
     document.getElementById('view-settings').classList.add('hidden');
     document.getElementById('view-video').classList.add('hidden');
     document.getElementById('view-dubbing').classList.add('hidden');
 
-    // Update nav state
     document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
     document.querySelectorAll('.project-nav-item').forEach(el => el.classList.remove('active'));
     document.querySelector(`[data-view="${view}"]`)?.classList.add('active');
@@ -136,7 +137,12 @@ function navigateTo(view) {
     }
 }
 
-// 初始化
+function toggleLanguage() {
+    const next = I18n.getLocale() === 'zh-CN' ? 'en' : 'zh-CN';
+    I18n.setLocale(next);
+    location.reload();
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     App.init();
 });

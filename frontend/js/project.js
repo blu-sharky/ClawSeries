@@ -4,73 +4,73 @@
 
 const AGENT_META = {
     agent_director: {
-        name: '项目总监',
         icon: 'assignment',
         description: '',
         color: '#6c5ce7',
+        get name() { return I18n.t('project.agent.director'); },
     },
     agent_chief_director: {
-        name: '总导演',
         icon: 'movie_creation',
         description: '',
         color: '#e17055',
+        get name() { return I18n.t('project.agent.chief_director'); },
     },
     agent_visual: {
-        name: '视觉总监',
         icon: 'palette',
         description: '',
         color: '#00b894',
+        get name() { return I18n.t('project.agent.visual'); },
     },
     agent_prompt: {
-        name: '提示词架构师',
         icon: 'edit_note',
         description: '',
         color: '#fdcb6e',
+        get name() { return I18n.t('project.agent.prompt'); },
     },
     agent_editor: {
-        name: '自动化剪辑师',
         icon: 'video_library',
         description: '',
         color: '#74b9ff',
+        get name() { return I18n.t('project.agent.editor'); },
     },
 };
 const AGENT_ORDER = Object.keys(AGENT_META);
 
 // Pipeline stages for the linear stepper
 const PIPELINE_STAGES = [
-    { stage: 'requirements_confirmed', label: '需求确认', agent: 'agent_director' },
-    { stage: 'script_completed', label: '完整剧本', agent: 'agent_chief_director' },
-    { stage: 'format_completed', label: '格式化分镜', agent: 'agent_prompt' },
-    { stage: 'assets_completed', label: '资产锁定', agent: 'agent_visual' },
-    { stage: 'shots_completed', label: '逐镜视频', agent: 'agent_visual' },
-    { stage: 'project_completed', label: '合成输出', agent: 'agent_editor' },
+    { stage: 'requirements_confirmed', get label() { return I18n.t('project.stage.requirements_confirmed'); }, agent: 'agent_director' },
+    { stage: 'script_completed', get label() { return I18n.t('project.stage.script_completed'); }, agent: 'agent_chief_director' },
+    { stage: 'format_completed', get label() { return I18n.t('project.stage.format_completed'); }, agent: 'agent_prompt' },
+    { stage: 'assets_completed', get label() { return I18n.t('project.stage.assets_completed'); }, agent: 'agent_visual' },
+    { stage: 'shots_completed', get label() { return I18n.t('project.stage.shots_completed'); }, agent: 'agent_visual' },
+    { stage: 'project_completed', get label() { return I18n.t('project.stage.project_completed'); }, agent: 'agent_editor' },
 ];
 
 const STAGE_TITLES = {
-    requirements_confirmed: '需求确认',
-    script_generating: '剧本生成中',
-    script_completed: '完整剧本',
-    format_generating: '格式化分镜中',
-    format_completed: '格式化分镜',
-    assets_generating: '资产生成中',
-    assets_completed: '资产锁定',
-    shots_generating: '逐镜视频生成中',
-    shots_completed: '逐镜视频',
-    episode_composing: '剧集合成中',
-    episode_completed: '剧集完成',
-    project_completed: '合成输出'
+    requirements_confirmed: () => I18n.t('project.stage.requirements_confirmed'),
+    script_generating: () => I18n.t('project.stage.script_generating'),
+    script_completed: () => I18n.t('project.stage.script_completed'),
+    format_generating: () => I18n.t('project.stage.format_generating'),
+    format_completed: () => I18n.t('project.stage.format_completed'),
+    assets_generating: () => I18n.t('project.stage.assets_generating'),
+    assets_completed: () => I18n.t('project.stage.assets_completed'),
+    shots_generating: () => I18n.t('project.stage.shots_generating'),
+    shots_completed: () => I18n.t('project.stage.shots_completed'),
+    episode_composing: () => I18n.t('project.stage.episode_composing'),
+    episode_completed: () => I18n.t('project.stage.episode_completed'),
+    project_completed: () => I18n.t('project.stage.project_completed'),
 };
 
 const EPISODE_STATUS_LABELS = {
-    completed: '已完成',
-    editing: '剪辑中',
-    rendering: '渲染中',
-    asset_generating: '素材生成',
-    storyboarding: '分镜设计',
-    scripting: '剧本编写',
-    pending: '等待中',
-    qc_checking: '质检中',
-    failed: '失败',
+    completed: () => I18n.t('project.epStatus.completed'),
+    editing: () => I18n.t('project.epStatus.editing'),
+    rendering: () => I18n.t('project.epStatus.rendering'),
+    asset_generating: () => I18n.t('project.epStatus.asset_generating'),
+    storyboarding: () => I18n.t('project.epStatus.storyboarding'),
+    scripting: () => I18n.t('project.epStatus.scripting'),
+    pending: () => I18n.t('project.epStatus.pending'),
+    qc_checking: () => I18n.t('project.epStatus.qc_checking'),
+    failed: () => I18n.t('project.epStatus.failed'),
 };
 
 const ProjectView = {
@@ -109,7 +109,6 @@ const ProjectView = {
         const navItem = document.querySelector(`.project-nav-item[data-pid="${projectId}"]`);
         if (navItem) navItem.classList.add('active');
 
-        // Set up scroll listener to detect user scrolling
         this._setupScrollListener();
 
         const project = await Api.getProject(projectId);
@@ -137,7 +136,13 @@ const ProjectView = {
 
     _renderHeader(project) {
         const header = document.getElementById('project-detail-header');
-        const statusLabels = { pending: '等待中', in_progress: '制片中', completed: '已完成', paused: '已暂停', failed: '失败' };
+        const statusLabels = {
+            pending: I18n.t('project.status.pending'),
+            in_progress: I18n.t('project.status.in_progress'),
+            completed: I18n.t('project.status.completed'),
+            paused: I18n.t('project.status.paused'),
+            failed: I18n.t('project.status.failed'),
+        };
 
         header.innerHTML = `
             <div class="project-header-bar">
@@ -147,9 +152,9 @@ const ProjectView = {
                 </div>
                 <div class="project-actions">
                     ${project.status === 'pending' ? `
-                        <button class="btn-primary" onclick="ProjectView.startProduction()">启动制片</button>
+                        <button class="btn-primary" onclick="ProjectView.startProduction()">${I18n.t('project.startProduction')}</button>
                     ` : ''}
-                    <button class="btn-secondary" onclick="navigateTo('new-project')">+ 新建项目</button>
+                    <button class="btn-secondary" onclick="navigateTo('new-project')">${I18n.t('project.newProject')}</button>
                 </div>
             </div>
         `;
@@ -159,11 +164,11 @@ const ProjectView = {
         const content = document.getElementById('project-detail-content');
         content.innerHTML = `
             <div class="tabs">
-                <button class="tab-btn active" onclick="ProjectView.switchTab('overview')">概览</button>
-                <button class="tab-btn" onclick="ProjectView.switchTab('monitor')">总控台</button>
-                <button class="tab-btn" onclick="ProjectView.switchTab('pipeline')">日志</button>
-                <button class="tab-btn" onclick="ProjectView.switchTab('characters')">角色</button>
-                <button class="tab-btn" onclick="ProjectView.switchTab('episodes')">剧集</button>
+                <button class="tab-btn active" onclick="ProjectView.switchTab('overview')">${I18n.t('project.tab.overview')}</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('monitor')">${I18n.t('project.tab.monitor')}</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('pipeline')">${I18n.t('project.tab.pipeline')}</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('characters')">${I18n.t('project.tab.characters')}</button>
+                <button class="tab-btn" onclick="ProjectView.switchTab('episodes')">${I18n.t('project.tab.episodes')}</button>
             </div>
             <div id="tab-content"></div>
         `;
@@ -183,11 +188,11 @@ const ProjectView = {
 
     _tabLabel(tab) {
         return {
-            overview: '概览',
-            monitor: '总控台',
-            pipeline: '日志',
-            characters: '角色',
-            episodes: '剧集'
+            overview: I18n.t('project.tab.overview'),
+            monitor: I18n.t('project.tab.monitor'),
+            pipeline: I18n.t('project.tab.pipeline'),
+            characters: I18n.t('project.tab.characters'),
+            episodes: I18n.t('project.tab.episodes'),
         }[tab] || tab;
     },
 
@@ -209,11 +214,10 @@ const ProjectView = {
     },
 
     _renderPipeline(container, project) {
-        // Simple log view - just the timeline
         container.innerHTML = `
             <div class="pipeline-container">
-                <div class="section-title">生产事件日志</div>
-                <div id="pipeline-timeline"><div style="color: var(--text-tertiary); text-align: center; padding: 24px;">加载中...</div></div>
+                <div class="section-title">${I18n.t('project.pipeline.title')}</div>
+                <div id="pipeline-timeline"><div style="color: var(--text-tertiary); text-align: center; padding: 24px;">${I18n.t('project.pipeline.loading')}</div></div>
             </div>
         `;
         this._loadTimeline();
@@ -227,7 +231,7 @@ const ProjectView = {
 
             const events = data.timeline || [];
             if (events.length === 0) {
-                timelineEl.innerHTML = '<div style="color: var(--text-tertiary); text-align: center; padding: 24px;">暂无生产事件</div>';
+                timelineEl.innerHTML = `<div style="color: var(--text-tertiary); text-align: center; padding: 24px;">${I18n.t('project.pipeline.noEvents')}</div>`;
                 return;
             }
 
@@ -240,10 +244,10 @@ const ProjectView = {
                         <div class="timeline-content">
                             <div class="timeline-header">
                                 <span class="timeline-agent">${agent.name}</span>
-                                <span class="timeline-title">${e.title}</span>
-                                <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString()}</span>
+                                <span class="timeline-title">${this._escapeHtml(e.title)}</span>
+                                <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString(I18n.getLocale())}</span>
                             </div>
-                            <div class="timeline-message">${e.message}</div>
+                            <div class="timeline-message">${this._escapeHtml(e.message)}</div>
                         </div>
                     </div>
                 `;
@@ -252,7 +256,7 @@ const ProjectView = {
             timelineEl.innerHTML = html;
         } catch (err) {
             const timelineEl = document.getElementById('pipeline-timeline');
-            if (timelineEl) timelineEl.innerHTML = '<div style="color: var(--text-tertiary); text-align: center;">加载失败</div>';
+            if (timelineEl) timelineEl.innerHTML = `<div style="color: var(--text-tertiary); text-align: center;">${I18n.t('project.pipeline.loadFailed')}</div>`;
         }
     },
 
@@ -264,7 +268,7 @@ const ProjectView = {
         container.innerHTML = `
             <div class="progress-overview">
                 <div class="stat-card">
-                    <div class="stat-card-label">总体进度</div>
+                    <div class="stat-card-label">${I18n.t('project.overallProgress')}</div>
                     <div class="stat-card-value">${project.progress}%</div>
                     <div class="progress-bar-wrapper">
                         <div class="progress-bar-track">
@@ -273,23 +277,23 @@ const ProjectView = {
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-card-label">已完成</div>
+                    <div class="stat-card-label">${I18n.t('project.completed')}</div>
                     <div class="stat-card-value">${completed}</div>
-                    <div class="stat-card-sub">共 ${project.episodes.length} 集</div>
+                    <div class="stat-card-sub">${I18n.t('project.episodesTotal', { n: project.episodes.length })}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-card-label">进行中</div>
+                    <div class="stat-card-label">${I18n.t('project.inProgress')}</div>
                     <div class="stat-card-value">${inProgress}</div>
-                    <div class="stat-card-sub">渲染/剪辑/生成中</div>
+                    <div class="stat-card-sub">${I18n.t('project.inProgressSub')}</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-card-label">等待中</div>
+                    <div class="stat-card-label">${I18n.t('project.pending')}</div>
                     <div class="stat-card-value">${pending}</div>
-                    <div class="stat-card-sub">排队等待处理</div>
+                    <div class="stat-card-sub">${I18n.t('project.pendingSub')}</div>
                 </div>
             </div>
 
-            <div class="section-title">当前阶段</div>
+            <div class="section-title">${I18n.t('project.currentStage')}</div>
             <div id="overview-agents"></div>
         `;
 
@@ -297,7 +301,7 @@ const ProjectView = {
     },
 
     _agentStatusText(status) {
-        return status === 'working' ? '工作中' : status === 'error' ? '错误' : '空闲';
+        return status === 'working' ? I18n.t('project.agentStatus.working') : status === 'error' ? I18n.t('project.agentStatus.error') : I18n.t('project.agentStatus.idle');
     },
 
     async _renderAgentsMini(container, project) {
@@ -319,7 +323,7 @@ const ProjectView = {
                             ${this._agentStatusText(agent.status)}
                         </span>
                     </div>
-                    <div class="agent-task">${this._escapeHtml(agent.current_task || '等待任务')}</div>
+                    <div class="agent-task">${this._escapeHtml(agent.current_task || I18n.t('project.waitingTask'))}</div>
                     ${showTaskTotal ? `
                     <div class="agent-progress">
                         <span>${agent.completed_tasks} / ${agent.total_tasks}</span>
@@ -354,19 +358,18 @@ const ProjectView = {
 
         const active = agentDetails.find(({ agent }) => agent.status === 'working') || agentDetails[0] || null;
         const workingAgents = agentDetails.filter(({ agent }) => agent.status === 'working').length;
-        const currentStageLabel = this._stageTitle(project.current_stage) || '待启动';
+        const currentStageLabel = this._stageTitle(project.current_stage) || I18n.t('project.monitor.notStarted');
 
-        // Simplified monitor: status header + agent cards with prompt/output only
         let html = `
             <section class="monitor-hero">
                 <div class="monitor-hero-main">
                     <div class="monitor-hero-heading">
                         <div>
-                            <div class="section-title" style="margin: 0;">总控台</div>
+                            <div class="section-title" style="margin: 0;">${I18n.t('project.monitor.title')}</div>
                         </div>
                         <div class="monitor-stage-badge ${project.status}">${this._escapeHtml(currentStageLabel)}</div>
                     </div>
-                    <div class="monitor-hero-task">${active ? this._escapeHtml(active.agent.current_task || active.monitor.currentTask || '等待任务') : '当前没有活跃任务'}</div>
+                    <div class="monitor-hero-task">${active ? this._escapeHtml(active.agent.current_task || active.monitor.currentTask || I18n.t('project.waitingTask')) : I18n.t('project.monitor.noActiveTask')}</div>
                     <div class="monitor-stage-strip">
                         ${PIPELINE_STAGES.map(ps => {
                             const stageInfo = (project.stages || []).find(s => s.stage === ps.stage);
@@ -378,7 +381,7 @@ const ProjectView = {
                                     <div class="monitor-stage-chip-icon" style="color: ${meta.color}"><span class="material-symbols-outlined">${meta.icon}</span></div>
                                     <div class="monitor-stage-chip-body">
                                         <div class="monitor-stage-chip-title">${ps.label}</div>
-                                        <div class="monitor-stage-chip-meta">${this._escapeHtml(stageAgent?.name || '待分配')}</div>
+                                        <div class="monitor-stage-chip-meta">${this._escapeHtml(stageAgent?.name || I18n.t('project.monitor.toBeAssigned'))}</div>
                                     </div>
                                 </div>
                             `;
@@ -387,30 +390,31 @@ const ProjectView = {
                 </div>
                 <div class="monitor-kpi-grid">
                     <div class="monitor-kpi-card primary">
-                        <div class="monitor-kpi-label">当前阶段</div>
+                        <div class="monitor-kpi-label">${I18n.t('project.monitor.currentStage')}</div>
                         <div class="monitor-kpi-value small">${this._escapeHtml(currentStageLabel)}</div>
-                        <div class="monitor-kpi-sub">项目状态：${this._escapeHtml(project.status)}</div>
+                        <div class="monitor-kpi-sub">${I18n.t('project.monitor.projectStatus', { status: this._escapeHtml(project.status) })}</div>
                     </div>
                     <div class="monitor-kpi-card">
-                        <div class="monitor-kpi-label">活跃智能体</div>
+                        <div class="monitor-kpi-label">${I18n.t('project.monitor.activeAgents')}</div>
                         <div class="monitor-kpi-value">${workingAgents}</div>
-                        <div class="monitor-kpi-sub">${orderedAgents.length} 个席位在线</div>
+                        <div class="monitor-kpi-sub">${I18n.t('project.monitor.seatsOnline', { n: orderedAgents.length })}</div>
                     </div>
                     <div class="monitor-kpi-card">
-                        <div class="monitor-kpi-label">总体进度</div>
+                        <div class="monitor-kpi-label">${I18n.t('project.monitor.overallProgress')}</div>
                         <div class="monitor-kpi-value">${project.progress}%</div>
-                        <div class="monitor-kpi-sub">${project.episodes?.length || 0} 集</div>
+                        <div class="monitor-kpi-sub">${project.episodes?.length || 0} ${I18n.t('project.monitor.episodes')}</div>
                     </div>
                 </div>
             </section>
         `;
 
-        // Agent panels - only show prompt/output (events/logs moved to 日志 tab)
         for (const { agent, events, monitor } of agentDetails) {
             const meta = AGENT_META[agent.agent_id] || { icon: 'smart_toy', description: '', color: '#6b7280' };
-            const stageLabel = this._stageTitle(monitor.stage) || '未进入阶段';
+            const stageLabel = this._stageTitle(monitor.stage) || I18n.t('project.monitor.notInStage');
             const progress = agent.total_tasks > 0 ? Math.round((agent.completed_tasks / agent.total_tasks) * 100) : 0;
             const showTaskTotal = agent.agent_id !== 'agent_editor';
+            const noPrompt = I18n.t('project.monitor.noPrompt');
+            const waitOut = I18n.t('project.monitor.waitingOutput');
             html += `
                 <section class="monitor-panel ${agent.status}">
                     <div class="monitor-panel-header">
@@ -420,15 +424,15 @@ const ProjectView = {
                             <span class="monitor-pill status ${agent.status}">${this._agentStatusText(agent.status)}</span>
                         </div>
                     </div>
-                    <div class="agent-task" id="monitor-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || monitor.currentTask || '等待任务')}</div>
+                    <div class="agent-task" id="monitor-task-${agent.agent_id}">${this._escapeHtml(agent.current_task || monitor.currentTask || I18n.t('project.waitingTask'))}</div>
                     ${showTaskTotal ? `
                     <div class="monitor-mini-stats">
                         <div class="monitor-mini-stat">
-                            <span>任务</span>
+                            <span>${I18n.t('project.monitor.tasks')}</span>
                             <strong>${agent.completed_tasks} / ${agent.total_tasks}</strong>
                         </div>
                         <div class="monitor-mini-stat">
-                            <span>进度</span>
+                            <span>${I18n.t('project.monitor.progress')}</span>
                             <strong>${progress}%</strong>
                         </div>
                     </div>
@@ -437,22 +441,22 @@ const ProjectView = {
                         <details class="monitor-stream-card prompt" id="monitor-prompt-card-${agent.agent_id}">
                             <summary class="monitor-stream-summary">
                                 <div class="monitor-stream-copy">
-                                    <div class="agent-monitor-label">最新提示词</div>
-                                    <div class="monitor-stream-preview" id="monitor-prompt-preview-${agent.agent_id}">${this._escapeHtml(this._monitorPreview(monitor.prompt, '暂无提示词'))}</div>
+                                    <div class="agent-monitor-label">${I18n.t('project.monitor.latestPrompt')}</div>
+                                    <div class="monitor-stream-preview" id="monitor-prompt-preview-${agent.agent_id}">${this._escapeHtml(this._monitorPreview(monitor.prompt, noPrompt))}</div>
                                 </div>
-                                <div class="monitor-stream-meta" id="monitor-prompt-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.prompt, '暂无提示词'))}</div>
+                                <div class="monitor-stream-meta" id="monitor-prompt-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.prompt, noPrompt))}</div>
                             </summary>
-                            <pre class="agent-monitor-text prompt" id="monitor-prompt-${agent.agent_id}">${this._escapeHtml(monitor.prompt || '暂无提示词')}</pre>
+                            <pre class="agent-monitor-text prompt" id="monitor-prompt-${agent.agent_id}">${this._escapeHtml(monitor.prompt || noPrompt)}</pre>
                         </details>
                         <details class="monitor-stream-card output" id="monitor-output-card-${agent.agent_id}" ${(monitor.output || agent.status === 'working') ? 'open' : ''}>
                             <summary class="monitor-stream-summary">
                                 <div class="monitor-stream-copy">
-                                    <div class="agent-monitor-label">实时反馈</div>
-                                    <div class="monitor-stream-preview" id="monitor-output-preview-${agent.agent_id}">${this._escapeHtml(this._monitorPreview(monitor.output, '等待输出'))}</div>
+                                    <div class="agent-monitor-label">${I18n.t('project.monitor.realtimeFeedback')}</div>
+                                    <div class="monitor-stream-preview" id="monitor-output-preview-${agent.agent_id}">${this._escapeHtml(this._monitorPreview(monitor.output, waitOut))}</div>
                                 </div>
-                                <div class="monitor-stream-meta" id="monitor-output-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.output, '等待输出'))}</div>
+                                <div class="monitor-stream-meta" id="monitor-output-stat-${agent.agent_id}">${this._escapeHtml(this._monitorStatText(monitor.output, waitOut))}</div>
                             </summary>
-                            <div class="agent-monitor-text output" id="monitor-output-${agent.agent_id}">${this._formatMarkdown(monitor.output || '等待输出')}</div>
+                            <div class="agent-monitor-text output" id="monitor-output-${agent.agent_id}">${this._formatMarkdown(monitor.output || waitOut)}</div>
                         </details>
                     </div>
                 </section>
@@ -460,15 +464,11 @@ const ProjectView = {
         }
 
         container.innerHTML = html;
-
-        // Auto-scroll to the currently working agent
         this._scrollToActiveAgent(active);
     },
 
     _scrollToActiveAgent(active) {
-        // Don't auto-scroll if user is manually scrolling
         if (this._userScrolling) return;
-
         if (active) {
             const panel = document.querySelector(`.monitor-panel.${active.agent.status}`);
             if (panel) {
@@ -486,7 +486,7 @@ const ProjectView = {
             if (this._scrollTimeout) clearTimeout(this._scrollTimeout);
             this._scrollTimeout = setTimeout(() => {
                 this._userScrolling = false;
-            }, 3000); // Resume auto-scroll after 3s of no user scrolling
+            }, 3000);
         }, { passive: true });
     },
 
@@ -538,7 +538,7 @@ const ProjectView = {
     },
 
     _stageTitle(stage) {
-        return stage ? (STAGE_TITLES[stage] || stage) : '';
+        return stage ? (STAGE_TITLES[stage] ? STAGE_TITLES[stage]() : stage) : '';
     },
 
     _agentName(agentId) {
@@ -557,7 +557,7 @@ const ProjectView = {
         const normalized = String(value || '').replace(/```json\n?/g, '').replace(/```/g, '').trim();
         if (!normalized) return fallback;
         const lineCount = normalized.split(/\r?\n/).filter(Boolean).length;
-        return `${lineCount} 行 · ${normalized.length} 字`;
+        return I18n.t('project.monitor.lineChar', { lines: lineCount, chars: normalized.length });
     },
 
     _applyAgentMonitorUpdate(data) {
@@ -573,6 +573,9 @@ const ProjectView = {
         if (data.stage) state.stage = data.stage;
         this.agentMonitorState[agentId] = state;
 
+        const noPrompt = I18n.t('project.monitor.noPrompt');
+        const waitOut = I18n.t('project.monitor.waitingOutput');
+
         const updateText = (id, text, fallback) => {
             const el = document.getElementById(id);
             if (!el) return;
@@ -584,17 +587,17 @@ const ProjectView = {
             if (id.includes('output-')) el.scrollTop = el.scrollHeight;
         };
 
-        updateText(`monitor-prompt-${agentId}`, state.prompt, '暂无提示词');
-        updateText(`monitor-output-${agentId}`, state.output, '等待输出');
-        updateText(`monitor-meta-${agentId}`, state.metaText, '暂无执行反馈');
-        updateText(`monitor-task-${agentId}`, state.currentTask, '等待任务');
-        updateText(`monitor-sidebar-task-${agentId}`, state.currentTask, '等待任务');
-        updateText(`agent-task-${agentId}`, state.currentTask, '等待任务');
-        updateText(`monitor-stage-${agentId}`, this._stageTitle(state.stage), '未进入阶段');
-        updateText(`monitor-prompt-preview-${agentId}`, this._monitorPreview(state.prompt, '暂无提示词'), '暂无提示词');
-        updateText(`monitor-output-preview-${agentId}`, this._monitorPreview(state.output, '等待输出'), '等待输出');
-        updateText(`monitor-prompt-stat-${agentId}`, this._monitorStatText(state.prompt, '暂无提示词'), '暂无提示词');
-        updateText(`monitor-output-stat-${agentId}`, this._monitorStatText(state.output, '等待输出'), '等待输出');
+        updateText(`monitor-prompt-${agentId}`, state.prompt, noPrompt);
+        updateText(`monitor-output-${agentId}`, state.output, waitOut);
+        updateText(`monitor-meta-${agentId}`, state.metaText, I18n.t('project.monitor.noFeedback'));
+        updateText(`monitor-task-${agentId}`, state.currentTask, I18n.t('project.waitingTask'));
+        updateText(`monitor-sidebar-task-${agentId}`, state.currentTask, I18n.t('project.waitingTask'));
+        updateText(`agent-task-${agentId}`, state.currentTask, I18n.t('project.waitingTask'));
+        updateText(`monitor-stage-${agentId}`, this._stageTitle(state.stage), I18n.t('project.monitor.notInStage'));
+        updateText(`monitor-prompt-preview-${agentId}`, this._monitorPreview(state.prompt, noPrompt), noPrompt);
+        updateText(`monitor-output-preview-${agentId}`, this._monitorPreview(state.output, waitOut), waitOut);
+        updateText(`monitor-prompt-stat-${agentId}`, this._monitorStatText(state.prompt, noPrompt), noPrompt);
+        updateText(`monitor-output-stat-${agentId}`, this._monitorStatText(state.output, waitOut), waitOut);
 
         const outputCard = document.getElementById(`monitor-output-card-${agentId}`);
         if (outputCard && state.output) outputCard.open = true;
@@ -609,11 +612,11 @@ const ProjectView = {
                 <div class="character-card">
                     <div class="character-info">
                         <h3>${char.name}</h3>
-                        <div class="character-meta">${char.age}\u5C81 \xB7 ${char.role}</div>
+                        <div class="character-meta">${I18n.t('project.characters.ageUnit', { age: char.age })} \xB7 ${char.role}</div>
                         <div class="character-desc">${char.description}</div>
                     </div>
                     ${char.sheet_url
-                        ? `<div class="character-sheet"><img src="${MEDIA_BASE}${char.sheet_url}" alt="${char.name} \u8BBE\u5B9A\u56FE"></div>`
+                        ? `<div class="character-sheet"><img src="${MEDIA_BASE}${char.sheet_url}" alt="${I18n.t('project.characters.sheetAlt', { name: char.name })}"></div>`
                         : ''
                     }
                 </div>
@@ -624,18 +627,17 @@ const ProjectView = {
     },
 
     _renderEpisodes(container, project) {
-
         let html = `
             <div class="episodes-table-container">
             <table class="episodes-table">
                 <thead>
                     <tr>
-                        <th>\u96C6\u6570</th>
-                        <th>\u6807\u9898</th>
-                        <th>\u72B6\u6001</th>
-                        <th>\u8FDB\u5EA6</th>
-                        <th>\u65F6\u957F</th>
-                        <th>\u64CD\u4F5C</th>
+                        <th>${I18n.t('project.episodes.header.ep')}</th>
+                        <th>${I18n.t('project.episodes.header.title')}</th>
+                        <th>${I18n.t('project.episodes.header.status')}</th>
+                        <th>${I18n.t('project.episodes.header.progress')}</th>
+                        <th>${I18n.t('project.episodes.header.duration')}</th>
+                        <th>${I18n.t('project.episodes.header.actions')}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -648,7 +650,7 @@ const ProjectView = {
                     <td>${ep.title}</td>
                     <td>
                         <span class="episode-status ${ep.status}">
-                            ${EPISODE_STATUS_LABELS[ep.status] || ep.status}
+                            ${EPISODE_STATUS_LABELS[ep.status] ? EPISODE_STATUS_LABELS[ep.status]() : ep.status}
                         </span>
                     </td>
                     <td>
@@ -661,7 +663,7 @@ const ProjectView = {
                     </td>
                     <td style="color: var(--text-secondary);">${ep.duration || '-'}</td>
                     <td>
-                        <button class="btn-secondary btn-sm" onclick="ProjectView.showEpisodeDetail('${ep.episode_id}')">详情</button>
+                        <button class="btn-secondary btn-sm" onclick="ProjectView.showEpisodeDetail('${ep.episode_id}')">${I18n.t('project.episodes.detail')}</button>
                     </td>
                 </tr>
             `;
@@ -681,13 +683,13 @@ const ProjectView = {
                 fetch(`http://localhost:8000/api/v1/projects/${projectId}/episodes/${episodeId}`).then(r => r.json()),
                 Api.getEpisodeTraces(projectId, episodeId),
             ]);
-            const episodeStatusLabel = EPISODE_STATUS_LABELS[episode.status] || episode.status;
+            const episodeStatusLabel = EPISODE_STATUS_LABELS[episode.status] ? EPISODE_STATUS_LABELS[episode.status]() : episode.status;
 
             let html = `
                 <div class="episode-detail-card">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                        <h3>第${episode.episode_number}集: ${episode.title}</h3>
-                        <button class="btn-secondary btn-sm" onclick="document.getElementById('episode-detail-panel').innerHTML=''">关闭</button>
+                        <h3>${I18n.t('project.epDetail.episodeTitle', { n: episode.episode_number, title: episode.title })}</h3>
+                        <button class="btn-secondary btn-sm" onclick="document.getElementById('episode-detail-panel').innerHTML=''">${I18n.t('project.epDetail.close')}</button>
                     </div>
 
                     <div style="margin-bottom: 16px;">
@@ -697,38 +699,35 @@ const ProjectView = {
                     </div>
             `;
 
-            // Stage-gated display: only show sections when their data exists
-
-            // Outline section (available before script generation)
             if (episode.outline && Object.keys(episode.outline).length > 0) {
                 const o = episode.outline;
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">本集概要</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.summary')}</div>
                     <div class="card" style="padding: 12px;">
-                        ${o.hook ? `<div style="margin-bottom: 8px;"><strong>开场钩子：</strong><span style="color: var(--text-secondary);">${o.hook}</span></div>` : ''}
-                        ${o.escalation ? `<div style="margin-bottom: 8px;"><strong>中段升级：</strong><span style="color: var(--text-secondary);">${o.escalation}</span></div>` : ''}
-                        ${o.cliffhanger ? `<div style="margin-bottom: 8px;"><strong>结尾悬念：</strong><span style="color: var(--text-secondary);">${o.cliffhanger}</span></div>` : ''}
-                        ${o.scenes ? `<div><strong>关键场景：</strong><span style="color: var(--text-secondary);">${o.scenes}</span></div>` : ''}
+                        ${o.hook ? `<div style="margin-bottom: 8px;"><strong>${I18n.t('project.epDetail.hook')}</strong><span style="color: var(--text-secondary);">${o.hook}</span></div>` : ''}
+                        ${o.escalation ? `<div style="margin-bottom: 8px;"><strong>${I18n.t('project.epDetail.escalation')}</strong><span style="color: var(--text-secondary);">${o.escalation}</span></div>` : ''}
+                        ${o.cliffhanger ? `<div style="margin-bottom: 8px;"><strong>${I18n.t('project.epDetail.cliffhanger')}</strong><span style="color: var(--text-secondary);">${o.cliffhanger}</span></div>` : ''}
+                        ${o.scenes ? `<div><strong>${I18n.t('project.epDetail.keyScenes')}</strong><span style="color: var(--text-secondary);">${o.scenes}</span></div>` : ''}
                     </div>
                 `;
             }
 
             html += `
                 <div style="margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    ${!episode.has_script ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'script')">生成剧本</button>` : ''}
-                    ${episode.has_script && !episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'format')">生成分镜</button>` : ''}
-                    ${episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'shots', '${episodeId}')">手动生成镜头视频</button>` : ''}
-                    ${episode.has_storyboard ? `<button class="btn-secondary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'compose', '${episodeId}')">手动合成本集视频</button>` : ''}
+                    ${!episode.has_script ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'script')">${I18n.t('project.epDetail.generateScript')}</button>` : ''}
+                    ${episode.has_script && !episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'format')">${I18n.t('project.epDetail.generateStoryboard')}</button>` : ''}
+                    ${episode.has_storyboard ? `<button class="btn-primary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'shots', '${episodeId}')">${I18n.t('project.epDetail.generateShots')}</button>` : ''}
+                    ${episode.has_storyboard ? `<button class="btn-secondary btn-sm" onclick="ProjectView.triggerGenerate('${projectId}', 'compose', '${episodeId}')">${I18n.t('project.epDetail.compose')}</button>` : ''}
                 </div>
             `;
 
             if (episode.has_script && episode.script) {
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">剧本</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.script')}</div>
                     <div class="card" style="padding: 12px; max-height: 200px; overflow-y: auto;">
                         ${(episode.script.scenes || []).map(s => `
                             <div style="margin-bottom: 8px;">
-                                <strong>场景${s.scene_number}: ${s.location}</strong> (${s.time_of_day || ''})
+                                <strong>${I18n.t('project.epDetail.scene', { n: s.scene_number, location: s.location })}</strong> (${s.time_of_day || ''})
                                 <p style="color: var(--text-secondary); font-size: 13px; margin: 4px 0;">${s.description}</p>
                                 ${(s.dialogues || []).map(d => `<div style="padding-left: 12px; font-size: 13px;"><em>${d.character}</em>: ${d.line} <span style="color: var(--text-tertiary);">[${d.emotion}]</span></div>`).join('')}
                             </div>
@@ -739,11 +738,11 @@ const ProjectView = {
 
             if (episode.has_storyboard && episode.storyboard && episode.storyboard.length > 0) {
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">分镜 (${episode.storyboard.length} 个镜头)</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.storyboard', { n: episode.storyboard.length })}</div>
                     <div class="storyboard-grid">
                         ${episode.storyboard.map(s => `
                             <div class="shot-card">
-                                <div class="shot-number">镜头 ${s.shot_number}</div>
+                                <div class="shot-number">${I18n.t('project.epDetail.shot', { n: s.shot_number })}</div>
                                 <div class="shot-desc">${s.description}</div>
                                 <div class="shot-meta">${s.camera_movement} \xB7 ${s.duration}</div>
                             </div>
@@ -752,10 +751,9 @@ const ProjectView = {
                 `;
             }
 
-            // Timeline from production events
             if (episode.timeline && episode.timeline.length > 0) {
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">生产时间线</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.timeline')}</div>
                     <div class="timeline-list">
                         ${episode.timeline.map(e => {
                             const agent = AGENT_META[e.agent_id] || { icon: 'smart_toy', color: '#6b7280', name: 'Agent' };
@@ -766,7 +764,7 @@ const ProjectView = {
                                         <div class="timeline-header">
                                             <span class="timeline-agent">${this._escapeHtml(agent.name || this._agentName(e.agent_id))}</span>
                                             <span class="timeline-title">${this._escapeHtml(e.title)}</span>
-                                            <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString()}</span>
+                                            <span class="timeline-time">${new Date(e.created_at).toLocaleTimeString(I18n.getLocale())}</span>
                                         </div>
                                         <div class="timeline-message">${this._escapeHtml(e.message)}</div>
                                     </div>
@@ -777,18 +775,17 @@ const ProjectView = {
                 `;
             }
 
-            // Traces
             if (traces.traces && traces.traces.length > 0) {
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">执行追踪</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.traces')}</div>
                     <div class="trace-list">
                         ${traces.traces.map(t => `
                             <div class="trace-entry ${t.error_reason ? 'error' : ''}">
                                 <div class="trace-header">
                                     <span class="trace-stage">${this._escapeHtml(this._stageTitle(t.stage) || t.stage)}</span>
                                     <span class="trace-agent">${this._escapeHtml(this._agentName(t.agent_id) || t.agent_id || '')}</span>
-                                    <span class="trace-time">${new Date(t.created_at).toLocaleTimeString()}</span>
-                                    ${t.cache_hit ? '<span class="trace-badge cached">缓存命中</span>' : ''}
+                                    <span class="trace-time">${new Date(t.created_at).toLocaleTimeString(I18n.getLocale())}</span>
+                                    ${t.cache_hit ? `<span class="trace-badge cached">${I18n.t('project.epDetail.cacheHit')}</span>` : ''}
                                 </div>
                                 ${t.prompt_summary ? `<div class="trace-detail">Prompt: ${this._escapeHtml(t.prompt_summary)}</div>` : ''}
                                 ${t.output_path ? `<div class="trace-detail">Output: ${this._escapeHtml(t.output_path)}</div>` : ''}
@@ -799,24 +796,23 @@ const ProjectView = {
                 `;
             }
 
-            // Shots - stage gated: only show if storyboard exists
             if (episode.shots && episode.shots.length > 0) {
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">分镜视频</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.shotVideos')}</div>
                     <div class="shots-table">
                         ${episode.shots.map(s => `
                             <div class="shot-row" style="flex-wrap: wrap;">
                                 <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:200px;">
-                                    ${s.first_frame_path ? `<img src="${MEDIA_BASE}${s.first_frame_path}" class="shot-thumbnail" onclick="ProjectView._playShotVideo(this, '${s.video_url || ''}')">` : '<div class="shot-thumbnail" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;">无图片</div>'}
+                                    ${s.first_frame_path ? `<img src="${MEDIA_BASE}${s.first_frame_path}" class="shot-thumbnail" onclick="ProjectView._playShotVideo(this, '${s.video_url || ''}')">` : `<div class="shot-thumbnail" style="display:flex;align-items:center;justify-content:center;color:var(--text-tertiary);font-size:11px;">${I18n.t('project.epDetail.noImage')}</div>`}
                                     <div class="shot-info">
-                                        <span><strong>镜头 ${s.shot_number}</strong></span>
+                                        <span><strong>${I18n.t('project.epDetail.shot', { n: s.shot_number })}</strong></span>
                                         <span class="episode-status ${s.status}" style="margin-left:8px;">${s.status}</span>
                                     </div>
                                 </div>
                                 <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; width:100%; padding-left:0;">${s.description || ''}</div>
                                 <div style="display:flex; gap:8px; flex-shrink:0;">
-                                    <button class="btn-primary btn-sm" onclick="ProjectView.generateShot('${projectId}', '${episodeId}', '${s.shot_id}')">生成</button>
-                                    ${s.video_url ? `<a href="${MEDIA_BASE}${s.video_url}" target="_blank" class="btn-secondary btn-sm">查看视频</a>` : ''}
+                                    <button class="btn-primary btn-sm" onclick="ProjectView.generateShot('${projectId}', '${episodeId}', '${s.shot_id}')">${I18n.t('project.epDetail.generate')}</button>
+                                    ${s.video_url ? `<a href="${MEDIA_BASE}${s.video_url}" target="_blank" class="btn-secondary btn-sm">${I18n.t('project.epDetail.viewVideo')}</a>` : ''}
                                 </div>
                             </div>
                             ${s.video_url ? `<div class="shot-video-container" id="shot-video-${s.shot_id}" style="display:none; margin-top:8px;"><video src="${MEDIA_BASE}${s.video_url}" controls style="width:100%;max-width:480px;border-radius:6px;"></video></div>` : ''}
@@ -825,10 +821,9 @@ const ProjectView = {
                 `;
             }
 
-            // Episode video player
             if (episode.video_url) {
                 html += `
-                    <div class="section-title" style="margin-top: 16px;">剧集视频</div>
+                    <div class="section-title" style="margin-top: 16px;">${I18n.t('project.epDetail.episodeVideo')}</div>
                     <div style="margin-top: 8px;">
                         <video src="${MEDIA_BASE}${episode.video_url}" controls style="width:100%; max-width:640px; border-radius:8px; background:#000;"></video>
                     </div>
@@ -838,7 +833,7 @@ const ProjectView = {
             html += '</div>';
             panel.innerHTML = html;
         } catch (err) {
-            panel.innerHTML = `<div class="error-state"><p>加载剧集详情失败: ${err.message}</p></div>`;
+            panel.innerHTML = `<div class="error-state"><p>${I18n.t('project.epDetail.loadFailed', { msg: err.message })}</p></div>`;
         }
     },
 
@@ -867,10 +862,9 @@ const ProjectView = {
             const resp = await fetch(endpoint, { method: 'POST' });
             if (!resp.ok) {
                 const err = await resp.json();
-                alert(err.detail || '生成失败');
+                alert(err.detail || I18n.t('project.epDetail.genFailed'));
                 return;
             }
-            // Refresh after a short delay
             setTimeout(() => {
                 const project = Api.getProject(projectId).then(p => {
                     if (p) {
@@ -884,7 +878,6 @@ const ProjectView = {
         }
     },
 
-
     async generateShot(projectId, episodeId, shotId) {
         try {
             const res = await Api.generateShot(projectId, episodeId, shotId);
@@ -897,6 +890,7 @@ const ProjectView = {
             console.error('Generate shot failed:', err);
         }
     },
+
     async _handleWsMessage(msg) {
         if (!this.currentProjectId) return;
 
