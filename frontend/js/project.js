@@ -82,6 +82,7 @@ const ProjectView = {
     _userScrolling: false,
     _scrollTimeout: null,
     _refreshTimer: null,
+    _lastProjectSnapshot: '',
     async show(projectId) {
         this.currentProjectId = projectId;
         this.currentTab = 'overview';
@@ -114,6 +115,7 @@ const ProjectView = {
         const project = await Api.getProject(projectId);
         if (!project) return;
 
+        this._lastProjectSnapshot = JSON.stringify(project);
         this._renderHeader(project);
         this._renderContent(project);
 
@@ -125,6 +127,9 @@ const ProjectView = {
         if (!this.currentProjectId || document.getElementById('view-project-detail').classList.contains('hidden')) return;
         const project = await Api.getProject(this.currentProjectId);
         if (!project) return;
+        const snapshot = JSON.stringify(project);
+        if (snapshot === this._lastProjectSnapshot) return;
+        this._lastProjectSnapshot = snapshot;
         this._renderHeader(project);
         this._renderTab(this.currentTab, project);
         App.refreshProjectList();
