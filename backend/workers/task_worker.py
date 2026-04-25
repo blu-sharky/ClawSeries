@@ -603,7 +603,7 @@ async def _execute_project_assets(project_id: str, task: dict):
                 scene_names.add(loc)
 
     print(f"[Assets] generating {len(scene_names)} scene images...")
-    for i, scene_name in enumerate(scene_names, start=1):
+    for i, scene_name in enumerate(sorted(scene_names), start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
         if series_type == "animation":
             scene_prompt = f"{scene_name}, anime style establishing shot, vibrant, cel-shaded, wide angle, cinematic composition, illustration"

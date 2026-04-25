@@ -143,7 +143,7 @@ async def assets_node(state: ProductionState) -> dict:
         )
 
     # --- Generate scene establishing shots ---
-    for i, scene_name in enumerate(scene_names, start=1):
+    for i, scene_name in enumerate(sorted(scene_names), start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
         if series_type == "animation":
             prompt = f"{scene_name}, anime style establishing shot, vibrant, cel-shaded, wide angle, cinematic composition, illustration"
