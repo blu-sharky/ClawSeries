@@ -46,6 +46,7 @@ from integrations.image import is_image_configured, generate_image, is_image_dem
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
 from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir, project_renders_dir
 from repositories.settings_repo import get_setting
+from storage.db import get_connection
 
 from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt, build_shot_dual_prompt_request, build_default_dual_prompts
 
@@ -64,6 +65,17 @@ async def start_worker():
     if _worker_running:
         return
     _worker_running = True
+
+    # On startup: reset any tasks stuck in "running" from a previous crash
+    projects = project_repo.get_all_projects()
+    for p in projects:
+        task_repo.reset_running_tasks(p["project_id"])
+    # Also reset any stuck agent states
+    conn = get_connection()
+    conn.execute("UPDATE agent_states SET status = 'idle', current_task = NULL WHERE status = 'working'")
+    conn.commit()
+    conn.close()
+    print("[Worker] Startup cleanup: reset all running tasks and agent states")
 
     while _worker_running:
         try:
