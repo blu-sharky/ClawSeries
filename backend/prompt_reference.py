@@ -187,10 +187,11 @@ def build_shot_dual_prompt_request(
             "- 当前视频链路固定为 8 秒单镜头，提示词必须服务于 8 秒内可完成的动作与信息量\n"
             "- 台词/对话内容必须体现在提示词中\n\n"
             "【image_prompt 规则（给图片生成模型 Nano Banana Pro）】\n"
-            "- 描述画面中人物的具体外观：位置、表情、服装细节、动作姿态\n"
+            "- 这张图片是视频镜头的首帧（first frame），必须精确呈现该镜头开始瞬间的画面状态\n"
+            "- 描述画面中人物的具体外观：位置、表情、服装细节、动作姿态（必须是动作的起始姿态，而非中间或结束姿态）\n"
             "- 如果有台词，描述人物说话时的表情和口型\n"
             "- 禁止生成任何叠加文字：不要标题字、不要居中大字、不要字幕、不要 caption、不要 logo、不要 watermark\n"
-            "- 不要描述摄影机运动，这是静态图片\n"
+            "- 不要描述摄影机运动，这是静态首帧图片\n"
             f"- 风格标注：{style_note}\n\n"
             "【video_prompt 规则（给视频生成模型 VEO）】\n"
             "- 必须使用镜头语言：camera angle（俯拍/仰拍/平视）、camera movement（dolly in/out、pan left/right、tilt、tracking shot、static）、transition（cut、dissolve）\n"
@@ -243,7 +244,7 @@ def build_default_dual_prompts(shot: dict, storyboard_entry: dict | None = None)
     dialogues = (storyboard_entry or {}).get("dialogues", [])
     dialogue_text = " ".join(d.get("line", "") for d in dialogues if d.get("line"))
 
-    image_prompt = f"{desc}, cinematic frame, film still, no text overlay, no title text, no large centered text, no subtitles, no captions, no logo, no watermark"
+    image_prompt = f"{desc}, first frame of video shot, cinematic film still, no text overlay, no title text, no large centered text, no subtitles, no captions, no logo, no watermark"
     if dialogue_text:
         image_prompt += f", dialogue: {dialogue_text[:150]}"
 
