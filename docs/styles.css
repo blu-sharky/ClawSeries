@@ -265,19 +265,6 @@ body::after {
   margin-left: 24px;
 }
 
-.github-link {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 12px;
-  color: var(--text-secondary);
-  transition: color 0.3s ease;
-}
-
-.github-link:hover {
-  color: var(--fg);
-}
-
 .lang-btn {
   padding: 6px 12px;
   border: 1px solid var(--border);
