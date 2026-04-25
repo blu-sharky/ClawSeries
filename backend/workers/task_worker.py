@@ -871,14 +871,12 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
                 provider_name=video_config["provider"], model_name=video_config["model"],
             )
 
-            # Video reference images: first-frame primary, character sheets fallback
+            # Video reference: first-frame only (already contains characters)
             video_refs = []
             if first_frame_path:
                 video_refs.append(str(RENDERS_DIR.parent / first_frame_path.lstrip("/")))
-            if char_sheet_paths and len(video_refs) < 3:
-                video_refs.extend(char_sheet_paths[:3 - len(video_refs)])
 
-            print(f"[ShotGen] video refs: {len(video_refs)} | provider={video_config['provider']} | aspect={video_config.get('aspect_ratio', '16:9')}")
+            print(f"[ShotGen] video refs: {len(video_refs)} (first-frame only) | provider={video_config['provider']} | aspect={video_config.get('aspect_ratio', '16:9')}")
             await generate_video(
                 video_prompt, output_path,
                 reference_images=video_refs if video_refs else None,
