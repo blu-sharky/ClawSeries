@@ -44,6 +44,7 @@ from integrations.video import is_video_configured, generate_video, get_video_co
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from integrations.ffmpeg import is_ffmpeg_available, concatenate_videos
 from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir, project_renders_dir
+from repositories.settings_repo import get_setting
 
 from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt
 
@@ -553,7 +554,7 @@ async def _execute_project_assets(project_id: str, task: dict):
         if is_image_configured() or is_image_demo_mode():
             try:
                 scene_output = str(project_assets_dir(project_id) / f"{asset_id}.png")
-                await generate_image(scene_prompt, scene_output, aspect_ratio="16:9")
+                await generate_image(scene_prompt, scene_output, aspect_ratio=get_setting("video_aspect_ratio", "16:9"))
                 update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
             except Exception as e:
                 agent_repo.add_agent_log(project_id, agent_id, "warning",
@@ -701,7 +702,7 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             RENDERS_DIR.mkdir(parents=True, exist_ok=True)
             frame_output = str(project_renders_dir(project_id) / f"{shot_id}_frame.png")
             frame_prompt = f"{description}, cinematic frame, film still"
-            await generate_image(frame_prompt, frame_output, aspect_ratio="16:9")
+            await generate_image(frame_prompt, frame_output, aspect_ratio=get_setting("video_aspect_ratio", "16:9"))
             first_frame_path = f"/renders/{project_id}/{shot_id}_frame.png"
             update_shot(shot_id, first_frame_path=first_frame_path)
             add_production_event(

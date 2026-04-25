@@ -20,6 +20,7 @@ from models import ProductionStage, STAGE_AGENT_MAP
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from config import project_assets_dir
 from prompt_reference import build_character_sheet_prompt
+from repositories.settings_repo import get_setting
 
 
 async def assets_node(state: ProductionState) -> dict:
@@ -158,7 +159,7 @@ async def assets_node(state: ProductionState) -> dict:
             try:
                 output_path = str(project_assets_dir(project_id) / f"{asset_id}.png")
 
-                await generate_image(prompt, output_path, aspect_ratio="16:9")
+                await generate_image(prompt, output_path, aspect_ratio=get_setting("video_aspect_ratio", "16:9"))
 
                 update_asset(asset_id, image_path=f"/assets/{project_id}/{asset_id}.png")
                 add_production_event(
