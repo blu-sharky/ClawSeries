@@ -178,21 +178,29 @@ body::after {
 .page-shell {
   width: min(calc(100% - 48px), var(--container));
   margin: 0 auto;
+  padding-top: 62px;
   padding-bottom: 72px;
 }
 
 /* Topbar */
 .topbar {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 20;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(31, 34, 40, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.topbar-inner {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 0;
-  background: rgba(31, 34, 40, 0.92);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  width: min(calc(100% - 48px), var(--container));
+  margin: 0 auto;
 }
 
 .mobile-menu-btn {
@@ -281,7 +289,7 @@ body::after {
 /* Hero Section */
 .hero {
   position: relative;
-  min-height: calc(100vh - 84px);
+  min-height: calc(100vh - 146px);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1067,10 +1075,13 @@ body::after {
     width: min(calc(100% - 32px), var(--container));
   }
 
-  .topbar {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 16px;
+  .topbar-inner {
+    width: min(calc(100% - 32px), var(--container));
+  }
+
+  .topbar-inner {
+    flex-wrap: wrap;
+    row-gap: 12px;
   }
 
   .section {
@@ -1112,23 +1123,17 @@ body::after {
 @media (max-width: 640px) {
   .page-shell {
     width: 100%;
-    padding: 0 20px;
+    padding: 50px 20px 72px 20px;
     box-sizing: border-box;
   }
 
-  .topbar {
+  .topbar-inner {
+    width: 100%;
     padding: 10px 0;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    background: rgba(31, 34, 40, 0.98);
-    backdrop-filter: blur(10px);
+    flex-direction: row;
     flex-wrap: wrap;
     row-gap: 12px;
     align-items: center;
-    flex-direction: row;
-    margin: 0 -20px;
-    padding: 10px 20px;
   }
 
   .topbar .brand {
