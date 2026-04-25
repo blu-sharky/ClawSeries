@@ -628,10 +628,10 @@ const Chat = {
                 <h2>${I18n.t('welcome.title')}</h2>
                 <p>${I18n.t('welcome.desc')}</p>
                 <div class="quick-starters">
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('我想做一部都市爱情短剧，重点是极限拉扯和身份反转')">${I18n.t('welcome.quick1')}</button>
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('做一个悬疑推理系列，类似隐秘的角落那种风格')">${I18n.t('welcome.quick2')}</button>
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('古风仙侠短剧，要有修炼升级和爱情线')">${I18n.t('welcome.quick3')}</button>
-                    <button class="quick-btn" onclick="Chat.sendQuickStart('职场商战题材，讲一个年轻人逆袭的故事')">${I18n.t('welcome.quick4')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart(I18n.t('welcome.quick1.prompt'))">${I18n.t('welcome.quick1')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart(I18n.t('welcome.quick2.prompt'))">${I18n.t('welcome.quick2')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart(I18n.t('welcome.quick3.prompt'))">${I18n.t('welcome.quick3')}</button>
+                    <button class="quick-btn" onclick="Chat.sendQuickStart(I18n.t('welcome.quick4.prompt'))">${I18n.t('welcome.quick4')}</button>
                 </div>
             </div>`;
     }

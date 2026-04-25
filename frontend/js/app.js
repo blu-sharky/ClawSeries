@@ -144,5 +144,6 @@ function toggleLanguage() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    I18n.applyHtml();
     App.init();
 });
