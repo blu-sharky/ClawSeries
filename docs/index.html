@@ -20,7 +20,7 @@
     <div class="page-shell">
       <header class="topbar">
         <a class="brand" href="#hero">CLAWSERIES</a>
-        <button class="mobile-menu-btn" aria-label="菜单">
+        <button class="mobile-menu-btn" aria-label="菜单" data-menu-label-zh="菜单" data-menu-label-en="Menu">
           <span></span>
           <span></span>
           <span></span>
@@ -34,6 +34,10 @@
           <a href="#global" data-i18n="nav.global">全球分发</a>
           <a href="#business" data-i18n="nav.business">商业形态</a>
         </nav>
+        <div class="lang-toggle" aria-label="Language switcher">
+          <button class="lang-btn active" data-lang="zh">中文</button>
+          <button class="lang-btn" data-lang="en">EN</button>
+        </div>
       </header>
 
       <main>
@@ -652,7 +656,7 @@
           "global.title": "Global Distribution",
           "global.subtitle": "IP Cross-Border Migration + Deep Localization",
           "global.market1.title": "North America / Europe",
-          "global.market1.text": "30-60yo urban women dominate, prefer霸道/狼人/revenge themes. ARPU extremely high,<strong>$80</strong>/month. 北美市场2024年底年收入突破<strong>$2B</strong>。",
+          "global.market1.text": "Urban women aged 30–60 dominate in North America and Europe, with strong demand for CEO romance, werewolf, and revenge arcs. ARPU can reach <strong>$80</strong> per month, and the North American market is projected to exceed <strong>$2B</strong> in annual revenue by the end of 2024.",
           "global.market2.title": "Southeast Asia / Latin America",
           "global.market2.text": "Downloads +<strong>60%</strong> QoQ. DramaWave 10x growth in SEA. IAA model rises, share from 4.7% to <strong>24.7%</strong>.",
           "global.pain.title": "Traditional Overseas Pain Points",
@@ -684,6 +688,72 @@
         }
       };
 
+      function applyStaticTranslations(lang) {
+        const docMeta = {
+          zh: {
+            title: 'ClawSeries — 零人AI短剧公司',
+            description: 'ClawSeries：彻底打通 AI 短剧自动化生产的最后一公里。五个自主智能体协作，一句话生成百集短剧。'
+          },
+          en: {
+            title: 'ClawSeries — Zero-Human AI Series Studio',
+            description: 'ClawSeries: the final mile of fully automated AI short-drama production. Five autonomous agents collaborate to turn one sentence into a hundred episodes.'
+          }
+        };
+
+        document.title = docMeta[lang].title;
+        document.querySelector('meta[name="description"]')?.setAttribute('content', docMeta[lang].description);
+        document.querySelector('.mobile-menu-btn')?.setAttribute('aria-label', lang === 'zh' ? '菜单' : 'Menu');
+
+        const nodeLabels = lang === 'zh'
+          ? ['输入', '节点A', '节点B', '节点C', '节点D', '节点E', '节点F', '错误', '节点G']
+          : ['Input', 'Node A', 'Node B', 'Node C', 'Node D', 'Node E', 'Node F', 'Error', 'Node G'];
+        document.querySelectorAll('.node-svg text').forEach((el, index) => {
+          if (nodeLabels[index]) el.textContent = nodeLabels[index];
+        });
+
+        const chatMap = lang === 'zh'
+          ? {
+              user: '帮我做一部100集的《重生后我换成真硫酸，校花惨叫直播中断》',
+              aiPrompt: '收到！女主复仇路线请选择：',
+              optionA: 'A. 直接爽杀',
+              optionB: 'B. 假死脱身再杀',
+              optionC: 'C. 先装傻再杀',
+              optionD: 'D. 借刀杀人',
+              confirm: '路线B锁定。男主设定？',
+              yes: '霸总',
+              no: '渣男',
+              done: '已开始制片'
+            }
+          : {
+              user: 'Make me a 100-episode revenge romance series with a viral cliffhanger title.',
+              aiPrompt: 'Got it. Which revenge route should the heroine take?',
+              optionA: 'A. Direct payback',
+              optionB: 'B. Fake death, then return',
+              optionC: 'C. Play dumb, then strike',
+              optionD: 'D. Kill by proxy',
+              confirm: 'Route B locked. Male lead setup?',
+              yes: 'CEO',
+              no: 'Playboy',
+              done: 'Production started'
+            };
+
+        const chatBubbles = document.querySelectorAll('.chat-demo .chat-bubble');
+        if (chatBubbles[0]) chatBubbles[0].querySelector('span').textContent = chatMap.user;
+        if (chatBubbles[1]) chatBubbles[1].querySelector('span').textContent = chatMap.aiPrompt;
+        const optionBtns = document.querySelectorAll('.chat-option-btn');
+        if (optionBtns[0]) optionBtns[0].textContent = chatMap.optionA;
+        if (optionBtns[1]) optionBtns[1].textContent = chatMap.optionB;
+        if (optionBtns[2]) optionBtns[2].textContent = chatMap.optionC;
+        if (optionBtns[3]) optionBtns[3].textContent = chatMap.optionD;
+        if (chatBubbles[2]) chatBubbles[2].querySelector('span').textContent = chatMap.confirm;
+        const confirmBtns = document.querySelectorAll('.chat-confirm-btn');
+        if (confirmBtns[0]) confirmBtns[0].textContent = chatMap.yes;
+        if (confirmBtns[1]) confirmBtns[1].textContent = chatMap.no;
+        const finalBubble = document.querySelector('.chat-ai-final span');
+        if (finalBubble) finalBubble.innerHTML = '<span class="material-symbols-outlined">movie</span> ' + chatMap.done;
+      }
+
+
       let currentLang = 'zh';
 
       function setLanguage(lang) {
@@ -707,6 +777,8 @@
           btn.classList.toggle('active', btn.dataset.lang === lang);
         });
 
+        applyStaticTranslations(lang);
+
         // Store preference
         localStorage.setItem('clawseries-lang', lang);
       }
@@ -714,10 +786,8 @@
       // Initialize
       document.addEventListener('DOMContentLoaded', () => {
         // Restore language preference
-        const savedLang = localStorage.getItem('clawseries-lang');
-        if (savedLang) {
-          setLanguage(savedLang);
-        }
+        const savedLang = localStorage.getItem('clawseries-lang') || 'zh';
+        setLanguage(savedLang);
 
         // Language toggle handlers
         document.querySelectorAll('.lang-btn').forEach(btn => {

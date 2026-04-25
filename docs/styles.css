@@ -37,6 +37,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
@@ -45,7 +46,7 @@ body {
   color: var(--fg);
   font-family: var(--sans);
   line-height: 1.5;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 /* Grid Background */
@@ -1115,12 +1116,15 @@ body::after {
   }
 
   .topbar {
+  .topbar {
     padding: 10px 0;
     position: sticky;
     top: 0;
     z-index: 100;
     background: rgba(31, 34, 40, 0.98);
     backdrop-filter: blur(10px);
+    flex-wrap: wrap;
+    row-gap: 12px;
   }
 
   .topbar .brand {
@@ -1131,16 +1135,24 @@ body::after {
     display: none;
   }
 
+  .lang-toggle {
+    margin-left: auto;
+  }
+
   .topnav {
     display: flex;
     position: static;
+    order: 3;
+    width: 100%;
+    max-width: 100%;
     flex-direction: row;
     flex-wrap: nowrap;
     gap: 4px;
     background: transparent;
     border: none;
-    padding: 0;
+    padding: 0 0 2px;
     overflow-x: auto;
+    overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
   }
@@ -1162,6 +1174,7 @@ body::after {
     border: none;
     background: rgba(255, 255, 255, 0.06);
     border-radius: 4px;
+    flex: 0 0 auto;
   }
 
   .topnav a:last-child {
