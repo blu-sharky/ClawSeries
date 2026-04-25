@@ -1,7 +1,9 @@
 """Main LangGraph production graph definition."""
 
+from typing import Any
 from langgraph.graph import StateGraph, START, END
 from langgraph.checkpoint.sqlite import SqliteSaver
+from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from graphs.state import ProductionState
 from graphs.nodes.script import script_node
@@ -76,7 +78,7 @@ def create_production_graph() -> StateGraph:
     return graph
 
 
-def compile_production_graph(checkpointer: SqliteSaver | None = None) -> StateGraph:
+def compile_production_graph(checkpointer: SqliteSaver | AsyncSqliteSaver | None = None) -> Any:
     """Compile the production graph with optional checkpointer.
 
     Args:

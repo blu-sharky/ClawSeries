@@ -41,6 +41,27 @@ def _initial_state_from_project(project: dict) -> ProductionState:
     }
 
 
+def _queue_stage_task(project_id: str, stage: str) -> bool:
+    if stage in (ProductionStage.SCRIPT_GENERATING.value, ProductionStage.REQUIREMENTS_CONFIRMED.value):
+        task_repo.create_task(f"task_{project_id}_script", project_id, "project_script")
+        return True
+    if stage == ProductionStage.FORMAT_GENERATING.value:
+        task_repo.create_task(f"task_{project_id}_format", project_id, "project_format")
+        return True
+    if stage == ProductionStage.ASSETS_GENERATING.value:
+        task_repo.create_task(f"task_{project_id}_assets", project_id, "project_assets")
+        return True
+    if stage == ProductionStage.SHOTS_GENERATING.value:
+        for episode in project_repo.get_episodes(project_id):
+            if episode["status"] != "completed":
+                task_repo.create_task(
+                    f"task_{episode['episode_id']}_shots", project_id,
+                    "episode_shot_video", episode_id=episode["episode_id"]
+                )
+                return True
+    return False
+
+
 async def _run_production_graph(project_id: str, initial_state: ProductionState | None = None):
     """Run the production graph as a background task.
 
@@ -170,6 +191,14 @@ async def continue_production(project_id: str):
 
     project_repo.update_project(project_id, status="in_progress")
     agent_repo.add_agent_log(project_id, "agent_director", "info", f"恢复制片流程: {stage}")
+
+    queued_task = _queue_stage_task(project_id, stage)
+    if queued_task:
+        return {
+            "status": "resumed",
+            "message": "制片流程已继续",
+            "current_stage": stage,
+        }
 
     if stage in (ProductionStage.SCRIPT_GENERATING.value, ProductionStage.REQUIREMENTS_CONFIRMED.value):
         initial_state = _initial_state_from_project(project)
