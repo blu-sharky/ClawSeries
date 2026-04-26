@@ -311,7 +311,26 @@ strong { color: var(--fg); font-weight: 520; }
 .closing blockquote::before { content: "「"; color: var(--accent); }
 .closing blockquote::after { content: "」"; color: var(--accent); }
 .quote-attr { margin-top: 18px; font: 13px/1 var(--mono); letter-spacing: .16em; color: var(--text-tertiary); }
-.thanks { margin-top: 68px; color: var(--fg); font-size: 74px; line-height: 1; font-weight: 300; }
+.closing-cta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 28px;
+}
+.qr-code {
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+}
+.site-url {
+  font: 600 18px/1 var(--mono);
+  letter-spacing: .12em;
+  color: var(--fg);
+}
+.thanks { margin-top: 48px; color: var(--fg); font-size: 74px; line-height: 1; font-weight: 300; }
 .footer-line { margin-top: 26px; font: 13px/1 var(--mono); letter-spacing: .16em; color: var(--text-tertiary); }
 
 @media (max-aspect-ratio: 16/9) {
