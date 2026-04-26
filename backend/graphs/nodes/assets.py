@@ -19,7 +19,7 @@ from repositories.production_event_repo import (
 from models import ProductionStage, STAGE_AGENT_MAP
 from integrations.image import is_image_configured, generate_image, is_image_demo_mode
 from config import project_assets_dir
-from prompt_reference import build_character_sheet_prompt
+from prompt_reference import build_character_sheet_prompt, build_scene_asset_prompt
 from repositories.settings_repo import get_setting
 
 
@@ -46,15 +46,19 @@ async def assets_node(state: ProductionState) -> dict:
 
     # Count total assets to generate
     scene_names = set()
+    scene_descriptions_by_name: dict[str, list[str]] = {}
     for ep in episodes:
         script_json = ep.get("script_json")
         if not script_json:
             continue
         script = json.loads(script_json) if isinstance(script_json, str) else script_json
         for scene in script.get("scenes", []):
-            loc = scene.get("location", "")
+            loc = (scene.get("location") or "").strip()
             if loc:
                 scene_names.add(loc)
+                desc = (scene.get("description") or "").strip()
+                if desc:
+                    scene_descriptions_by_name.setdefault(loc, []).append(desc)
 
     total_assets = len(characters) + len(scene_names)
 
@@ -89,7 +93,8 @@ async def assets_node(state: ProductionState) -> dict:
     state_series_type = state.get("series_type", series_type)
     series_type = state_series_type or series_type
 
-    assets_by_name = {a["name"]: a for a in get_assets(project_id, type="character")}
+    character_assets_by_name = {a["name"]: a for a in get_assets(project_id, type="character")}
+    scene_assets_by_name = {a["name"]: a for a in get_assets(project_id, type="scene")}
 
     # --- Generate character turnaround reference sheets ---
     for i, char in enumerate(characters, start=1):
@@ -99,7 +104,7 @@ async def assets_node(state: ProductionState) -> dict:
         gender = char.get("visual_assets", {}).get("gender")
         prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get('age'), gender)
 
-        existing = assets_by_name.get(char["name"])
+        existing = character_assets_by_name.get(char["name"])
         if existing and existing.get("image_path"):
             continue
         add_production_event(
@@ -145,10 +150,12 @@ async def assets_node(state: ProductionState) -> dict:
     # --- Generate scene establishing shots ---
     for i, scene_name in enumerate(sorted(scene_names), start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
-        if series_type == "animation":
-            prompt = f"{scene_name}, anime style establishing shot, vibrant, cel-shaded, wide angle, cinematic composition, illustration"
-        else:
-            prompt = f"{scene_name}, establishing shot, photorealistic, cinematic, natural lighting, high quality, wide angle"
+        existing = scene_assets_by_name.get(scene_name)
+        if existing and existing.get("image_path"):
+            continue
+        prompt = build_scene_asset_prompt(
+            scene_name, scene_descriptions_by_name.get(scene_name), series_type
+        )
 
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",

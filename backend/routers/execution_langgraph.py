@@ -22,6 +22,13 @@ router = APIRouter()
 # Track running graph tasks to avoid duplicates
 _running_graphs: dict[str, asyncio.Task] = {}
 
+def cancel_running_graph(project_id: str) -> bool:
+    task = _running_graphs.get(project_id)
+    if not task or task.done():
+        return False
+    task.cancel()
+    return True
+
 
 def _initial_state_from_project(project: dict) -> ProductionState:
     return {

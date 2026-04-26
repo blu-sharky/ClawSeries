@@ -50,7 +50,7 @@ from config import RENDERS_DIR, OUTPUTS_DIR, project_assets_dir, project_renders
 from repositories.settings_repo import get_setting
 from storage.db import get_connection
 
-from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt, build_shot_dual_prompt_request, build_default_dual_prompts
+from prompt_reference import HOT_HOOK_REFERENCE, build_character_sheet_prompt, build_scene_asset_prompt, build_shot_dual_prompt_request, build_default_dual_prompts
 
 from models import (
     ProductionStage,
@@ -59,7 +59,15 @@ from models import (
 
 
 _worker_running = False
+_active_project_tasks: dict[str, asyncio.Task] = {}
 
+
+def cancel_project_task(project_id: str) -> bool:
+    task = _active_project_tasks.get(project_id)
+    if not task or task.done():
+        return False
+    task.cancel()
+    return True
 
 async def start_worker():
     """Start the background task worker."""
@@ -105,7 +113,14 @@ async def _process_one_task():
 
         task = pending[0]
         print(f"[Worker] PICKED task={task['task_id']} type={task['task_type']} project={p['project_id']} (pending={len(pending)})")
-        await _execute_task(task)
+        active_task = asyncio.create_task(_execute_task(task))
+        _active_project_tasks[p["project_id"]] = active_task
+        try:
+            await active_task
+        except asyncio.CancelledError:
+            print(f"[Worker] CANCELLED active task for deleted/stopped project={p['project_id']}")
+        finally:
+            _active_project_tasks.pop(p["project_id"], None)
         return  # Process one task per cycle
 
     # Check if any in-progress projects should be completed
@@ -129,6 +144,11 @@ async def _execute_task(task: dict):
     project_id = task["project_id"]
     task_type = task["task_type"]
     task_id = task["task_id"]
+
+    if not project_repo.get_project(project_id):
+        print(f"[Worker] SKIP deleted project task={task_id} project={project_id}")
+        task_repo.update_task(task_id, status="completed", error_message="project deleted")
+        return
 
     print(f"[Worker] EXECUTING task={task_id} type={task_type} project={project_id} ep={task.get('episode_id')} shot={task.get('shot_id')}")
     task_repo.update_task(task["task_id"], status="running", started_at=datetime.utcnow().isoformat())
@@ -167,6 +187,18 @@ async def _execute_task(task: dict):
                                   f"Task {task_type} failed (retry {retry_count}), re-queuing: {e}")
         # Backoff: wait longer for repeated failures
         await asyncio.sleep(min(10 * retry_count, 120))
+
+
+def _extract_scene_locations(script: dict) -> list[str]:
+    """Extract unique scene locations in first-appearance order."""
+    locations: list[str] = []
+    seen: set[str] = set()
+    for scene in script.get("scenes", []):
+        location = (scene.get("location") or "").strip()
+        if location and location not in seen:
+            seen.add(location)
+            locations.append(location)
+    return locations
 
 
 # === Stage 1: Project Script Generation ===
@@ -210,9 +242,9 @@ async def _execute_project_script(project_id: str, task: dict):
     episodes_detail = config.get("episodes_detail", [])
     detail_by_ep = {d.get("episode"): d for d in episodes_detail if isinstance(d, dict)}
 
-    # Accumulate previous episode summaries
+    # Accumulate previous episode summaries and established scene locations
     previous_summaries: list[str] = []
-
+    previous_scene_locations: list[str] = []
     for idx, ep in enumerate(episodes, start=1):
         episode_id = ep["episode_id"]
 
@@ -227,6 +259,9 @@ async def _execute_project_script(project_id: str, task: dict):
                         for s in parsed.get("scenes", [])
                     )
                     previous_summaries.append(f"第{ep['episode_number']}集《{ep['title']}》: {scenes_desc}")
+                    for location in _extract_scene_locations(parsed):
+                        if location not in previous_scene_locations:
+                            previous_scene_locations.append(location)
                     project_repo.update_episode(episode_id, status="scripting", progress=25)
                     await _push_progress_update(project_id, episode_id)
                     await _set_agent_status(
@@ -262,6 +297,12 @@ async def _execute_project_script(project_id: str, task: dict):
 
 """
 
+        existing_scenes_section = ""
+        if previous_scene_locations:
+            existing_scenes_section = """
+已建立场景（前面剧集已经出现，优先复用这些场景名称与空间关系，只有剧情确有必要时才新增场景）：
+""" + "\n".join(f"- {location}" for location in previous_scene_locations) + "\n\n"
+
         prompt = f"""{prev_context}请为以下 AI 短剧编写第{ep['episode_number']}集的完整剧本。
 
 剧名: {project['title']}
@@ -275,8 +316,7 @@ async def _execute_project_script(project_id: str, task: dict):
 {char_desc}
 
 集数标题: {ep['title']}
-{outline_section}
-{HOT_HOOK_REFERENCE}
+{outline_section}{existing_scenes_section}{HOT_HOOK_REFERENCE}
 
 写作补充：
 - 学习这些爆点钩子的起题方式、冲突密度、身份反差和反转力度，把同样的抓人感落到本集开场、推进和结尾，但不要直接照抄原题或原情节。
@@ -287,7 +327,8 @@ async def _execute_project_script(project_id: str, task: dict):
 2. 角色行动与对白要清晰，便于后续转分镜和视频生成。
 3. 后续视频生成按 8 秒单镜头限制执行，每个场景都必须能拆成若干个信息清晰、动作可落地的 8 秒镜头。
 4. **开场必须使用倒叙手法**：第一个场景必须是全剧最炸裂、最有悬念、最抓人的高潮片段（如：对峙、揭秘、崩塌瞬间），然后再通过倒叙回到事件起点，逐步揭示因果。绝对不能从平淡的日常生活开场。
-5. 直接返回 JSON。
+5. 禁止在任何输出文本里写“小标题式集数/场次标签”，不要出现“第一集 / 第二集 / 第1集 / 第一场 / 场景一 / Scene 1”这类字样；顺序只通过 `scene_number` 字段表达。
+6. 直接返回 JSON。
 
 JSON 包含 scenes 数组，每个 scene 包含:
 - scene_number: 场景编号
@@ -371,6 +412,9 @@ JSON 包含 scenes 数组，每个 scene 包含:
             for s in script.get("scenes", [])
         )
         previous_summaries.append(f"第{ep['episode_number']}集《{ep['title']}》: {scenes_desc}")
+        for location in _extract_scene_locations(script):
+            if location not in previous_scene_locations:
+                previous_scene_locations.append(location)
 
     update_project_stage(project_id, ProductionStage.SCRIPT_GENERATING.value, "completed")
     update_project_stage(project_id, ProductionStage.SCRIPT_COMPLETED.value, "completed")
@@ -543,16 +587,17 @@ async def _execute_project_assets(project_id: str, task: dict):
         project_repo.update_episode(ep["episode_id"], status="asset_generating", progress=55)
     await _push_progress_update(project_id)
 
-    assets_by_name = {a["name"]: a for a in get_assets(project_id, type="character")}
+    character_assets_by_name = {a["name"]: a for a in get_assets(project_id, type="character")}
+    scene_assets_by_name = {a["name"]: a for a in get_assets(project_id, type="scene")}
 
-    print(f"[Assets] project={project_id} characters={len(characters)} existing_assets={len(assets_by_name)} image_configured={is_image_configured()} demo={is_image_demo_mode()}")
+    print(f"[Assets] project={project_id} characters={len(characters)} existing_character_assets={len(character_assets_by_name)} existing_scene_assets={len(scene_assets_by_name)} image_configured={is_image_configured()} demo={is_image_demo_mode()}")
 
     for i, char in enumerate(characters, start=1):
         asset_id = f"{project_id}_char_{i:03d}"
         name, role, desc = char["name"], char.get("role", "角色"), char.get("description", "")
         gender = char.get("visual_assets", {}).get("gender")
         prompt = build_character_sheet_prompt(name, role, desc, series_type, char.get("age"), gender)
-        existing = assets_by_name.get(char["name"])
+        existing = character_assets_by_name.get(char["name"])
         if existing and existing.get("image_path"):
             print(f"[Assets] SKIP {name} (already has image)")
             continue
@@ -592,23 +637,30 @@ async def _execute_project_assets(project_id: str, task: dict):
         )
 
     scene_names = set()
+    scene_descriptions_by_name: dict[str, list[str]] = {}
     for ep in episodes:
         script_json = ep.get("script_json")
         if not script_json:
             continue
         script = json.loads(script_json) if isinstance(script_json, str) else script_json
         for scene in script.get("scenes", []):
-            loc = scene.get("location", "")
+            loc = (scene.get("location") or "").strip()
             if loc:
                 scene_names.add(loc)
+                desc = (scene.get("description") or "").strip()
+                if desc:
+                    scene_descriptions_by_name.setdefault(loc, []).append(desc)
 
     print(f"[Assets] generating {len(scene_names)} scene images...")
     for i, scene_name in enumerate(sorted(scene_names), start=1):
         asset_id = f"{project_id}_scene_{i:03d}"
-        if series_type == "animation":
-            scene_prompt = f"{scene_name}, anime style establishing shot, vibrant, cel-shaded, wide angle, cinematic composition, illustration"
-        else:
-            scene_prompt = f"{scene_name}, establishing shot, photorealistic, cinematic, natural lighting, high quality, wide angle"
+        existing = scene_assets_by_name.get(scene_name)
+        if existing and existing.get("image_path"):
+            print(f"[Assets] SKIP scene {scene_name} (already has image)")
+            continue
+        scene_prompt = build_scene_asset_prompt(
+            scene_name, scene_descriptions_by_name.get(scene_name), series_type
+        )
         create_asset(
             asset_id, project_id, "scene", scene_name, f"场景: {scene_name}",
             prompt=scene_prompt

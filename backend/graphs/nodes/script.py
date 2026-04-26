@@ -49,6 +49,17 @@ def _extract_script_summary(script: dict, episode_number: int, title: str) -> st
 
     return "\n".join(summary_parts)
 
+def _extract_scene_locations(script: dict) -> list[str]:
+    """Extract unique scene locations in first-appearance order."""
+    locations: list[str] = []
+    seen: set[str] = set()
+    for scene in script.get("scenes", []):
+        location = (scene.get("location") or "").strip()
+        if location and location not in seen:
+            seen.add(location)
+            locations.append(location)
+    return locations
+
 
 async def script_node(state: ProductionState) -> dict:
     """Generate complete scripts for all episodes.
@@ -94,9 +105,9 @@ async def script_node(state: ProductionState) -> dict:
         "stage_started", "开始生成剧本", "正在为所有剧集逐集生成完整剧本..."
     )
 
-    # Accumulate script summaries for context passing
+    # Accumulate script summaries and established scene locations for context passing
     previous_scripts_summary: list[str] = []
-
+    previous_scene_locations: list[str] = []
     # Generate script for each episode
     for idx, ep in enumerate(episodes, start=1):
         episode_id = ep["episode_id"]
@@ -123,6 +134,12 @@ async def script_node(state: ProductionState) -> dict:
 
 """
 
+        existing_scenes_section = ""
+        if previous_scene_locations:
+            existing_scenes_section = """
+已建立场景（前面剧集已经出现，优先复用这些场景名称与空间关系，只有剧情确有必要时才新增场景）：
+""" + "\n".join(f"- {location}" for location in previous_scene_locations) + "\n\n"
+
         prompt = f"""{previous_context}请为以下 AI 短剧编写第{ep['episode_number']}集的完整剧本。
 
 剧名: {project['title']}
@@ -136,8 +153,7 @@ async def script_node(state: ProductionState) -> dict:
 {char_desc}
 
 集数标题: {ep['title']}
-{outline_section}
-{HOT_HOOK_REFERENCE}
+{outline_section}{existing_scenes_section}{HOT_HOOK_REFERENCE}
 
 写作补充：
 - 学习这些爆点钩子的起题方式、冲突密度、身份反差和反转力度，把同样的抓人感落到本集开场、推进和结尾，但不要直接照抄原题或原情节。
@@ -147,6 +163,7 @@ async def script_node(state: ProductionState) -> dict:
 1. 这是 AI 短剧，场景集中、节奏快、每场都要有推进。
 2. 角色行动与对白要清晰，便于后续转分镜和视频生成。
 3. 后续视频生成按 8 秒单镜头限制执行，每个场景都必须能拆成若干个信息清晰、动作可落地的 8 秒镜头。
+4. 禁止在任何输出文本里写“小标题式集数/场次标签”，不要出现“第一集 / 第二集 / 第1集 / 第一场 / 场景一 / Scene 1”这类字样；顺序只通过 `scene_number` 字段表达。
 
 【输出格式 - 必须严格遵守】
 直接输出纯 JSON 对象，禁止使用 markdown 代码块包裹，禁止输出任何其他内容。
@@ -244,10 +261,12 @@ JSON 结构：
 
         project_repo.update_episode(episode_id, script=script, status="scripting", progress=25)
 
-        # Accumulate this script's summary for next episode
+        # Accumulate this script's summary and scene locations for next episode
         script_summary = _extract_script_summary(script, ep['episode_number'], ep['title'])
         previous_scripts_summary.append(script_summary)
-
+        for location in _extract_scene_locations(script):
+            if location not in previous_scene_locations:
+                previous_scene_locations.append(location)
         agent_repo.update_agent_state(
             project_id, agent_id, status="working",
             current_task=f"剧本生成：第{ep['episode_number']}集",

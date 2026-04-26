@@ -107,3 +107,9 @@ def get_task(task_id: str) -> dict | None:
     row = conn.execute("SELECT * FROM tasks WHERE task_id = ?", (task_id,)).fetchone()
     conn.close()
     return dict(row) if row else None
+
+def delete_tasks_by_project(project_id: str):
+    conn = get_connection()
+    conn.execute("DELETE FROM tasks WHERE project_id = ?", (project_id,))
+    conn.commit()
+    conn.close()

@@ -48,11 +48,11 @@ def get_image_config() -> dict:
 async def generate_image(prompt: str, output_path: str,
                          reference_images: list[str] | None = None,
                          aspect_ratio: str = "1:1",
-                         max_retries: int = 3) -> str:
+                         max_retries: int | None = None) -> str:
     """Generate an image. Routes to the configured provider.
 
-    Retries up to max_retries times on transient errors (429, timeout).
-    Uses exponential backoff: 10s, 20s, 40s...
+    max_retries=None or <=0 means unlimited retries.
+    Retries transient/provider failures with backoff until success or a non-retryable error occurs.
     """
     import asyncio
     import time
@@ -71,11 +71,14 @@ async def generate_image(prompt: str, output_path: str,
     timeout_sec = 300  # 5 minutes max per attempt
     effective_prompt = f"{prompt.rstrip().rstrip('.')}" + IMAGE_NO_TEXT_OVERLAY_SUFFIX
 
-    print(f"[ImageGen] START provider={provider} model={model} aspect={aspect_ratio} refs={len(reference_images or [])} prompt_len={len(effective_prompt)} retries={max_retries}")
+    retry_label = "unbounded" if not max_retries or max_retries <= 0 else str(max_retries)
+    print(f"[ImageGen] START provider={provider} model={model} aspect={aspect_ratio} refs={len(reference_images or [])} prompt_len={len(effective_prompt)} retries={retry_label}")
 
-    last_error = None
-    for attempt in range(1, max_retries + 1):
+    attempt = 0
+    while True:
+        attempt += 1
         t0 = time.monotonic()
+        last_error = None
         try:
             if provider == "siliconflow":
                 image_bytes = await asyncio.wait_for(
@@ -107,7 +110,7 @@ async def generate_image(prompt: str, output_path: str,
                 )
 
             elapsed = time.monotonic() - t0
-            print(f"[ImageGen] DONE provider={provider} attempt={attempt}/{max_retries} elapsed={elapsed:.1f}s size={len(image_bytes) if image_bytes else 0}")
+            print(f"[ImageGen] DONE provider={provider} attempt={attempt} elapsed={elapsed:.1f}s size={len(image_bytes) if image_bytes else 0}")
 
             if not image_bytes:
                 raise RuntimeError(f"Image generation returned no data (provider: {provider})")
@@ -124,16 +127,19 @@ async def generate_image(prompt: str, output_path: str,
             elapsed = time.monotonic() - t0
             last_error = str(e)
 
-        # Retry logic — longer backoff for rate-limit errors
-        if attempt < max_retries:
-            is_rate_limit = "429" in last_error or "RESOURCE_EXHAUSTED" in last_error or "rate" in last_error.lower()
-            delay = 30 * (2 ** (attempt - 1)) if is_rate_limit else 10 * (2 ** (attempt - 1))
-            print(f"[ImageGen] RETRY attempt={attempt}/{max_retries} failed: {last_error[:120]} — waiting {delay}s before retry...")
-            await asyncio.sleep(delay)
-        else:
-            print(f"[ImageGen] FAILED all {max_retries} attempts. Last error: {last_error[:200]}")
+        lower_error = last_error.lower()
+        if any(token in lower_error for token in ("api key not configured", "authentication failed", "invalid api key", "permission denied")) or "401" in last_error or "403" in last_error:
+            print(f"[ImageGen] NON-RETRYABLE failure on attempt={attempt}: {last_error[:200]}")
+            raise RuntimeError(last_error)
 
-    raise RuntimeError(f"Image generation failed after {max_retries} retries: {last_error}")
+        if max_retries and max_retries > 0 and attempt >= max_retries:
+            print(f"[ImageGen] FAILED after {attempt} attempts. Last error: {last_error[:200]}")
+            raise RuntimeError(f"Image generation failed after {attempt} attempts: {last_error}")
+
+        is_rate_limit = "429" in last_error or "resource_exhausted" in lower_error or "rate" in lower_error
+        delay = min(300, 30 * (2 ** min(attempt - 1, 3))) if is_rate_limit else min(30, 10 * attempt)
+        print(f"[ImageGen] RETRY attempt={attempt} failed: {last_error[:120]} — waiting {delay}s before retry...")
+        await asyncio.sleep(delay)
 
 
 # ---------------------------------------------------------------------------
@@ -237,11 +243,19 @@ def _openai_generate(prompt: str, config: dict) -> bytes:
 # Google GenAI (Gemini / Imagen)
 # ---------------------------------------------------------------------------
 
-def _get_google_client():
+def _resolve_google_location(model: str | None = None) -> str:
+    configured = get_setting("google_location") or os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+    if model and model.endswith("-image-preview") and configured != "global":
+        print(f"[ImageGen] overriding Google location {configured} -> global for preview image model {model}")
+        return "global"
+    return configured
+
+
+def _get_google_client(model: str | None = None):
     from google import genai
 
     project = get_setting("google_project") or os.environ.get("GOOGLE_CLOUD_PROJECT", "")
-    location = get_setting("google_location") or os.environ.get("GOOGLE_CLOUD_LOCATION", "us-central1")
+    location = _resolve_google_location(model)
 
     if not project:
         raise RuntimeError(
@@ -257,8 +271,8 @@ def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", refer
     from google.genai import types
     from pathlib import Path
 
-    client = _get_google_client()
     model = config["model"]
+    client = _get_google_client(model)
 
     ar_map = {"1:1": "1:1", "16:9": "16:9", "9:16": "9:16", "3:4": "3:4", "4:3": "4:3"}
     # Unsupported ratios map to closest supported: 2:1 -> 16:9, 1:2 -> 9:16
@@ -284,7 +298,7 @@ def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", refer
         temperature=1,
         top_p=0.95,
         max_output_tokens=8192,
-        response_modalities=["TEXT", "IMAGE"],
+        response_modalities=["IMAGE"],
         safety_settings=[
             types.SafetySetting(category="HARM_CATEGORY_HATE_SPEECH", threshold="OFF"),
             types.SafetySetting(category="HARM_CATEGORY_DANGEROUS_CONTENT", threshold="OFF"),
@@ -299,19 +313,23 @@ def _google_generate(prompt: str, config: dict, aspect_ratio: str = "1:1", refer
     )
 
     t0 = time.monotonic()
-    chunk_count = 0
-    for chunk in client.models.generate_content_stream(model=model, contents=contents, config=gen_config):
-        chunk_count += 1
-        if chunk_count % 5 == 0:
-            print(f"[ImageGen] Google streaming... chunk #{chunk_count} elapsed={time.monotonic()-t0:.1f}s")
-        if hasattr(chunk, "candidates") and chunk.candidates:
-            for candidate in chunk.candidates:
-                if hasattr(candidate, "content") and candidate.content:
-                    for part in candidate.content.parts or []:
-                        if hasattr(part, "inline_data") and part.inline_data:
-                            print(f"[ImageGen] Google got image data after {time.monotonic()-t0:.1f}s ({chunk_count} chunks)")
-                            return part.inline_data.data
-    print(f"[ImageGen] Google stream ended with no image after {time.monotonic()-t0:.1f}s ({chunk_count} chunks)")
+    response = client.models.generate_content(model=model, contents=contents, config=gen_config)
+    response_parts = getattr(response, "parts", None) or []
+    if response_parts:
+        for part in response_parts:
+            if hasattr(part, "inline_data") and part.inline_data:
+                print(f"[ImageGen] Google got image data after {time.monotonic()-t0:.1f}s")
+                return part.inline_data.data
+
+    if hasattr(response, "candidates") and response.candidates:
+        for candidate in response.candidates:
+            if hasattr(candidate, "content") and candidate.content:
+                for part in candidate.content.parts or []:
+                    if hasattr(part, "inline_data") and part.inline_data:
+                        print(f"[ImageGen] Google got image data after {time.monotonic()-t0:.1f}s via candidates")
+                        return part.inline_data.data
+
+    print(f"[ImageGen] Google response ended with no image after {time.monotonic()-t0:.1f}s")
     return None
 
 
@@ -375,7 +393,7 @@ def _test_google(model: str) -> dict:
     try:
         from google.genai import types
 
-        client = _get_google_client()
+        client = _get_google_client(model)
         contents = [types.Content(role="user", parts=[types.Part(text="A small blue dot")])]
         gen_config = types.GenerateContentConfig(
             temperature=1,
@@ -389,13 +407,19 @@ def _test_google(model: str) -> dict:
             ],
         )
         response = client.models.generate_content(model=model, contents=contents, config=gen_config)
-        has_image = False
-        if hasattr(response, "candidates") and response.candidates:
+        has_image = any(
+            getattr(part, "inline_data", None)
+            for part in (getattr(response, "parts", None) or [])
+        )
+        if not has_image and hasattr(response, "candidates") and response.candidates:
             for c in response.candidates:
                 if hasattr(c, "content") and c.content:
                     for part in c.content.parts or []:
                         if hasattr(part, "inline_data") and part.inline_data:
                             has_image = True
+                            break
+                if has_image:
+                    break
         if has_image:
             return {"success": True, "message": f"Gemini OK ({model})"}
         return {"success": False, "message": f"Connected but no image ({model})"}

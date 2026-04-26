@@ -106,6 +106,24 @@ def build_character_sheet_prompt(
     return template.format(name=name, role=role, description=". ".join(details))
 
 
+def build_scene_asset_prompt(scene_name: str, scene_descriptions: list[str] | None, series_type: str) -> str:
+    style = (
+        "anime style establishing shot, vibrant, cel-shaded, cinematic composition, illustration"
+        if series_type == "animation"
+        else "photorealistic establishing shot, cinematic, natural lighting, high quality, wide angle"
+    )
+    context_items = [d.strip() for d in (scene_descriptions or []) if d and d.strip()]
+    context = ""
+    if context_items:
+        context = " Visual context from the script: " + " | ".join(context_items[:4])
+    return (
+        f"{scene_name}, {style}. "
+        "Create a clear environment reference image of this location, showing the physical space, layout, lighting, atmosphere, and production design. "
+        "Use any script context only to infer the place design; do not render plot events, character action, readable screen content, subtitles, labels, logos, or watermarks."
+        f"{context}"
+    )
+
+
 def build_shot_dual_prompt_request(
     shot: dict,
     storyboard_entry: dict | None,

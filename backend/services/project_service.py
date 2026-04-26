@@ -3,7 +3,7 @@ Project service - SQLite-backed project management with stage tracking.
 """
 
 import json
-from repositories import project_repo
+from repositories import project_repo, task_repo
 from storage.db import get_connection
 from repositories.production_event_repo import get_project_stages, get_current_stage, get_production_events, get_assets
 from models import (
@@ -152,7 +152,15 @@ class ProjectService:
         if not p:
             return False
 
+        from routers.execution_langgraph import cancel_running_graph
+        from workers.task_worker import cancel_project_task
+
+        cancel_running_graph(project_id)
+        cancel_project_task(project_id)
+        task_repo.delete_tasks_by_project(project_id)
+
         conn = get_connection()
         conn.execute("DELETE FROM projects WHERE project_id = ?", (project_id,))
         conn.commit()
+        conn.close()
         return True
