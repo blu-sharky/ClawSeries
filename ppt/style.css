@@ -326,9 +326,14 @@ strong { color: var(--fg); font-weight: 520; }
   padding: 6px;
 }
 .site-url {
+  display: block;
   font: 600 18px/1 var(--mono);
   letter-spacing: .12em;
   color: var(--fg);
+  text-decoration: none;
+}
+.site-url:hover {
+  text-decoration: underline;
 }
 .thanks { margin-top: 48px; color: var(--fg); font-size: 74px; line-height: 1; font-weight: 300; }
 .footer-line { margin-top: 26px; font: 13px/1 var(--mono); letter-spacing: .16em; color: var(--text-tertiary); }
