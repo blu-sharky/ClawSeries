@@ -6,6 +6,7 @@ For each shot:
 3. Generate video using video_prompt + first-frame (or character sheets as fallback)
 """
 
+import asyncio
 import hashlib
 import json
 import re
@@ -132,6 +133,101 @@ async def _generate_shot_prompts(
         "appearing_characters": appearing_chars,
     }
 
+async def _render_shot_video(
+    project_id: str,
+    episode_id: str,
+    shot: dict,
+    agent_id: str,
+    video_prompt: str,
+    first_frame_path: str | None,
+    semaphore: asyncio.Semaphore,
+    aspect_ratio: str,
+    duration_value,
+    video_provider: str,
+    video_model: str,
+    shot_number,
+    image_prompt_preview: str,
+    current_stage: str,
+    concurrency_index: int,
+    total_jobs: int,
+    episode_number,
+ ) -> bool:
+    shot_id = shot["shot_id"]
+    async with semaphore:
+        add_production_event(
+            project_id, agent_id, current_stage,
+            "video_started", f"镜头 {shot_number} 视频开始",
+            f"开始并发生成第{episode_number}集镜头 {shot_number} 视频（{concurrency_index}/{total_jobs}）",
+            episode_id=episode_id, shot_id=shot_id,
+            payload={"prompt": video_prompt[:200], "has_first_frame": first_frame_path is not None}
+        )
+        try:
+            video_output = str(project_renders_dir(project_id) / f"{shot_id}.mp4")
+            add_shot_trace(
+                shot_id, project_id, "video_generation", agent_id=agent_id,
+                prompt_summary=video_prompt[:100],
+                prompt_hash=hashlib.md5(video_prompt.encode()).hexdigest(),
+                provider_name=video_provider, model_name=video_model,
+            )
+
+            video_refs = []
+            if first_frame_path:
+                real_frame_path = str(RENDERS_DIR.parent / first_frame_path.lstrip("/"))
+                video_refs.append(real_frame_path)
+
+            await generate_video(
+                video_prompt, video_output,
+                reference_images=video_refs if video_refs else None,
+                duration_seconds=parse_duration_seconds(duration_value),
+                aspect_ratio=aspect_ratio,
+            )
+
+            actual_duration = None
+            try:
+                import subprocess
+                probe = subprocess.run(
+                    ["ffprobe", "-v", "quiet", "-show_entries",
+                     "format=duration", "-of", "csv=p=0", video_output],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if probe.returncode == 0 and probe.stdout.strip():
+                    actual_duration = f"{int(float(probe.stdout.strip()))}s"
+            except Exception:
+                pass
+
+            update_shot(shot_id, status="completed",
+                        video_url=f"/renders/{project_id}/{shot_id}.mp4",
+                        duration=actual_duration or shot.get("duration", ""))
+            add_shot_trace(
+                shot_id, project_id, "video_completed", agent_id=agent_id,
+                output_path=video_output, provider_name=video_provider,
+                model_name=video_model,
+            )
+            add_production_event(
+                project_id, agent_id, current_stage,
+                "output_captured", f"镜头 {shot_number} 输出", "视频已生成",
+                episode_id=episode_id, shot_id=shot_id,
+                payload={"output": f"/renders/{project_id}/{shot_id}.mp4"}
+            )
+            add_production_event(
+                project_id, agent_id, current_stage,
+                "shot_completed", f"镜头 {shot_number} 完成", "视频已生成",
+                episode_id=episode_id, shot_id=shot_id,
+                payload={
+                    "image_prompt": image_prompt_preview[:100],
+                    "video_prompt": video_prompt[:100],
+                    "first_frame_path": first_frame_path,
+                    "video_url": f"/renders/{project_id}/{shot_id}.mp4",
+                }
+            )
+            return True
+        except Exception as e:
+            update_shot(shot_id, status="failed")
+            add_shot_trace(
+                shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
+            )
+            return False
+
 
 async def shots_node(state: ProductionState) -> dict:
     """Generate first-frame images and videos for all shots in an episode.
@@ -216,11 +312,15 @@ async def shots_node(state: ProductionState) -> dict:
         proj_config = json.loads(proj_config)
     series_type = state.get("series_type") or proj_config.get("series_type", "live-action")
 
-    # Auto mode: generate prompts, first frames, then videos
+    # Auto mode: generate prompts and first frames sequentially, then videos concurrently
     shots_completed = 0
     image_configured = is_image_configured() or is_image_demo_mode()
     video_ok = is_video_configured()
     image_aspect_ratio = get_setting("video_aspect_ratio", "16:9")
+    video_config = get_video_config() if video_ok else None
+    video_parallelism = 5
+    video_jobs: list[asyncio.Task] = []
+    video_semaphore = asyncio.Semaphore(video_parallelism)
 
     for idx, shot in enumerate(shots, start=1):
         shot_id = shot["shot_id"]
@@ -282,8 +382,8 @@ async def shots_node(state: ProductionState) -> dict:
                     episode_id=episode_id, shot_id=shot_id,
                 )
 
-        # Step 2: Generate video using video_prompt + first-frame (or character sheets)
-        if video_ok:
+        # Step 2: Queue video generation immediately after this shot's first frame is ready
+        if video_ok and video_config:
             add_production_event(
                 project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
                 "prompt_issued", f"镜头 {shot['shot_number']} 视频生成",
@@ -291,76 +391,27 @@ async def shots_node(state: ProductionState) -> dict:
                 episode_id=episode_id, shot_id=shot_id,
                 payload={"prompt": video_prompt[:200], "has_first_frame": first_frame_path is not None}
             )
-
-            try:
-                video_output = str(project_renders_dir(project_id) / f"{shot_id}.mp4")
-                video_config = get_video_config()
-                add_shot_trace(
-                    shot_id, project_id, "video_generation", agent_id=agent_id,
-                    prompt_summary=video_prompt[:100],
-                    prompt_hash=hashlib.md5(video_prompt.encode()).hexdigest(),
-                    provider_name=video_config["provider"], model_name=video_config["model"],
-                )
-
-                # Video reference: first-frame only (already contains characters)
-                video_refs = []
-                if first_frame_path:
-                    real_frame_path = str(RENDERS_DIR.parent / first_frame_path.lstrip("/"))
-                    video_refs.append(real_frame_path)
-
-                await generate_video(
-                    video_prompt, video_output,
-                    reference_images=video_refs if video_refs else None,
-                    duration_seconds=parse_duration_seconds(shot.get("duration")),
+            video_jobs.append(asyncio.create_task(
+                _render_shot_video(
+                    project_id=project_id,
+                    episode_id=episode_id,
+                    shot=shot,
+                    agent_id=agent_id,
+                    video_prompt=video_prompt,
+                    first_frame_path=first_frame_path,
+                    semaphore=video_semaphore,
                     aspect_ratio=video_config.get("aspect_ratio", "16:9"),
+                    duration_value=shot.get("duration"),
+                    video_provider=video_config["provider"],
+                    video_model=video_config["model"],
+                    shot_number=shot["shot_number"],
+                    image_prompt_preview=image_prompt,
+                    current_stage=ProductionStage.SHOTS_GENERATING.value,
+                    concurrency_index=len(video_jobs) + 1,
+                    total_jobs=len(shots),
+                    episode_number=ep["episode_number"],
                 )
-
-                # Read actual video duration with ffprobe
-                actual_duration = None
-                try:
-                    import subprocess
-                    probe = subprocess.run(
-                        ["ffprobe", "-v", "quiet", "-show_entries",
-                         "format=duration", "-of", "csv=p=0", video_output],
-                        capture_output=True, text=True, timeout=10,
-                    )
-                    if probe.returncode == 0 and probe.stdout.strip():
-                        actual_duration = f"{int(float(probe.stdout.strip()))}s"
-                except Exception:
-                    pass
-
-                update_shot(shot_id, status="completed",
-                            video_url=f"/renders/{project_id}/{shot_id}.mp4",
-                            duration=actual_duration or shot.get("duration", ""))
-                add_shot_trace(
-                    shot_id, project_id, "video_completed", agent_id=agent_id,
-                    output_path=video_output, provider_name=video_config["provider"],
-                    model_name=video_config["model"],
-                )
-                shots_completed += 1
-
-                add_production_event(
-                    project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-                    "output_captured", f"镜头 {shot['shot_number']} 输出", "视频已生成",
-                    episode_id=episode_id, shot_id=shot_id,
-                    payload={"output": f"/renders/{project_id}/{shot_id}.mp4"}
-                )
-                add_production_event(
-                    project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
-                    "shot_completed", f"镜头 {shot['shot_number']} 完成", "视频已生成",
-                    episode_id=episode_id, shot_id=shot_id,
-                    payload={
-                        "image_prompt": image_prompt[:100],
-                        "video_prompt": video_prompt[:100],
-                        "first_frame_path": first_frame_path,
-                        "video_url": f"/renders/{project_id}/{shot_id}.mp4",
-                    }
-                )
-            except Exception as e:
-                update_shot(shot_id, status="failed")
-                add_shot_trace(
-                    shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
-                )
+            ))
         else:
             update_shot(shot_id, status="failed")
             add_shot_trace(
@@ -368,15 +419,28 @@ async def shots_node(state: ProductionState) -> dict:
                 error_reason="Video provider not configured"
             )
 
-        # Update progress
-        episode_progress = 72 + int((shots_completed / max(1, len(shots))) * 13)
+        if len(video_jobs) >= video_parallelism:
+            done, pending = await asyncio.wait(video_jobs, return_when=asyncio.FIRST_COMPLETED)
+            video_jobs = list(pending)
+            for finished in done:
+                success = await finished
+                if success:
+                    shots_completed += 1
+
+        episode_progress = 70 + int(((idx - len(video_jobs)) / max(1, len(shots))) * 15)
         project_repo.update_episode(episode_id, status="rendering", progress=episode_progress)
         agent_repo.update_agent_state(
             project_id, agent_id, status="working",
-            current_task=f"镜头视频：第{ep['episode_number']}集 / 镜头 {shot['shot_number']}",
+            current_task=f"镜头处理：第{ep['episode_number']}集 / 镜头 {shot['shot_number']}（并发视频最多{video_parallelism}个）",
             completed_tasks=shots_completed, total_tasks=max(1, len(shots)),
             progress=int(idx / max(1, len(shots)) * 100)
         )
+
+    if video_jobs:
+        for finished in asyncio.as_completed(video_jobs):
+            success = await finished
+            if success:
+                shots_completed += 1
 
     # Check if all shots completed
     if shots_completed == len(shots):

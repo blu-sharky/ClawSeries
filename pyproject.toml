@@ -23,4 +23,5 @@ dependencies = [
     "librosa",
     "ffmpeg-python",
     "audiostretchy>=1.3.5",
+    "asyncio>=4.0.0",
 ]

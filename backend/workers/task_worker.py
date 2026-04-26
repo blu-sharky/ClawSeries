@@ -790,21 +790,42 @@ async def _execute_episode_shot_video(project_id: str, task: dict):
         _queue_next_episode_shot_task(project_id)
         return
 
-    for idx, shot in enumerate(shots, start=1):
-        completed = await _generate_one_shot_video(project_id, episode, shot, agent_id, series_type)
-        if completed:
-            shots_completed += 1
+    video_parallelism = 5
+    video_semaphore = asyncio.Semaphore(video_parallelism)
+    video_jobs: list[asyncio.Task] = []
 
-        episode_progress = 72 + int((shots_completed / max(1, len(shots))) * 13)
+    for idx, shot in enumerate(shots, start=1):
+        await _generate_one_shot_video(project_id, episode, shot, agent_id, series_type, skip_video=True)
+        saved_shot = next(s for s in get_shots_by_episode(episode_id) if s["shot_id"] == shot["shot_id"])
+        video_jobs.append(
+            asyncio.create_task(
+                _render_saved_shot_video(project_id, episode, saved_shot, agent_id, video_semaphore, idx, len(shots))
+            )
+        )
+
+        if len(video_jobs) >= video_parallelism:
+            done, pending = await asyncio.wait(video_jobs, return_when=asyncio.FIRST_COMPLETED)
+            video_jobs = list(pending)
+            for finished in done:
+                completed = await finished
+                if completed:
+                    shots_completed += 1
+
+        episode_progress = 70 + int(((idx - len(video_jobs)) / max(1, len(shots))) * 15)
         project_repo.update_episode(episode_id, status="rendering", progress=episode_progress)
         await _push_progress_update(project_id, episode_id)
         await _set_agent_status(
             project_id, agent_id, status="working",
-            current_task=f"镜头视频：第{episode['episode_number']}集 / 镜头 {shot['shot_number']}",
+            current_task=f"镜头处理：第{episode['episode_number']}集 / 镜头 {shot['shot_number']}（并发视频最多{video_parallelism}个）",
             completed_tasks=shots_completed, total_tasks=max(1, len(shots)),
             progress=int(idx / max(1, len(shots)) * 100)
         )
 
+    if video_jobs:
+        for finished in asyncio.as_completed(video_jobs):
+            completed = await finished
+            if completed:
+                shots_completed += 1
 
     if shots_completed == len(shots):
         update_project_stage(project_id, ProductionStage.SHOTS_GENERATING.value, "completed")
@@ -1037,6 +1058,98 @@ async def _generate_one_shot_video(project_id: str, episode: dict, shot: dict, a
             shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
         )
     return False
+
+async def _render_saved_shot_video(
+    project_id: str,
+    episode: dict,
+    shot: dict,
+    agent_id: str,
+    semaphore: asyncio.Semaphore,
+    concurrency_index: int,
+    total_jobs: int,
+) -> bool:
+    shot_id = shot["shot_id"]
+    shot_number = shot.get("shot_number")
+    video_prompt = shot.get("video_prompt") or shot.get("description", "")
+    first_frame_path = shot.get("first_frame_path")
+    image_prompt = shot.get("image_prompt") or ""
+    video_config = get_video_config()
+
+    async with semaphore:
+        print(f"[ShotGen] concurrent video start shot={shot_id} slot={concurrency_index}/{total_jobs}")
+        add_production_event(
+            project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+            "video_started", f"镜头 {shot_number} 视频开始",
+            f"开始并发生成第{episode['episode_number']}集镜头 {shot_number} 视频（{concurrency_index}/{total_jobs}）",
+            episode_id=episode["episode_id"], shot_id=shot_id,
+            payload={"prompt": video_prompt[:200], "has_first_frame": first_frame_path is not None}
+        )
+        try:
+            RENDERS_DIR.mkdir(parents=True, exist_ok=True)
+            output_path = str(project_renders_dir(project_id) / f"{shot_id}.mp4")
+            add_shot_trace(
+                shot_id, project_id, "video_generation", agent_id=agent_id,
+                prompt_summary=video_prompt[:100],
+                prompt_hash=hashlib.md5(video_prompt.encode()).hexdigest(),
+                provider_name=video_config["provider"], model_name=video_config["model"],
+            )
+
+            video_refs = []
+            if first_frame_path:
+                video_refs.append(str(RENDERS_DIR.parent / first_frame_path.lstrip("/")))
+
+            print(f"[ShotGen] video refs: {len(video_refs)} (first-frame only) | provider={video_config['provider']} | aspect={video_config.get('aspect_ratio', '16:9')}")
+            await generate_video(
+                video_prompt, output_path,
+                reference_images=video_refs if video_refs else None,
+                duration_seconds=parse_duration_seconds(shot.get("duration")),
+                aspect_ratio=video_config.get("aspect_ratio", "16:9"),
+            )
+
+            actual_duration = None
+            try:
+                probe = subprocess.run(
+                    ["ffprobe", "-v", "quiet", "-show_entries",
+                     "format=duration", "-of", "csv=p=0", output_path],
+                    capture_output=True, text=True, timeout=10,
+                )
+                if probe.returncode == 0 and probe.stdout.strip():
+                    actual_duration = f"{int(float(probe.stdout.strip()))}s"
+            except Exception:
+                pass
+
+            update_shot(shot_id, status="completed",
+                        video_url=f"/renders/{project_id}/{shot_id}.mp4",
+                        duration=actual_duration or shot.get("duration", ""))
+            add_shot_trace(
+                shot_id, project_id, "video_completed", agent_id=agent_id,
+                output_path=output_path, provider_name=video_config["provider"], model_name=video_config["model"],
+            )
+            await _emit_agent_output(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                f"镜头 {shot_number} 视频生成完成：/renders/{project_id}/{shot_id}.mp4",
+                f"镜头 {shot_number} 输出", "视频已生成",
+                episode_id=episode["episode_id"], shot_id=shot_id
+            )
+            add_production_event(
+                project_id, agent_id, ProductionStage.SHOTS_GENERATING.value,
+                "shot_completed", f"镜头 {shot_number} 完成", "视频已生成",
+                episode_id=episode["episode_id"], shot_id=shot_id,
+                payload={
+                    "image_prompt": image_prompt[:100],
+                    "video_prompt": video_prompt[:100],
+                    "first_frame_path": first_frame_path,
+                    "video_url": f"/renders/{project_id}/{shot_id}.mp4",
+                }
+            )
+            return True
+        except Exception as e:
+            print(f"[ShotGen] concurrent video FAILED: {e}")
+            update_shot(shot_id, status="failed")
+            add_shot_trace(
+                shot_id, project_id, "video_failed", agent_id=agent_id, error_reason=str(e)
+            )
+            return False
 
 
 # === WhisperX subtitle helper ===

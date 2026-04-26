@@ -98,6 +98,31 @@ def get_video_config() -> dict:
         "aspect_ratio": get_setting("video_aspect_ratio", "16:9"),
     }
 
+def _is_veo_model(config: dict) -> bool:
+    return "veo" in str(config.get("model", "")).lower()
+
+
+def _is_audio_filtered_error(message: str) -> bool:
+    lower = str(message or "").lower()
+    return any(token in lower for token in (
+        "public_error_audio_filtered",
+        "audio_filtered",
+        "audio for your prompt",
+        "raimediafilteredreasons",
+    ))
+
+
+def _make_veo_audio_safe_prompt(prompt: str) -> str:
+    sanitized = re.sub(r"spoken dialogue\s*:\s*[^\n,.]+", "", prompt, flags=re.IGNORECASE)
+    sanitized = re.sub(r"\s+,", ",", sanitized)
+    sanitized = re.sub(r"\s{2,}", " ", sanitized).strip(" ,.")
+    return (
+        f"{sanitized}. "
+        "No audible dialogue, no voiceover, no lyrics, no singing. "
+        "Ambient scene sound only. Characters may emote and move, but do not speak audibly. "
+        "Any visible on-screen text must be in Chinese (中文)."
+    )
+
 
 async def _generate_openai_video(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio):
     """Generate video via OpenAI Sora API (POST /videos, poll, download)."""
@@ -134,7 +159,7 @@ async def _generate_openai_video(config, prompt, output_path, ref_list, duration
         'Content-Type': 'application/json',
     }
 
-    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False) as client:
         # Submit
         resp = await client.post(f'{base}/videos', headers=headers, json=payload)
         resp.raise_for_status()
@@ -142,7 +167,7 @@ async def _generate_openai_video(config, prompt, output_path, ref_list, duration
         video_id = data['id']
 
         # Poll for completion
-        for _ in range(120):
+        while True:
             await asyncio.sleep(5)
             status_resp = await client.get(f'{base}/videos/{video_id}', headers=headers)
             status_resp.raise_for_status()
@@ -163,8 +188,6 @@ async def _generate_openai_video(config, prompt, output_path, ref_list, duration
                 error = status_data.get('error', {})
                 msg = error.get('message', 'Unknown error') if isinstance(error, dict) else str(error)
                 raise RuntimeError(f'Video generation failed: {msg}')
-
-        raise RuntimeError('Video generation timed out')
 
 
 async def _upload_vectorengine_image(client, image_path: str) -> str:
@@ -203,7 +226,7 @@ async def _generate_vectorengine_video(config, prompt, output_path, ref_list, du
         'Accept': 'application/json',
     }
 
-    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False) as client:
         if ref_list:
             uploaded = []
             for img_path in ref_list:
@@ -224,7 +247,7 @@ async def _generate_vectorengine_video(config, prompt, output_path, ref_list, du
             raise RuntimeError(f'VectorEngine did not return task id: {data}')
 
         # Poll for completion
-        for _ in range(120):
+        while True:
             await asyncio.sleep(5)
             status_resp = await client.get(
                 f'{base}/v1/video/query', headers=headers, params={'id': task_id},
@@ -244,8 +267,6 @@ async def _generate_vectorengine_video(config, prompt, output_path, ref_list, du
 
             if status_data.get('status') == 'failed':
                 raise RuntimeError(f'VectorEngine generation failed: {status_data}')
-
-        raise RuntimeError('VectorEngine video generation timed out')
 
 
 async def generate_video(prompt: str, output_path: str,
@@ -278,8 +299,10 @@ async def generate_video(prompt: str, output_path: str,
     if not config['api_key']:
         raise RuntimeError('Video API key not configured. Please configure in Settings.')
 
-    # Append language emphasis to prompt
-    prompt = f"{prompt}. The dialogue and any on-screen text must be in Chinese (中文)."
+    if _is_veo_model(config):
+        prompt = _make_veo_audio_safe_prompt(prompt)
+    else:
+        prompt = f"{prompt}. The dialogue and any on-screen text must be in Chinese (中文)."
 
     attempt = 0
     while True:
@@ -287,6 +310,9 @@ async def generate_video(prompt: str, output_path: str,
         try:
             return await _generate_video_inner(config, prompt, output_path, ref_list, duration_seconds, aspect_ratio)
         except Exception as e:
+            if _is_veo_model(config) and _is_audio_filtered_error(str(e)):
+                print(f"[Video] Veo audio filter hit on attempt {attempt}; retrying with audio-safe prompt")
+                prompt = _make_veo_audio_safe_prompt(prompt)
             wait = min(30, 10 * attempt)  # 10s, 20s, 30s, 30s, ...
             print(f"[Video] attempt {attempt} failed: {e}. Retrying in {wait}s...")
             await asyncio.sleep(wait)
@@ -317,7 +343,7 @@ async def _generate_video_inner(config, prompt, output_path, ref_list, duration_
     if ref_list:
         payload["reference_image"] = ref_list[0]
 
-    async with httpx.AsyncClient(timeout=300.0, trust_env=False) as client:
+    async with httpx.AsyncClient(timeout=None, trust_env=False) as client:
         # Submit generation request
         resp = await client.post(url, headers=headers, json=payload)
         resp.raise_for_status()
@@ -326,7 +352,7 @@ async def _generate_video_inner(config, prompt, output_path, ref_list, duration_
 
         # Poll for completion
         status_url = f"{config['base_url'].rstrip('/')}/video/status/{task_id}"
-        for _ in range(120):  # Max 10 minutes
+        while True:
             await asyncio.sleep(5)
             status_resp = await client.get(status_url, headers=headers)
             status_resp.raise_for_status()
@@ -346,8 +372,6 @@ async def _generate_video_inner(config, prompt, output_path, ref_list, duration_
             if status_data.get("status") == "failed":
                 error = status_data.get("error", "Unknown error")
                 raise RuntimeError(f"Video generation failed: {error}")
-
-        raise RuntimeError("Video generation timed out")
 
 
 def test_video_connection(api_key: str, base_url: str, model: str,
